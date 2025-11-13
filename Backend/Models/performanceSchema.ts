@@ -3,7 +3,6 @@ import { Document, Types } from 'mongoose';
 
 // enum
 
-
 export enum AppraisalCycleStatus {
   DRAFT = 'Draft',
   ACTIVE = 'Active',
@@ -18,17 +17,13 @@ export enum AppraisalStatus {
   DISPUTED = 'Disputed',
 }
 
-
-//appraisal template
-
-
 @Schema({ collection: 'AppraisalTemplate', timestamps: true })
 export class AppraisalTemplate extends Document {
   @Prop({ type: Types.ObjectId, required: true, auto: true })
   declare _id: Types.ObjectId; // Primary Key
 
   @Prop({ required: true })
-  name: string; 
+  name: string;
 
   @Prop({
     type: [
@@ -61,7 +56,6 @@ export class AppraisalTemplate extends Document {
 
 export const AppraisalTemplateSchema = SchemaFactory.createForClass(AppraisalTemplate);
 
-
 // appraisal cycle
 
 @Schema({ collection: 'AppraisalCycle', timestamps: true })
@@ -70,7 +64,7 @@ export class AppraisalCycle extends Document {
   declare _id: Types.ObjectId; // Primary Key
 
   @Prop({ required: true })
-  name: string; 
+  name: string;
 
   @Prop({ type: Types.ObjectId, ref: 'AppraisalTemplate', required: true })
   template: Types.ObjectId; // REF (AppraisalTemplate)
@@ -80,16 +74,16 @@ export class AppraisalCycle extends Document {
 
   @Prop({ required: true })
   endDate: Date;
-
-  @Prop({ type: String, enum: Object.values(AppraisalCycleStatus), default: AppraisalCycleStatus.DRAFT })
+  //ype: String,enum: Object.values(AppraisalCycleStatus),default: AppraisalCycleStatus.DRAFT
+  @Prop({
+    type: String,
+    enum: Object.values(AppraisalCycleStatus),
+    default: AppraisalCycleStatus.DRAFT,
+  })
   status: AppraisalCycleStatus;
 }
 
 export const AppraisalCycleSchema = SchemaFactory.createForClass(AppraisalCycle);
-
-
-// performance appraisal
-
 
 @Schema({ collection: 'PerformanceAppraisal', timestamps: true })
 export class PerformanceAppraisal extends Document {
@@ -105,7 +99,11 @@ export class PerformanceAppraisal extends Document {
   @Prop({ type: Types.ObjectId, ref: 'AppraisalCycle', required: true })
   cycle: Types.ObjectId; // REF  (AppraisalCycle)
 
-  @Prop({ type: String, enum: Object.values(AppraisalStatus), default: AppraisalStatus.PENDING })
+  @Prop({
+    type: String,
+    enum: Object.values(AppraisalStatus),
+    default: AppraisalStatus.PENDING,
+  })
   status: AppraisalStatus;
 
   @Prop({
@@ -142,7 +140,7 @@ export class PerformanceAppraisal extends Document {
   finalRating?: number;
 
   @Prop()
-  disputeReason?: string; // Used if status = 'Disputed' 
+  disputeReason?: string; // Used if status = 'Disputed'
 
   @Prop({
     type: {
