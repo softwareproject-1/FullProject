@@ -1,5 +1,5 @@
 # Node.js
-node_modules/
+**/node_modules/
 npm-debug.log
 yarn-error.log
 
@@ -11,7 +11,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment variables
-.env
+**/.env*
 
 # OS-specific files
 .DS_Store
