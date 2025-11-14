@@ -41,6 +41,7 @@ export class OnboardingPlan extends Document {
 
   @Prop({ type: [{ 
     taskName: { type: String },
+    description: { type: String },
     category: { type: String, enum: Object.values(TaskCategory) },
     dueDate: { type: Date },
     status: { type: String, enum: Object.values(TaskStatus) },
@@ -50,6 +51,7 @@ export class OnboardingPlan extends Document {
   }] })
   tasks: Array<{
     taskName: string;
+    description: string;
     category: TaskCategory;
     dueDate: Date;
     status: TaskStatus;

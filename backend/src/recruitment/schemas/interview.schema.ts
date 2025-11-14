@@ -13,6 +13,15 @@ export class Interview extends Document {
   @Prop({ type: Types.ObjectId, ref: 'Application', required: true })
   applicationId: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'Candidate', required: true })
+  candidateId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'JobPosting', required: true })
+  jobId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'AssessmentForm' })
+  assessmentFormId: Types.ObjectId;
+
   @Prop({ required: true })
   scheduledDate: Date;
 
