@@ -1,9 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
+import type { ObjectId } from 'mongoose';
 
-// ───────────────────────────────
-// 🔹 ENUMS FOR EMPLOYEE ROLES / DEPARTMENTS
-// ───────────────────────────────
+
 export enum DepartmentType {
   HR = 'HR',
   Finance = 'Finance',
@@ -38,35 +37,91 @@ export enum EmploymentStatus {
   Offboarding = 'Offboarding',
   Deactivated = 'Deactivated',
   Active = 'Active',
-  onLeave = 'On Leave',
+  OnLeave = 'On Leave',
   Resigned = 'Resigned',
   Terminated = 'Terminated',
 }
 
-// ───────────────────────────────
-// 🔹 EMPLOYEE SCHEMA
-// ───────────────────────────────
+export enum EmploymentType {
+  FullTime = 'Full Time',
+  PartTime = 'Part Time',
+  Internship = 'Internship',
+  Other = 'Other',
+}
+
+
 export type EmployeeDocument = HydratedDocument<Employee>;
 
 @Schema({ timestamps: true })
 export class Employee {
-  @Prop({ required: true, minlength: 2, maxlength: 50 })
-  firstName: string;
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',   
+    required: true,
+  })
+  userAccount: Types.ObjectId;
 
   @Prop({ required: true, minlength: 2, maxlength: 50 })
-  lastName: string;
+  firstName : string;
+
+  @Prop({ required: true, minlength: 2, maxlength: 50 })
+  lastName : string;
+
+  @Prop({ required: true, unique: true, minlength: 5, maxlength: 10 })
+  employeeId  : string;
+    
+  @Prop({required: true})
+  hireDate: Date;
+
+  @Prop({required: true, enum: Object.values(EmploymentType)})
+  employmentType : EmploymentType;
+
+  @Prop({required: true, enum: Object.values(EmploymentStatus)})
+  employmentStatus : EmploymentStatus;
+  
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Position',   
+    required: true,
+  })
+  position: Types.ObjectId;
+
+    @Prop({
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Employee',
+      default: null,
+    })
+    manager?: mongoose.Types.ObjectId;
+
+  @Prop({
+    type: {
+      bankName: { type: String },
+      accountNumber: { type: String },
+    },
+    required: true,
+  })
+  bankDetails: {
+    bankName: string;
+    accountNumber: string;
+  };
+
+  @Prop({required: true, unique: true, minlength: 5, maxlength: 15})
+  socialInsuranceNumber : string;
+
+   @Prop()
+   terminationDate?: Date;
 
   @Prop({ required: true, unique: true, minlength: 5, maxlength: 255 })
   email: string;
 
-  @Prop({ minlength: 10, maxlength: 15 })
+  @Prop({ required: true, minlength: 10, maxlength: 15 })
   phone: string;
 
   @Prop()
-  profilePicture?: string;
+   address: string;
 
-  @Prop({ required: true, unique: true })
-  employeeCode: string;
+  @Prop()
+  profilePictureUrl?: string;
 
   @Prop({ type: String, enum: Object.values(RoleType), required: true })
   role: RoleType;
@@ -75,24 +130,11 @@ export class Employee {
   department: DepartmentType;
 
   @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Employee',
-    default: null,
-  })
-  managerId?: Types.ObjectId;
-
-  @Prop({
     type: String,
     enum: Object.values(EmploymentStatus),
     default: EmploymentStatus.Active,
   })
-  employmentStatus: EmploymentStatus;
-
-  @Prop()
-  hireDate?: Date;
-
-  @Prop()
-  contractType?: string;
+  status: EmploymentStatus;
 
   @Prop()
   payGrade?: string;
@@ -100,26 +142,17 @@ export class Employee {
   @Prop()
   baseSalary?: number;
 
-  @Prop()
-  bankAccount?: string;
-
   @Prop({ min: 1, max: 5 })
   lastPerformanceRating?: number;
 
   @Prop({ type: Date, default: null })
   lastAppraisalDate?: Date;
 
-  @Prop({ required: true, unique: true, minlength: 5, maxlength: 20 })
-  username: string;
-
-  @Prop({ required: true, minlength: 8 })
-  passwordHash: string;
-
   @Prop({ default: true })
   isActive: boolean;
 
   @Prop({ default: 'Annual', enum: Object.values(leaveType) })
-  onLeave?: string;
+  LeaveType?: string;
 }
 
 export const EmployeeSchema = SchemaFactory.createForClass(Employee);
