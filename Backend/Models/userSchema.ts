@@ -6,7 +6,7 @@ export enum Role {
   Admin = 'Admin',
   Employee = 'Employee',
   HR = 'HR',
-  Payroll = 'Payroll',
+  Payroll = 'Payroll'
 }
 
 export type UserDocument = User & Document;
