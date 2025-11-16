@@ -1,0 +1,6 @@
+.env 
+package-lock.json
+node_modules
+dist
+package.json
+dummy_data_for_atlas.txt
