@@ -15,7 +15,7 @@
     "allowSyntheticDefaultImports": true,
 
     /** Output options */
-    "outDir": "./dist",
+    "outDir": "TimeManagment/dist",
     "sourceMap": true,
     "declaration": true,
     "removeComments": true,
@@ -31,6 +31,6 @@
     "strictNullChecks": false
   },
 
-  "include": ["src/**/*", "Models/**/*", "Services/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["TimeManagmenTimeManagment/Models/**/*, "MTimeManagment/Services/**/*"Services/**/*"],
+  "exclude": ["TimeManagment/noTimeManagment/distodules", "dist"]
 }
