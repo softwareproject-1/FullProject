@@ -18,10 +18,13 @@ export class Position extends Document {
   reportsTo?: Types.ObjectId;
 
   @Prop()
-  payGrade?: string;
+  payGrade: string;
 
   @Prop({ default: true }) //position available lsa wla
   isActive: boolean;
+
+  @Prop({ default: true }) 
+  isVacant: boolean;
 
   @Prop()
   deactivatedAt?: Date;

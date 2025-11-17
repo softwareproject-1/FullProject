@@ -18,6 +18,7 @@ export enum AppraisalStatus {
 
 @Schema({ collection: 'AppraisalTemplate', timestamps: true })
 export class AppraisalTemplate extends Document {
+  
   @Prop({ type: Types.ObjectId, required: true, auto: true })
   declare _id: Types.ObjectId; // Primary Key
 

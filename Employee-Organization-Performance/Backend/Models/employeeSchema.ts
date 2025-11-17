@@ -17,7 +17,7 @@ export enum RoleType {
   Admin = 'Admin',
   Officer = 'Officer',
   Specialist = 'Specialist',
-  financeStaff = 'Finance Staff',
+  Staff = 'Staff',
   systemAdmin = 'System Admin',
   lineManager = 'Line Manager',
   Employee = 'Employee',
@@ -129,18 +129,11 @@ export class Employee {
   @Prop({ type: String, enum: Object.values(DepartmentType), required: true })
   department: DepartmentType;
 
-  @Prop({
-    type: String,
-    enum: Object.values(EmploymentStatus),
-    default: EmploymentStatus.Active,
-  })
-  status: EmploymentStatus;
+  @Prop()
+  payGrade: string;
 
   @Prop()
-  payGrade?: string;
-
-  @Prop()
-  baseSalary?: number;
+  baseSalary: number;
 
   @Prop({ min: 1, max: 5 })
   lastPerformanceRating?: number;
