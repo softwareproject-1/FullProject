@@ -31,6 +31,6 @@
     "strictNullChecks": false
   },
 
-  "include": ["TimeManagmenTimeManagment/Models/**/*, "MTimeManagment/Services/**/*"Services/**/*"],
-  "exclude": ["TimeManagment/noTimeManagment/distodules", "dist"]
+  "include": ["Models/**/*", "Services/**/*", "src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

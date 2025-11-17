@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, Types, Document } from 'mongoose';
 import { ExpenseClaim, ClaimStatus } from '../schemas/expense-claim.schema';
 import { CreateExpenseClaimDto } from '../dto/create-expense-claim.dto';
 import { UpdateExpenseClaimDto } from '../dto/update-expense-claim.dto';
