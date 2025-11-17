@@ -1,2 +1,0 @@
-# FullProject
-Main repo 
