@@ -62,6 +62,22 @@ import { Offer, OfferSchema } from '../Recruitment/backend/src/recruitment-track
 import { OnboardingChecklist, OnboardingChecklistSchema } from '../Recruitment/backend/src/recruitment-tracking/schemas/onboarding-checklist.schema';
 import { OnboardingDocument, OnboardingDocumentSchema } from '../Recruitment/backend/src/recruitment-tracking/schemas/onboarding-document.schema';
 import { OnboardingPlan, OnboardingPlanSchema } from '../Recruitment/backend/src/recruitment-tracking/schemas/onboarding-plan.schema';
+//leaves
+import { AccrualRule, AccrualRuleSchema } from '../Leaves/src/leaves/schemas/accrual-rule.schema';
+import { ApprovalWorkflow, ApprovalWorkflowSchema } from '../Leaves/src/leaves/schemas/approval-workflow.schema';
+import { EntitlementRule, EntitlementRuleSchema } from '../Leaves/src/leaves/schemas/entitlement-rule.schema';
+import { HolidayCalendar as HolidayCalendarLeaves, HolidayCalendarSchema as HolidayCalendarSchemaLeaves } from '../Leaves/src/leaves/schemas/holiday-calendar.schema';
+import { IntegrationLog, IntegrationLogSchema } from '../Leaves/src/leaves/schemas/integration-log.schema';
+import { JobRunLog, JobRunLogSchema } from '../Leaves/src/leaves/schemas/job-run-log.schema';
+import { LeaveAudit, LeaveAuditSchema } from '../Leaves/src/leaves/schemas/leave-audit.schema';
+import { LeaveBalanceTransaction, LeaveBalanceTransactionSchema } from '../Leaves/src/leaves/schemas/leave-balance-transaction.schema';
+import { LeaveBalance, LeaveBalanceSchema } from '../Leaves/src/leaves/schemas/leave-balance.schema';
+import { LeaveCategory, LeaveCategorySchema } from '../Leaves/src/leaves/schemas/leave-category.schema';
+import { LeaveRequest, LeaveRequestSchema } from '../Leaves/src/leaves/schemas/leave-request.schema';
+import { LeaveType, LeaveTypeSchema } from '../Leaves/src/leaves/schemas/leave-type.schema';
+import { NotificationQueue, NotificationQueueSchema } from '../Leaves/src/leaves/schemas/notification-queue.schema';
+import { OffboardingSettlement, OffboardingSettlementSchema } from '../Leaves/src/leaves/schemas/offboarding-settlement.schema';
+import { VacationPackage, VacationPackageSchema } from '../Leaves/src/leaves/schemas/vacation-package.schema';
 
 @Module({
   imports: [
@@ -153,6 +169,22 @@ import { OnboardingPlan, OnboardingPlanSchema } from '../Recruitment/backend/src
       { name: OnboardingChecklist.name, schema: OnboardingChecklistSchema },
       { name: OnboardingDocument.name, schema: OnboardingDocumentSchema },
       { name: OnboardingPlan.name, schema: OnboardingPlanSchema },
+      //leaves
+      { name: AccrualRule.name, schema: AccrualRuleSchema },
+      { name: ApprovalWorkflow.name, schema: ApprovalWorkflowSchema },
+      { name: EntitlementRule.name, schema: EntitlementRuleSchema },
+      { name: HolidayCalendarLeaves.name, schema: HolidayCalendarSchemaLeaves },
+      { name: IntegrationLog.name, schema: IntegrationLogSchema },
+      { name: JobRunLog.name, schema: JobRunLogSchema },
+      { name: LeaveAudit.name, schema: LeaveAuditSchema },
+      { name: LeaveBalanceTransaction.name, schema: LeaveBalanceTransactionSchema },
+      { name: LeaveBalance.name, schema: LeaveBalanceSchema },
+      { name: LeaveCategory.name, schema: LeaveCategorySchema },
+      { name: LeaveRequest.name, schema: LeaveRequestSchema },
+      { name: LeaveType.name, schema: LeaveTypeSchema },
+      { name: NotificationQueue.name, schema: NotificationQueueSchema },
+      { name: OffboardingSettlement.name, schema: OffboardingSettlementSchema },
+      { name: VacationPackage.name, schema: VacationPackageSchema },
     ]),
   ],
   controllers: [],
