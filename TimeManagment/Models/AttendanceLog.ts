@@ -10,6 +10,9 @@ export type AttendanceLogDocument = HydratedDocument<AttendanceLog>;
 export class Penalties {
   @Prop({ type: Number, default: 0 })
   latenessMinutes!: number;
+  
+ @Prop({ type: Number, default: 0 })
+  gracePeriod!: number;
 
   @Prop({ type: Number, default: 0 })
   deductionAmount!: number;
