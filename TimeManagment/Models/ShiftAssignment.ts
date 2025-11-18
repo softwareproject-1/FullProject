@@ -12,6 +12,19 @@ export class ShiftAssignment {
     required: true 
   })
   employee!: Types.ObjectId;
+   @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Position"
+  })
+  position?: Types.ObjectId;
+
+  
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Department"
+  })
+  department?: Types.ObjectId;
+
 
   @Prop({ 
     type: mongoose.Schema.Types.ObjectId, 
