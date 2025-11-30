@@ -25,6 +25,7 @@ import { UpdateEmployeeSystemRoleDto } from './dto/update-employee-system-role.d
 import { CreateEmployeeProfileChangeRequestDto } from './dto/create-employee-profile-change-request.dto';
 import { UpdateEmployeeProfileChangeRequestDto } from './dto/update-employee-profile-change-request.dto';
 import { ArchiveEmployeeProfileDto } from './dto/archive-employee-profile.dto';
+import { UpdateCandidateResumeDto } from './dto/update-candidate-resume.dto';
 
 @Controller('employee-profile')
 export class EmployeeProfileController {
@@ -51,6 +52,17 @@ export class EmployeeProfileController {
       status,
       employeeProfileId,
     });
+  }
+
+  @Get('users/bulk')
+  getUsersByIds(@Query('ids') ids: string) {
+    const idsArray = ids ? ids.split(',').map((id) => id.trim()) : [];
+    return this.employeeProfileService.getUsersByIds(idsArray);
+  }
+
+  @Get('users/:userId')
+  getUserById(@Param('userId') userId: string) {
+    return this.employeeProfileService.getUserById(userId);
   }
 
   @Get(':profileId')
@@ -101,6 +113,11 @@ export class EmployeeProfileController {
     return this.employeeProfileService.createCandidate(createDto);
   }
 
+  @Get('candidates/:candidateId')
+  getCandidateById(@Param('candidateId') candidateId: string) {
+    return this.employeeProfileService.getCandidateById(candidateId);
+  }
+
   @Put('candidates/:candidateId')
   updateCandidate(
     @Param('candidateId') candidateId: string,
@@ -118,6 +135,17 @@ export class EmployeeProfileController {
       ...statusDto,
       candidateId,
     });
+  }
+
+  @Patch('candidates/:candidateId/resume')
+  updateCandidateResume(
+    @Param('candidateId') candidateId: string,
+    @Body() resumeDto: UpdateCandidateResumeDto,
+  ) {
+    return this.employeeProfileService.updateCandidateResumeUrl(
+      candidateId,
+      resumeDto.resumeUrl,
+    );
   }
 
   @Post('candidates/:candidateId/convert')

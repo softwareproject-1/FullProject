@@ -326,6 +326,28 @@ export class EmployeeProfileService {
     return createdCandidate.toObject();
   }
 
+  
+  async getCandidateById(id: string): Promise<Candidate | null> {
+    const candidate = await this.candidateModel.findById(id);
+    if (!candidate) {
+      return null;
+    }
+    return candidate.toObject() as Candidate;
+  }
+
+  
+  async updateCandidateResumeUrl(id: string, resumeUrl: string): Promise<Candidate> {
+    const candidate = await this.candidateModel.findById(id);
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found.');
+    }
+
+    candidate.resumeUrl = resumeUrl;
+    const updatedCandidate = await candidate.save();
+
+    return updatedCandidate.toObject() as Candidate;
+  }
+
   async updateCandidate(candidateId: string, updateDto: UpdateCandidateDto) {
     const candidate = await this.candidateModel.findById(candidateId);
     if (!candidate) {
@@ -407,6 +429,27 @@ export class EmployeeProfileService {
     await candidate.save();
 
     return profile;
+  }
+
+  async getUserById(id: string): Promise<EmployeeProfile | null> {
+    const user = await this.employeeProfileModel.findById(id);
+    if (!user) {
+      return null;
+    }
+    return user.toObject() as EmployeeProfile;
+  }
+
+  
+  async getUsersByIds(ids: string[]): Promise<EmployeeProfile[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+
+    const users = await this.employeeProfileModel.find({
+      _id: { $in: ids },
+    });
+
+    return users.map((user) => user.toObject() as EmployeeProfile);
   }
 
   async addQualification(createDto: CreateEmployeeQualificationDto) {
