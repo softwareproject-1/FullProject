@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "outDir": "./dist-test"
+  },
+  "include": ["**/*.spec.ts", "**/*.e2e-spec.ts", "**/*.spec.tsx", "**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "dist-test"]
+}
+
