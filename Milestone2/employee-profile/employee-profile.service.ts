@@ -585,23 +585,30 @@ export class EmployeeProfileService {
   }
 
   async deactivateAccess(profileId: string) {
+    await this.ensureProfileExists(profileId);
+
     const roles = await this.systemRoleModel.findOne({
       employeeProfileId: profileId,
     });
 
-    if (!roles) {
-      throw new NotFoundException('System role configuration not found.');
+    // If system role exists, deactivate it
+    if (roles) {
+      roles.isActive = false;
+      await roles.save();
     }
 
-    roles.isActive = false;
-    const updatedRoles = await roles.save();
-
+    // Always remove accessProfileId from employee profile
     await this.employeeProfileModel.updateOne(
       { _id: profileId },
       { $unset: { accessProfileId: 1 } },
     );
 
-    return updatedRoles.toObject();
+    // Return success response
+    return {
+      message: 'Access deactivated successfully',
+      profileId,
+      systemRoleDeactivated: !!roles,
+    };
   }
 
   private async ensureCandidateUnique(

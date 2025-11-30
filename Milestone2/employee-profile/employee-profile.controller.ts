@@ -24,6 +24,7 @@ import { CreateEmployeeSystemRoleDto } from './dto/create-employee-system-role.d
 import { UpdateEmployeeSystemRoleDto } from './dto/update-employee-system-role.dto';
 import { CreateEmployeeProfileChangeRequestDto } from './dto/create-employee-profile-change-request.dto';
 import { UpdateEmployeeProfileChangeRequestDto } from './dto/update-employee-profile-change-request.dto';
+import { ArchiveEmployeeProfileDto } from './dto/archive-employee-profile.dto';
 
 @Controller('employee-profile')
 export class EmployeeProfileController {
@@ -216,9 +217,9 @@ export class EmployeeProfileController {
   @Patch(':profileId/archive')
   archiveProfile(
     @Param('profileId') profileId: string,
-    @Body('reason') reason?: string,
+    @Body() archiveDto: ArchiveEmployeeProfileDto,
   ) {
-    return this.employeeProfileService.archiveProfile(profileId, reason);
+    return this.employeeProfileService.archiveProfile(profileId, archiveDto.reason);
   }
 
   @Patch(':profileId/access/deactivate')
