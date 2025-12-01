@@ -15,9 +15,11 @@ import { LatenessRule, latenessRuleSchema } from './models/lateness-rule.schema'
 import { HolidaySchema, Holiday } from './models/holiday.schema';
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
 import { OrganizationStructureModule } from '../organization-structure/organization-structure.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
+    AuthModule,
     EmployeeProfileModule,
     OrganizationStructureModule,
     MongooseModule.forFeature([

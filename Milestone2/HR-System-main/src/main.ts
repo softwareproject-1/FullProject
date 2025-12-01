@@ -31,6 +31,7 @@ async function bootstrap() {
     .setTitle('HR System API')
     .setDescription('Comprehensive API documentation for HR System. This API provides endpoints for managing employee profiles, time management, leaves, recruitment, payroll, performance, and organizational structure.')
     .setVersion('1.0.0')
+    .addTag('auth', 'Authentication endpoints - Login, register, and user profile')
     .addTag('time-management', 'Time Management endpoints - Shifts, attendance, time exceptions, holidays, and reports')
     .addTag('recruitment', 'Recruitment endpoints')
     .addTag('leaves', 'Leave management endpoints')

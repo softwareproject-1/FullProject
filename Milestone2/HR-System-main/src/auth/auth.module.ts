@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { AuthenticationGuard } from './guards/authentication.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
 import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
 
@@ -26,8 +27,8 @@ import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profil
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthenticationGuard],
-  exports: [AuthService, AuthenticationGuard],
+  providers: [AuthService, AuthenticationGuard, RolesGuard],
+  exports: [AuthService, AuthenticationGuard, RolesGuard],
 })
 export class AuthModule {}
 

@@ -11,6 +11,7 @@ import {
     HttpStatus,
     UsePipes,
     ValidationPipe,
+    UseGuards,
   } from '@nestjs/common';
   import {
     ApiTags,
@@ -19,6 +20,7 @@ import {
     ApiParam,
     ApiQuery,
     ApiBody,
+    ApiBearerAuth,
   } from '@nestjs/swagger';
   import { TimeManagementService } from './time-management.service';
   import {
@@ -49,16 +51,22 @@ import {
     ExceptionReportDto,
   } from './DTOs';
   import { ShiftAssignmentStatus, CorrectionRequestStatus, TimeExceptionStatus } from './models/enums/index';
+  import { AuthenticationGuard } from '../auth/guards/authentication.guard';
+  import { RolesGuard } from '../auth/guards/roles.guard';
+  import { Roles } from '../auth/decorators/roles.decorator';
+  import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
   
   @ApiTags('time-management')
   @Controller('time-management')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
+  @UseGuards(AuthenticationGuard, RolesGuard)
   export class TimeManagementController {
     constructor(private readonly timeManagementService: TimeManagementService) {}
   
-    // ==================== Shift Type Endpoints ====================
     @Post('shift-types')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Create a new shift type' })
     @ApiBody({ type: CreateShiftTypeDto })
     @ApiResponse({ status: 201, description: 'Shift type created successfully' })
@@ -68,6 +76,8 @@ import {
     }
   
     @Get('shift-types')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD)
     @ApiOperation({ summary: 'Get all shift types' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })
     @ApiResponse({ status: 200, description: 'List of shift types' })
@@ -76,6 +86,8 @@ import {
     }
   
     @Get('shift-types/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD)
     @ApiOperation({ summary: 'Get shift type by ID' })
     @ApiParam({ name: 'id', description: 'Shift type ID' })
     @ApiResponse({ status: 200, description: 'Shift type found' })
@@ -85,6 +97,8 @@ import {
     }
   
     @Put('shift-types/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Update shift type' })
     @ApiParam({ name: 'id', description: 'Shift type ID' })
     @ApiBody({ type: UpdateShiftTypeDto })
@@ -96,6 +110,8 @@ import {
   
     @Delete('shift-types/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Delete shift type' })
     @ApiParam({ name: 'id', description: 'Shift type ID' })
     @ApiResponse({ status: 204, description: 'Shift type deleted successfully' })
@@ -104,9 +120,10 @@ import {
       return this.timeManagementService.deleteShiftType(id);
     }
   
-    // ==================== Shift Endpoints ====================
     @Post('shifts')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Create a new shift' })
     @ApiBody({ type: CreateShiftDto })
     @ApiResponse({ status: 201, description: 'Shift created successfully' })
@@ -116,6 +133,8 @@ import {
     }
   
     @Get('shifts')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get all shifts' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })
     @ApiResponse({ status: 200, description: 'List of shifts' })
@@ -124,6 +143,8 @@ import {
     }
   
     @Get('shifts/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get shift by ID' })
     @ApiParam({ name: 'id', description: 'Shift ID' })
     @ApiResponse({ status: 200, description: 'Shift found' })
@@ -133,6 +154,8 @@ import {
     }
   
     @Put('shifts/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Update shift' })
     @ApiParam({ name: 'id', description: 'Shift ID' })
     @ApiBody({ type: UpdateShiftDto })
@@ -144,6 +167,8 @@ import {
   
     @Delete('shifts/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Delete shift' })
     @ApiParam({ name: 'id', description: 'Shift ID' })
     @ApiResponse({ status: 204, description: 'Shift deleted successfully' })
@@ -152,9 +177,10 @@ import {
       return this.timeManagementService.deleteShift(id);
     }
   
-    // ==================== Schedule Rule Endpoints ====================
     @Post('schedule-rules')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Create a new schedule rule' })
     @ApiBody({ type: CreateScheduleRuleDto })
     @ApiResponse({ status: 201, description: 'Schedule rule created successfully' })
@@ -164,6 +190,8 @@ import {
     }
   
     @Get('schedule-rules')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD)
     @ApiOperation({ summary: 'Get all schedule rules' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })
     @ApiResponse({ status: 200, description: 'List of schedule rules' })
@@ -172,6 +200,8 @@ import {
     }
   
     @Get('schedule-rules/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD)
     @ApiOperation({ summary: 'Get schedule rule by ID' })
     @ApiParam({ name: 'id', description: 'Schedule rule ID' })
     @ApiResponse({ status: 200, description: 'Schedule rule found' })
@@ -181,6 +211,8 @@ import {
     }
   
     @Put('schedule-rules/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Update schedule rule' })
     @ApiParam({ name: 'id', description: 'Schedule rule ID' })
     @ApiBody({ type: UpdateScheduleRuleDto })
@@ -192,6 +224,8 @@ import {
   
     @Delete('schedule-rules/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Delete schedule rule' })
     @ApiParam({ name: 'id', description: 'Schedule rule ID' })
     @ApiResponse({ status: 204, description: 'Schedule rule deleted successfully' })
@@ -200,9 +234,10 @@ import {
       return this.timeManagementService.deleteScheduleRule(id);
     }
   
-    // ==================== Shift Assignment Endpoints ====================
     @Post('shift-assignments')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Create a new shift assignment' })
     @ApiBody({ type: CreateShiftAssignmentDto })
     @ApiResponse({ status: 201, description: 'Shift assignment created successfully' })
@@ -213,6 +248,8 @@ import {
   
     @Post('shift-assignments/bulk')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Create multiple shift assignments in bulk' })
     @ApiBody({ type: BulkShiftAssignmentDto })
     @ApiResponse({ status: 201, description: 'Shift assignments created successfully' })
@@ -222,6 +259,8 @@ import {
     }
   
     @Get('shift-assignments')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get all shift assignments' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'departmentId', required: false, type: String, description: 'Filter by department ID' })
@@ -243,6 +282,8 @@ import {
     }
   
     @Get('shift-assignments/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get shift assignment by ID' })
     @ApiParam({ name: 'id', description: 'Shift assignment ID' })
     @ApiResponse({ status: 200, description: 'Shift assignment found' })
@@ -252,6 +293,8 @@ import {
     }
   
     @Put('shift-assignments/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Update shift assignment' })
     @ApiParam({ name: 'id', description: 'Shift assignment ID' })
     @ApiBody({ type: UpdateShiftAssignmentDto })
@@ -266,6 +309,8 @@ import {
   
     @Delete('shift-assignments/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Delete shift assignment' })
     @ApiParam({ name: 'id', description: 'Shift assignment ID' })
     @ApiResponse({ status: 204, description: 'Shift assignment deleted successfully' })
@@ -275,6 +320,8 @@ import {
     }
   
     @Get('shift-assignments/expiring/check')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
     @ApiOperation({ summary: 'Check for expiring shift assignments' })
     @ApiQuery({ name: 'daysBeforeExpiry', required: false, type: String, description: 'Number of days before expiry to check', example: '7' })
     @ApiResponse({ status: 200, description: 'List of expiring shift assignments' })
@@ -283,9 +330,10 @@ import {
       return this.timeManagementService.checkExpiringShiftAssignments(days);
     }
   
-    // ==================== Attendance Record Endpoints ====================
     @Post('attendance/clock')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Clock in or out' })
     @ApiBody({ type: ClockInOutDto })
     @ApiResponse({ status: 201, description: 'Punch recorded successfully' })
@@ -296,6 +344,8 @@ import {
   
     @Post('attendance/records')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Create a new attendance record' })
     @ApiBody({ type: CreateAttendanceRecordDto })
     @ApiResponse({ status: 201, description: 'Attendance record created successfully' })
@@ -305,6 +355,8 @@ import {
     }
   
     @Get('attendance/records')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get all attendance records' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Filter by start date' })
@@ -323,6 +375,8 @@ import {
     }
   
     @Get('attendance/records/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get attendance record by ID' })
     @ApiParam({ name: 'id', description: 'Attendance record ID' })
     @ApiResponse({ status: 200, description: 'Attendance record found' })
@@ -332,6 +386,8 @@ import {
     }
   
     @Put('attendance/records/:id/correct')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Manually correct attendance record' })
     @ApiParam({ name: 'id', description: 'Attendance record ID' })
     @ApiBody({ type: ManualAttendanceCorrectionDto })
@@ -346,15 +402,18 @@ import {
   
     @Post('attendance/missed-punches/check')
     @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Check for missed punches and send notifications' })
     @ApiResponse({ status: 200, description: 'Missed punches checked and notifications sent' })
     async checkMissedPunchesAndNotify() {
       return this.timeManagementService.checkMissedPunchesAndNotify();
     }
   
-    // ==================== Attendance Correction Request Endpoints ====================
     @Post('attendance/correction-requests')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Create a new attendance correction request' })
     @ApiBody({ type: CreateAttendanceCorrectionRequestDto })
     @ApiResponse({ status: 201, description: 'Correction request created successfully' })
@@ -364,6 +423,8 @@ import {
     }
   
     @Get('attendance/correction-requests')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get all attendance correction requests' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'status', required: false, enum: CorrectionRequestStatus, description: 'Filter by status' })
@@ -379,6 +440,8 @@ import {
     }
   
     @Get('attendance/correction-requests/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get correction request by ID' })
     @ApiParam({ name: 'id', description: 'Correction request ID' })
     @ApiResponse({ status: 200, description: 'Correction request found' })
@@ -388,6 +451,8 @@ import {
     }
   
     @Put('attendance/correction-requests/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Update correction request' })
     @ApiParam({ name: 'id', description: 'Correction request ID' })
     @ApiBody({ type: UpdateAttendanceCorrectionRequestDto })
@@ -400,9 +465,10 @@ import {
       return this.timeManagementService.updateCorrectionRequest(id, updateDto);
     }
   
-    // ==================== Time Exception Endpoints ====================
     @Post('time-exceptions')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Create a new time exception' })
     @ApiBody({ type: CreateTimeExceptionDto })
     @ApiResponse({ status: 201, description: 'Time exception created successfully' })
@@ -412,6 +478,8 @@ import {
     }
   
     @Get('time-exceptions')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get all time exceptions' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by exception type' })
@@ -433,6 +501,8 @@ import {
     }
   
     @Get('time-exceptions/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
     @ApiOperation({ summary: 'Get time exception by ID' })
     @ApiParam({ name: 'id', description: 'Time exception ID' })
     @ApiResponse({ status: 200, description: 'Time exception found' })
@@ -442,6 +512,8 @@ import {
     }
   
     @Put('time-exceptions/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Update time exception' })
     @ApiParam({ name: 'id', description: 'Time exception ID' })
     @ApiBody({ type: UpdateTimeExceptionDto })
@@ -456,6 +528,8 @@ import {
   
     @Post('time-exceptions/escalate/check')
     @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
     @ApiOperation({ summary: 'Check and escalate overdue time exceptions' })
     @ApiQuery({ name: 'deadlineHours', required: false, type: String, description: 'Hours before deadline to escalate', example: '48' })
     @ApiResponse({ status: 200, description: 'Exceptions checked and escalated if needed' })
@@ -464,9 +538,10 @@ import {
       return this.timeManagementService.checkAndEscalateExceptions(hours);
     }
   
-    // ==================== Overtime Rule Endpoints ====================
     @Post('overtime-rules')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Create a new overtime rule' })
     @ApiBody({ type: CreateOvertimeRuleDto })
     @ApiResponse({ status: 201, description: 'Overtime rule created successfully' })
@@ -476,6 +551,8 @@ import {
     }
   
     @Get('overtime-rules')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get all overtime rules' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })
     @ApiResponse({ status: 200, description: 'List of overtime rules' })
@@ -484,6 +561,8 @@ import {
     }
   
     @Get('overtime-rules/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get overtime rule by ID' })
     @ApiParam({ name: 'id', description: 'Overtime rule ID' })
     @ApiResponse({ status: 200, description: 'Overtime rule found' })
@@ -493,6 +572,8 @@ import {
     }
   
     @Put('overtime-rules/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Update overtime rule' })
     @ApiParam({ name: 'id', description: 'Overtime rule ID' })
     @ApiBody({ type: UpdateOvertimeRuleDto })
@@ -504,6 +585,8 @@ import {
   
     @Delete('overtime-rules/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Delete overtime rule' })
     @ApiParam({ name: 'id', description: 'Overtime rule ID' })
     @ApiResponse({ status: 204, description: 'Overtime rule deleted successfully' })
@@ -512,9 +595,10 @@ import {
       return this.timeManagementService.deleteOvertimeRule(id);
     }
   
-    // ==================== Lateness Rule Endpoints ====================
     @Post('lateness-rules')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Create a new lateness rule' })
     @ApiBody({ type: CreateLatenessRuleDto })
     @ApiResponse({ status: 201, description: 'Lateness rule created successfully' })
@@ -524,6 +608,8 @@ import {
     }
   
     @Get('lateness-rules')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get all lateness rules' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })
     @ApiResponse({ status: 200, description: 'List of lateness rules' })
@@ -532,6 +618,8 @@ import {
     }
   
     @Get('lateness-rules/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get lateness rule by ID' })
     @ApiParam({ name: 'id', description: 'Lateness rule ID' })
     @ApiResponse({ status: 200, description: 'Lateness rule found' })
@@ -541,6 +629,8 @@ import {
     }
   
     @Put('lateness-rules/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Update lateness rule' })
     @ApiParam({ name: 'id', description: 'Lateness rule ID' })
     @ApiBody({ type: UpdateLatenessRuleDto })
@@ -552,6 +642,8 @@ import {
   
     @Delete('lateness-rules/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Delete lateness rule' })
     @ApiParam({ name: 'id', description: 'Lateness rule ID' })
     @ApiResponse({ status: 204, description: 'Lateness rule deleted successfully' })
@@ -560,9 +652,10 @@ import {
       return this.timeManagementService.deleteLatenessRule(id);
     }
   
-    // ==================== Holiday Endpoints ====================
     @Post('holidays')
     @HttpCode(HttpStatus.CREATED)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Create a new holiday' })
     @ApiBody({ type: CreateHolidayDto })
     @ApiResponse({ status: 201, description: 'Holiday created successfully' })
@@ -572,6 +665,8 @@ import {
     }
   
     @Get('holidays')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get all holidays' })
     @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by holiday type' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })
@@ -590,6 +685,8 @@ import {
     }
   
     @Get('holidays/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get holiday by ID' })
     @ApiParam({ name: 'id', description: 'Holiday ID' })
     @ApiResponse({ status: 200, description: 'Holiday found' })
@@ -599,6 +696,8 @@ import {
     }
   
     @Put('holidays/:id')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Update holiday' })
     @ApiParam({ name: 'id', description: 'Holiday ID' })
     @ApiBody({ type: UpdateHolidayDto })
@@ -610,6 +709,8 @@ import {
   
     @Delete('holidays/:id')
     @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Delete holiday' })
     @ApiParam({ name: 'id', description: 'Holiday ID' })
     @ApiResponse({ status: 204, description: 'Holiday deleted successfully' })
@@ -618,8 +719,9 @@ import {
       return this.timeManagementService.deleteHoliday(id);
     }
   
-    // ==================== Reporting Endpoints ====================
     @Get('reports/attendance')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Generate attendance report' })
     @ApiResponse({ status: 200, description: 'Attendance report generated successfully' })
     async generateAttendanceReport(@Query() reportDto: AttendanceReportDto) {
@@ -627,6 +729,8 @@ import {
     }
   
     @Get('reports/overtime')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Generate overtime report' })
     @ApiResponse({ status: 200, description: 'Overtime report generated successfully' })
     async generateOvertimeReport(@Query() reportDto: OvertimeReportDto) {
@@ -634,14 +738,17 @@ import {
     }
   
     @Get('reports/exceptions')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.HR_MANAGER, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN)
     @ApiOperation({ summary: 'Generate exception report' })
     @ApiResponse({ status: 200, description: 'Exception report generated successfully' })
     async generateExceptionReport(@Query() reportDto: ExceptionReportDto) {
       return this.timeManagementService.generateExceptionReport(reportDto);
     }
   
-    // ==================== Notification Endpoints ====================
     @Get('notifications/employee/:employeeId')
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST)
     @ApiOperation({ summary: 'Get notifications for an employee' })
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'List of notifications' })
@@ -650,9 +757,10 @@ import {
       return this.timeManagementService.findNotificationsByEmployee(employeeId);
     }
   
-    // ==================== Utility Endpoints ====================
     @Post('escalate/payroll-cutoff')
     @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth('JWT-auth')
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN)
     @ApiOperation({ summary: 'Escalate pending requests before payroll cutoff' })
     @ApiBody({ schema: { type: 'object', properties: { cutoffDate: { type: 'string', format: 'date-time', example: '2025-12-31T23:59:59Z' } } } })
     @ApiResponse({ status: 200, description: 'Pending requests escalated successfully' })

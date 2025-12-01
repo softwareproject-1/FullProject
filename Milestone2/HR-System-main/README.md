@@ -23,26 +23,80 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+HR System API - A comprehensive HR management system built with NestJS. This system includes modules for:
+- **Time Management**: Shift assignments, attendance tracking, time exceptions, holidays, and reports
+- **Employee Profile**: Employee data management and system roles
+- **Recruitment**: Job posting, candidate tracking, and hiring workflows
+- **Leaves**: Leave policies, entitlements, and request management
+- **Payroll**: Configuration, execution, and tracking
+- **Performance**: Performance reviews and appraisals
+- **Organization Structure**: Departments, positions, and hierarchy
 
-## Project setup
+## Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+- MongoDB database (local or cloud)
+
+## Project Setup
+
+### 1. Install Dependencies
 
 ```bash
 $ npm install
 ```
 
-## Compile and run the project
+### 2. Environment Configuration
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database Configuration
+DB_URL=mongodb+srv://username:password@cluster.mongodb.net/database?appName=appname
+
+# JWT Configuration
+JWT_SECRET=your-secret-key-change-in-production
+JWT_EXPIRES_IN=24h
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+```
+
+**Note**: The application has a default MongoDB connection string in `app.module.ts`, but it's recommended to use environment variables for production.
+
+## Running the Project
+
+### Development Mode
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
+# Start in watch mode (auto-reload on changes)
 $ npm run start:dev
 
-# production mode
+# Start normally
+$ npm run start
+
+# Start in debug mode
+$ npm run start:debug
+```
+
+### Production Mode
+
+```bash
+# Build the project
+$ npm run build
+
+# Start production server
 $ npm run start:prod
 ```
+
+### API Documentation
+
+Once the server is running, access the Swagger API documentation at:
+- **Development**: http://localhost:3000/api
+- **Production**: http://localhost:3001/api
+
+The API includes comprehensive documentation for all endpoints with authentication support.
 
 ## Run tests
 
