@@ -41,8 +41,8 @@ async function bootstrap() {
     .addTag('payroll-execution', 'Payroll execution endpoints')
     .addTag('payroll-tracking', 'Payroll tracking endpoints')
     .addTag('performance', 'Performance management endpoints')
-    .addServer('http://localhost:3000', 'Development server')
-    .addServer('http://localhost:3001', 'Production server')
+    .addServer('http://localhost:3001', 'Development server')
+    .addServer('http://localhost:3000', 'Production server')
     .addBearerAuth(
       {
         type: 'http',
@@ -101,7 +101,7 @@ async function bootstrap() {
     console.log('MongoDB disconnected');
   });
   
-  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  const port = process.env.PORT ? Number(process.env.PORT) : 3001;
   await app.listen(port);
   console.log(` Nest backend is running on http://localhost:${port}`);
   console.log(` Swagger documentation available at http://localhost:${port}/api`);
