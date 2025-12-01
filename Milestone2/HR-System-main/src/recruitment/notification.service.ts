@@ -14,7 +14,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { NotificationLog, NotificationLogDocument } from '../../time-management/models/notification-log.schema';
+import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
 
 /**
  * Notification types supported by the system

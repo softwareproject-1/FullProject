@@ -16,11 +16,11 @@
  */
 
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { OnboardingService } from '../services/onboarding.service';
-import { AuthenticationGuard } from '../../auth/guards/authentication.guard';
-import { RolesGuard } from '../../auth/guards/roles.guard';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
+import { OnboardingService } from './onboarding.service';
+import { AuthenticationGuard } from '../auth/guards/authentication.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
 import {
   // ONB-001
   CreateChecklistTemplateDto,
@@ -65,7 +65,7 @@ import {
   // ONB-019
   ProcessSigningBonusDto,
   SigningBonusResultDto,
-} from '../dto/onboarding.dto';
+} from './dto/onboarding.dto';
 
 @Controller('onboarding')
 @UseGuards(AuthenticationGuard, RolesGuard)
