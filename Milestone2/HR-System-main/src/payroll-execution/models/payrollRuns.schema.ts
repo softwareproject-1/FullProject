@@ -49,6 +49,15 @@ export class payrollRuns {
 
   @Prop()
   financeApprovalDate?: Date;
+
+  @Prop()
+  approvedAt?: Date; // when both manager and finance approved
+
+  @Prop()
+  executedAt?: Date; // when payroll was executed and distributed
+
+  @Prop()
+  payPeriod?: string; // format: YYYY-MM for payroll period
 }
 
 

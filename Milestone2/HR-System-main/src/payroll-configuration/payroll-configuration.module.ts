@@ -11,6 +11,8 @@ import { signingBonus, signingBonusSchema } from './models/signingBonus.schema';
 import { taxRules, taxRulesSchema } from './models/taxRules.schema';
 import { terminationAndResignationBenefits, terminationAndResignationBenefitsSchema } from './models/terminationAndResignationBenefits';
 import { payGrade } from './models/payGrades.schema';
+import { TaxRulesService } from './services/tax-rules.service';
+import { InsuranceBracketsService } from './services/insurance-brackets.service';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { payGrade } from './models/payGrades.schema';
     ]),
   ],
   controllers: [PayrollConfigurationController],
-  providers: [PayrollConfigurationService],
-  exports:[PayrollConfigurationService]
+  providers: [PayrollConfigurationService, TaxRulesService, InsuranceBracketsService],
+  exports: [PayrollConfigurationService, TaxRulesService, InsuranceBracketsService]
 })
 export class PayrollConfigurationModule { }
