@@ -9,6 +9,7 @@ import {
   Query,
   BadRequestException,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { LeavesService } from './leaves.service';
 
@@ -19,10 +20,11 @@ import { AddHolidayDto } from './dtos/add-holiday.dto';
 import { BlockedDayDto } from './dtos/blocked-day.dto';
 import { ApprovalStepDto } from './dtos/create-leave-type.dto';
 
-import { UseGuards } from '@nestjs/common';
 import { AuthenticationGuard } from '../auth/guards/authentication.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+// Seif's work - Additional imports
+import { LeaveStatus } from './enums/leave-status.enum';
 
 
 
@@ -172,5 +174,94 @@ export class LeavesController {
 
 
   // ============================End of Omar Controller part ============================
+// ============================ Phase 2: Leave Request and Approval ============================
+
+@Post('request')
+async submitLeaveRequest(@Body() dto: SubmitLeaveRequestDto) {
+  return this.leavesService.submitLeaveRequest(
+    dto.employeeId,
+    dto.leaveTypeId,
+    dto.dates,
+    dto.justification,
+    dto.attachmentId,
+  );
 }
+
+@Post('request/:id/approve')
+async approveLeaveRequest(
+  @Param('id') id: string,
+  @Body() dto: ApproveLeaveRequestDto,
+) {
+  return this.leavesService.approveLeaveRequest(
+    id,
+    dto.managerId,
+    dto.status,
+    dto.reason,
+  );
+}
+
+@Post('request/:id/review')
+async reviewLeaveRequest(
+  @Param('id') id: string,
+  @Body() dto: ReviewLeaveRequestDto,
+) {
+  return this.leavesService.reviewLeaveRequest(
+    id,
+    dto.hrId,
+    dto.status,
+    dto.overrideReason,
+  );
+}
+
+@Get('balance/:employeeId/:leaveTypeId')
+async getLeaveBalance(
+  @Param('employeeId') employeeId: string,
+  @Param('leaveTypeId') leaveTypeId: string,
+) {
+  return this.leavesService.getLeaveBalance(employeeId, leaveTypeId);
+}
+
+@Post('escalation/check')
+async checkAutoEscalation() {
+  return this.leavesService.checkAutoEscalation();
+}
+
+@Post('deduction/retroactive')
+async applyRetroactiveDeduction(@Body() dto: RetroactiveDeductionDto) {
+  return this.leavesService.applyRetroactiveDeduction(
+    dto.employeeId,
+    dto.leaveTypeId,
+    dto.dates,
+    dto.reason,
+  );
+}
+}
+
+export class SubmitLeaveRequestDto {
+employeeId: string;
+leaveTypeId: string;
+dates: { from: Date; to: Date };
+justification: string;
+attachmentId?: string;
+}
+
+export class ApproveLeaveRequestDto {
+managerId: string;
+status: LeaveStatus;
+reason?: string;
+}
+
+export class ReviewLeaveRequestDto {
+hrId: string;
+status: LeaveStatus;
+overrideReason?: string;
+}
+
+export class RetroactiveDeductionDto {
+employeeId: string;
+leaveTypeId: string;
+dates: { from: Date; to: Date };
+reason: string;
+}
+
 
