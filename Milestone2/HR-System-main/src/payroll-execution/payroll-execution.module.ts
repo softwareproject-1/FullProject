@@ -14,9 +14,16 @@ import { PayrollConfigurationModule } from '../payroll-configuration/payroll-con
 import { TimeManagementModule } from '../time-management/time-management.module';
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
 import { LeavesModule } from '../leaves/leaves.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [forwardRef(() => PayrollTrackingModule), PayrollConfigurationModule, TimeManagementModule, EmployeeProfileModule, LeavesModule,
+  imports: [
+    forwardRef(() => PayrollTrackingModule), 
+    PayrollConfigurationModule, 
+    TimeManagementModule, 
+    EmployeeProfileModule, 
+    LeavesModule,
+    AuthModule, // Import AuthModule to provide AuthGuard and RolesGuard
   MongooseModule.forFeature([
     { name: payrollRuns.name, schema: payrollRunsSchema },
     { name: paySlip.name, schema: paySlipSchema },
