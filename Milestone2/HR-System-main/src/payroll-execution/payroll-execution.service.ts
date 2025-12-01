@@ -73,7 +73,7 @@ export class PayrollExecutionService {
     private terminationModel: Model<EmployeeTerminationResignationDocument>,
     @InjectModel(employeePenalties.name)
     private penaltiesModel: Model<employeePenaltiesDocument>,
-  ) {}
+  ) { }
 
   // GANNAH
   // PHASE 0: PRE-RUN REVIEWS (BENEFITS & EVENTS)
@@ -114,22 +114,88 @@ export class PayrollExecutionService {
       });
       if (!record)
         throw new NotFoundException('Signing bonus record not found');
+
+      // Check if already approved or rejected
+      if (record.status === BonusStatus.APPROVED) {
+        throw new BadRequestException(
+          `This signing bonus has already been APPROVED. Cannot change approved benefits.`
+        );
+      }
+      if (record.status === BonusStatus.REJECTED) {
+        throw new BadRequestException(
+          `This signing bonus has already been REJECTED. Cannot change rejected benefits.`
+        );
+      }
+
+      // Only pending bonuses can be reviewed
+      if (record.status !== BonusStatus.PENDING) {
+        throw new BadRequestException(
+          `Only PENDING bonuses can be reviewed. Current status: ${record.status}`
+        );
+      }
+
       record.status =
         dto.action === BenefitAction.APPROVE
           ? BonusStatus.APPROVED
           : BonusStatus.REJECTED;
-      return await record.save();
+
+      const saved = await record.save();
+
+      return {
+        success: true,
+        message: `Signing bonus ${dto.action === BenefitAction.APPROVE ? 'APPROVED' : 'REJECTED'} successfully`,
+        benefit: {
+          employeeId: saved.employeeId,
+          amount: saved.givenAmount,
+          previousStatus: BonusStatus.PENDING,
+          newStatus: saved.status,
+          reviewedAt: new Date(),
+        }
+      };
     } else if (dto.type === BenefitType.TERMINATION) {
       const record = await this.terminationModel.findOne({
         employeeId: dto.employeeId,
       });
       if (!record)
         throw new NotFoundException('Termination benefit record not found');
+
+      // Check if already approved or rejected
+      if (record.status === BenefitStatus.APPROVED) {
+        throw new BadRequestException(
+          `This termination benefit has already been APPROVED. Cannot change approved benefits.`
+        );
+      }
+      if (record.status === BenefitStatus.REJECTED) {
+        throw new BadRequestException(
+          `This termination benefit has already been REJECTED. Cannot change rejected benefits.`
+        );
+      }
+
+      // Only pending benefits can be reviewed
+      if (record.status !== BenefitStatus.PENDING) {
+        throw new BadRequestException(
+          `Only PENDING termination benefits can be reviewed. Current status: ${record.status}`
+        );
+      }
+
       record.status =
         dto.action === BenefitAction.APPROVE
           ? BenefitStatus.APPROVED
           : BenefitStatus.REJECTED;
-      return await record.save();
+
+      const saved = await record.save();
+
+      return {
+        success: true,
+        message: `Termination benefit ${dto.action === BenefitAction.APPROVE ? 'APPROVED' : 'REJECTED'} successfully`,
+        benefit: {
+          employeeId: saved.employeeId,
+          amount: saved.givenAmount,
+          previousStatus: BenefitStatus.PENDING,
+          newStatus: saved.status,
+          reviewedAt: new Date(),
+        }
+      };
     }
 
     throw new BadRequestException('Invalid benefit type');
@@ -300,245 +366,245 @@ export class PayrollExecutionService {
   /**
    * Fetches eligible employees and creates draft payslips with base salary snapshots.
    */
-/**
- * Fetches eligible employees and creates draft payslips with base salary snapshots.
- */
-private async fetchAndSnapshotEmployees(
+  /**
+   * Fetches eligible employees and creates draft payslips with base salary snapshots.
+   */
+  private async fetchAndSnapshotEmployees(
     runObjectId: Types.ObjectId,
-): Promise<number> {
+  ): Promise<number> {
     try {
-        // REAL API CALL - Get actual employees from database
-        const db = this.payrollRunModel.db;
-        const employeesCollection = db.collection('employees');
-        
-        // FIX 1: Use simpler query like the working version
-        const employees = await employeesCollection.find({
-            isActive: true  // Just check isActive for now
+      // REAL API CALL - Get actual employees from database
+      const db = this.payrollRunModel.db;
+      const employeesCollection = db.collection('employees');
+
+      // FIX 1: Use simpler query like the working version
+      const employees = await employeesCollection.find({
+        isActive: true  // Just check isActive for now
+      }).toArray();
+
+      this.logger.log(`Found ${employees.length} active employees in database`);
+
+      // FIX 2: If no employees, seed them and use them
+      if (employees.length === 0) {
+        this.logger.warn('No active employees found in database, seeding mock employees...');
+        await this.seedMockEmployees();
+
+        // Fetch the seeded employees
+        const seededEmployees = await employeesCollection.find({
+          isActive: true
         }).toArray();
 
-        this.logger.log(`Found ${employees.length} active employees in database`);
-
-        // FIX 2: If no employees, seed them and use them
-        if (employees.length === 0) {
-            this.logger.warn('No active employees found in database, seeding mock employees...');
-            await this.seedMockEmployees();
-            
-            // Fetch the seeded employees
-            const seededEmployees = await employeesCollection.find({
-                isActive: true
-            }).toArray();
-            
-            if (seededEmployees.length === 0) {
-                throw new Error('Failed to seed employees. No employees available for payroll.');
-            }
-            
-            this.logger.log(`Using ${seededEmployees.length} seeded employees`);
-            return this.processEmployeesForRun(seededEmployees, runObjectId);
+        if (seededEmployees.length === 0) {
+          throw new Error('Failed to seed employees. No employees available for payroll.');
         }
 
-        return this.processEmployeesForRun(employees, runObjectId);
-        
-    } catch (error) {
-        this.logger.error(`Error in fetchAndSnapshotEmployees: ${error.message}`);
-        throw new BadRequestException(
-            `Failed to fetch employees: ${error.message}`,
-        );
-    }
-}
+        this.logger.log(`Using ${seededEmployees.length} seeded employees`);
+        return this.processEmployeesForRun(seededEmployees, runObjectId);
+      }
 
-/**
- * Helper method to process employees for a payroll run
- */
-private async processEmployeesForRun(
+      return this.processEmployeesForRun(employees, runObjectId);
+
+    } catch (error) {
+      this.logger.error(`Error in fetchAndSnapshotEmployees: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to fetch employees: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Helper method to process employees for a payroll run
+   */
+  private async processEmployeesForRun(
     employees: any[],
     runObjectId: Types.ObjectId
-): Promise<number> {
+  ): Promise<number> {
     let count = 0;
     let exceptionsCount = 0;
 
     for (const emp of employees) {
-        try {
-            // FIX 3: Remove extra validation checks that might be too strict
-            // Just check isActive - the query already filtered for this
-            if (!emp.isActive) continue;
+      try {
+        // FIX 3: Remove extra validation checks that might be too strict
+        // Just check isActive - the query already filtered for this
+        if (!emp.isActive) continue;
 
-            // Check for bank details - handle both object and boolean cases
-            let hasBankDetails = false;
-            if (emp.bankDetails) {
-                if (typeof emp.bankDetails === 'object') {
-                    hasBankDetails = 
-                        !!(emp.bankDetails as any).accountNumber ||
-                        !!(emp.bankDetails as any).account;
-                } else {
-                    hasBankDetails = true; // If it's a boolean or any truthy value
-                }
-            }
-
-            const bankStatus = hasBankDetails
-                ? BankStatus.VALID
-                : BankStatus.MISSING;
-
-            if (!hasBankDetails) {
-                exceptionsCount++;
-                this.logger.warn(`Missing bank details for employee: ${emp._id}`);
-            }
-
-            // Get base salary
-            const baseSalary = emp.baseSalary || 0;
-
-            // 1. Create PaySlip Draft
-            const newPayslip = new this.paySlipModel({
-                employeeId: emp._id, // Use real employee ID
-                payrollRunId: runObjectId,
-                paymentStatus: PaySlipPaymentStatus.PENDING,
-                totalGrossSalary: baseSalary,
-                totaDeductions: 0,
-                netPay: 0,
-                earningsDetails: {
-                    baseSalary: baseSalary,
-                    allowances: [],
-                    bonuses: [],
-                    benefits: [],
-                    refunds: [],
-                },
-                deductionsDetails: {
-                    taxes: [],
-                    insurances: [],
-                    penalties: {
-                        employeeId: emp._id,
-                        penalties: [],
-                    },
-                },
-            });
-            await newPayslip.save();
-
-            // 2. Create Employee Payroll Details Record
-            const newDetails = new this.empDetailsModel({
-                employeeId: emp._id, // Use real employee ID
-                payrollRunId: runObjectId,
-                baseSalary: baseSalary,
-                allowances: 0,
-                deductions: 0,
-                netSalary: baseSalary,
-                netPay: 0,
-                bankStatus: bankStatus,
-                exceptions: hasBankDetails ? null : 'Missing Bank Details',
-                bonus: 0,
-                benefit: 0,
-            });
-            await newDetails.save();
-
-            count++;
-            this.logger.debug(
-                `Processed employee ${emp._id} for payroll run ${runObjectId}`,
-            );
-        } catch (error) {
-            this.logger.error(
-                `Error processing employee ${emp._id}: ${error.message}`,
-            );
-            continue;
+        // Check for bank details - handle both object and boolean cases
+        let hasBankDetails = false;
+        if (emp.bankDetails) {
+          if (typeof emp.bankDetails === 'object') {
+            hasBankDetails =
+              !!(emp.bankDetails as any).accountNumber ||
+              !!(emp.bankDetails as any).account;
+          } else {
+            hasBankDetails = true; // If it's a boolean or any truthy value
+          }
         }
+
+        const bankStatus = hasBankDetails
+          ? BankStatus.VALID
+          : BankStatus.MISSING;
+
+        if (!hasBankDetails) {
+          exceptionsCount++;
+          this.logger.warn(`Missing bank details for employee: ${emp._id}`);
+        }
+
+        // Get base salary
+        const baseSalary = emp.baseSalary || 0;
+
+        // 1. Create PaySlip Draft
+        const newPayslip = new this.paySlipModel({
+          employeeId: emp._id, // Use real employee ID
+          payrollRunId: runObjectId,
+          paymentStatus: PaySlipPaymentStatus.PENDING,
+          totalGrossSalary: baseSalary,
+          totaDeductions: 0,
+          netPay: 0,
+          earningsDetails: {
+            baseSalary: baseSalary,
+            allowances: [],
+            bonuses: [],
+            benefits: [],
+            refunds: [],
+          },
+          deductionsDetails: {
+            taxes: [],
+            insurances: [],
+            penalties: {
+              employeeId: emp._id,
+              penalties: [],
+            },
+          },
+        });
+        await newPayslip.save();
+
+        // 2. Create Employee Payroll Details Record
+        const newDetails = new this.empDetailsModel({
+          employeeId: emp._id, // Use real employee ID
+          payrollRunId: runObjectId,
+          baseSalary: baseSalary,
+          allowances: 0,
+          deductions: 0,
+          netSalary: baseSalary,
+          netPay: 0,
+          bankStatus: bankStatus,
+          exceptions: hasBankDetails ? null : 'Missing Bank Details',
+          bonus: 0,
+          benefit: 0,
+        });
+        await newDetails.save();
+
+        count++;
+        this.logger.debug(
+          `Processed employee ${emp._id} for payroll run ${runObjectId}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Error processing employee ${emp._id}: ${error.message}`,
+        );
+        continue;
+      }
     }
 
     // Update exceptions count in the run
     const run = await this.payrollRunModel.findById(runObjectId);
     if (run) {
-        run.exceptions = exceptionsCount;
-        run.employees = count;
-        await run.save();
+      run.exceptions = exceptionsCount;
+      run.employees = count;
+      await run.save();
     }
 
     return count;
-}
+  }
 
 
-private async seedMockEmployees(): Promise<number> { // Change return type to number
+  private async seedMockEmployees(): Promise<number> { // Change return type to number
     try {
-        const db = this.payrollRunModel.db;
-        const employeesCollection = db.collection('employees');
-        
-        const mockEmployees = [
-            {
-                _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e1'),
-                name: 'John Doe',
-                contractStatus: 'ACTIVE',
-                baseSalary: 5000,
-                bankDetails: { accountNumber: '1234567890', bankName: 'Bank of America' },
-                overtimeHours: 10,
-                unpaidLeaveDays: 0,
-                isActive: true,
-                isActiveContract: true,
-                isBonusApproved: false,
-                email: 'john.doe@company.com',
-                department: 'Engineering',
-                position: 'Senior Developer',
-                hireDate: new Date('2023-01-15'),
-            },
-            {
-                _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e2'),
-                name: 'Jane Smith',
-                contractStatus: 'ACTIVE',
-                baseSalary: 7000,
-                bankDetails: { accountNumber: '0987654321', bankName: 'Chase' },
-                overtimeHours: 5,
-                unpaidLeaveDays: 2,
-                isActive: true,
-                isActiveContract: true,
-                isBonusApproved: false,
-                email: 'jane.smith@company.com',
-                department: 'Marketing',
-                position: 'Marketing Manager',
-                hireDate: new Date('2022-06-20'),
-            },
-            {
-                _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e4'),
-                name: 'Alice New',
-                contractStatus: 'ACTIVE',
-                baseSalary: 4500,
-                bankDetails: null, // Missing Bank Details
-                overtimeHours: 8,
-                unpaidLeaveDays: 1,
-                isActive: true,
-                isActiveContract: true,
-                isBonusApproved: true,
-                email: 'alice.new@company.com',
-                department: 'Sales',
-                position: 'Sales Representative',
-                hireDate: new Date('2024-01-10'),
-            },
-            {
-                _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e5'),
-                name: 'Mike Johnson',
-                contractStatus: 'ACTIVE',
-                baseSalary: 6000,
-                bankDetails: { accountNumber: '1122334455', bankName: 'Wells Fargo' },
-                overtimeHours: 15,
-                unpaidLeaveDays: 0,
-                isActive: true,
-                isActiveContract: true,
-                isBonusApproved: false,
-                email: 'mike.johnson@company.com',
-                department: 'Operations',
-                position: 'Operations Manager',
-                hireDate: new Date('2021-11-05'),
-            },
-        ];
+      const db = this.payrollRunModel.db;
+      const employeesCollection = db.collection('employees');
 
-        // Insert mock employees if collection is empty
-        const count = await employeesCollection.countDocuments();
-        if (count === 0) {
-            const result = await employeesCollection.insertMany(mockEmployees);
-            this.logger.log(`Seeded ${result.insertedCount} mock employees to database`);
-            return result.insertedCount;
-        } else {
-            this.logger.log(`Database already has ${count} employees`);
-            return count;
-        }
+      const mockEmployees = [
+        {
+          _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e1'),
+          name: 'John Doe',
+          contractStatus: 'ACTIVE',
+          baseSalary: 5000,
+          bankDetails: { accountNumber: '1234567890', bankName: 'Bank of America' },
+          overtimeHours: 10,
+          unpaidLeaveDays: 0,
+          isActive: true,
+          isActiveContract: true,
+          isBonusApproved: false,
+          email: 'john.doe@company.com',
+          department: 'Engineering',
+          position: 'Senior Developer',
+          hireDate: new Date('2023-01-15'),
+        },
+        {
+          _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e2'),
+          name: 'Jane Smith',
+          contractStatus: 'ACTIVE',
+          baseSalary: 7000,
+          bankDetails: { accountNumber: '0987654321', bankName: 'Chase' },
+          overtimeHours: 5,
+          unpaidLeaveDays: 2,
+          isActive: true,
+          isActiveContract: true,
+          isBonusApproved: false,
+          email: 'jane.smith@company.com',
+          department: 'Marketing',
+          position: 'Marketing Manager',
+          hireDate: new Date('2022-06-20'),
+        },
+        {
+          _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e4'),
+          name: 'Alice New',
+          contractStatus: 'ACTIVE',
+          baseSalary: 4500,
+          bankDetails: null, // Missing Bank Details
+          overtimeHours: 8,
+          unpaidLeaveDays: 1,
+          isActive: true,
+          isActiveContract: true,
+          isBonusApproved: true,
+          email: 'alice.new@company.com',
+          department: 'Sales',
+          position: 'Sales Representative',
+          hireDate: new Date('2024-01-10'),
+        },
+        {
+          _id: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5e5'),
+          name: 'Mike Johnson',
+          contractStatus: 'ACTIVE',
+          baseSalary: 6000,
+          bankDetails: { accountNumber: '1122334455', bankName: 'Wells Fargo' },
+          overtimeHours: 15,
+          unpaidLeaveDays: 0,
+          isActive: true,
+          isActiveContract: true,
+          isBonusApproved: false,
+          email: 'mike.johnson@company.com',
+          department: 'Operations',
+          position: 'Operations Manager',
+          hireDate: new Date('2021-11-05'),
+        },
+      ];
+
+      // Insert mock employees if collection is empty
+      const count = await employeesCollection.countDocuments();
+      if (count === 0) {
+        const result = await employeesCollection.insertMany(mockEmployees);
+        this.logger.log(`Seeded ${result.insertedCount} mock employees to database`);
+        return result.insertedCount;
+      } else {
+        this.logger.log(`Database already has ${count} employees`);
+        return count;
+      }
     } catch (error: any) {
-        this.logger.error(`Error seeding mock employees: ${error.message}`);
-        return 0;
+      this.logger.error(`Error seeding mock employees: ${error.message}`);
+      return 0;
     }
-}
+  }
 
 
   async debugRunEmployees(runId: string) {
@@ -659,78 +725,78 @@ private async seedMockEmployees(): Promise<number> { // Change return type to nu
 
 
   // Add this method to check the status before calculation
-async debugEmployeeDatabaseConnection(runId: string) {
-  try {
-    const run = await this.payrollRunModel.findOne({ runId });
-    if (!run) return { error: 'Run not found' };
-    
-    const db = this.payrollRunModel.db;
-    
-    // FIX: listCollections() returns a promise, not a cursor
-    const collections = await db.listCollections();
-    const hasEmployeesCollection = collections.some((c: any) => c.name === 'employees');
-    
-    if (!hasEmployeesCollection) {
+  async debugEmployeeDatabaseConnection(runId: string) {
+    try {
+      const run = await this.payrollRunModel.findOne({ runId });
+      if (!run) return { error: 'Run not found' };
+
+      const db = this.payrollRunModel.db;
+
+      // FIX: listCollections() returns a promise, not a cursor
+      const collections = await db.listCollections();
+      const hasEmployeesCollection = collections.some((c: any) => c.name === 'employees');
+
+      if (!hasEmployeesCollection) {
+        return {
+          error: 'employees collection not found in database',
+          availableCollections: collections.map((c: any) => c.name)
+        };
+      }
+
+      // Get all employees
+      const allEmployees = await db.collection('employees')
+        .find({})
+        .limit(5)
+        .toArray();
+
+      // Get employees that should be included based on your criteria
+      const activeEmployees = await db.collection('employees')
+        .find({
+          isActive: true,
+          contractStatus: 'ACTIVE',
+          isActiveContract: true
+        })
+        .limit(5)
+        .toArray();
+
+      // Get employee details for this run
+      const employeeDetails = await this.empDetailsModel
+        .find({ payrollRunId: run._id })
+        .exec();
+
+      // Get payslips for this run
+      const payslips = await this.paySlipModel
+        .find({ payrollRunId: run._id })
+        .exec();
+
       return {
-        error: 'employees collection not found in database',
-        availableCollections: collections.map((c: any) => c.name)
+        runExists: true,
+        runStatus: run.status,
+        runId: run.runId,
+        databaseConnection: 'OK',
+        hasEmployeesCollection,
+        totalEmployeesInDB: allEmployees.length,
+        activeEmployeesInDB: activeEmployees.length,
+        employeeDetailsForRun: employeeDetails.length,
+        payslipsForRun: payslips.length,
+        sampleEmployees: allEmployees.map((emp: any) => ({
+          id: emp._id,
+          name: emp.name || 'Unknown',
+          isActive: emp.isActive,
+          contractStatus: emp.contractStatus,
+          baseSalary: emp.baseSalary,
+          hasBankDetails: !!emp.bankDetails
+        })),
+        employeeDetailsSample: employeeDetails.slice(0, 3).map((ed: any) => ({
+          employeeId: ed.employeeId,
+          baseSalary: ed.baseSalary,
+          bankStatus: ed.bankStatus
+        }))
       };
+    } catch (error: any) {
+      return { error: error.message };
     }
-    
-    // Get all employees
-    const allEmployees = await db.collection('employees')
-      .find({})
-      .limit(5)
-      .toArray();
-    
-    // Get employees that should be included based on your criteria
-    const activeEmployees = await db.collection('employees')
-      .find({
-        isActive: true,
-        contractStatus: 'ACTIVE',
-        isActiveContract: true
-      })
-      .limit(5)
-      .toArray();
-    
-    // Get employee details for this run
-    const employeeDetails = await this.empDetailsModel
-      .find({ payrollRunId: run._id })
-      .exec();
-    
-    // Get payslips for this run
-    const payslips = await this.paySlipModel
-      .find({ payrollRunId: run._id })
-      .exec();
-    
-    return {
-      runExists: true,
-      runStatus: run.status,
-      runId: run.runId,
-      databaseConnection: 'OK',
-      hasEmployeesCollection,
-      totalEmployeesInDB: allEmployees.length,
-      activeEmployeesInDB: activeEmployees.length,
-      employeeDetailsForRun: employeeDetails.length,
-      payslipsForRun: payslips.length,
-      sampleEmployees: allEmployees.map((emp: any) => ({
-        id: emp._id,
-        name: emp.name || 'Unknown',
-        isActive: emp.isActive,
-        contractStatus: emp.contractStatus,
-        baseSalary: emp.baseSalary,
-        hasBankDetails: !!emp.bankDetails
-      })),
-      employeeDetailsSample: employeeDetails.slice(0, 3).map((ed: any) => ({
-        employeeId: ed.employeeId,
-        baseSalary: ed.baseSalary,
-        bankStatus: ed.bankStatus
-      }))
-    };
-  } catch (error: any) {
-    return { error: error.message };
   }
-}
 
   async processRunCalculations(runId: string): Promise<any> {
     try {
@@ -851,13 +917,19 @@ async debugEmployeeDatabaseConnection(runId: string) {
 
             // Add bonus to payslip if exists
             if (approvedBonus) {
+              // Get the full bonus config to get positionName
+              const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
+                _id: approvedBonus.signingBonusId
+              });
+
               // Now bonuses array is guaranteed to exist after ensurePayslipStructure
               payslip.earningsDetails!.bonuses!.push({
+                positionName: bonusConfig?.positionName || 'General Position',
                 amount: approvedBonus.givenAmount,
-                name: 'Signing Bonus',
-                description: 'Approved signing bonus',
-                status: 'APPROVED',
-                approvedDate: new Date(),
+                status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
+                createdBy: approvedBonus.employeeId,
+                approvedBy: approvedBonus.employeeId,
+                approvedAt: new Date(),
               } as any);
             }
 
@@ -865,13 +937,16 @@ async debugEmployeeDatabaseConnection(runId: string) {
             if (penalties) {
               // Check if penalties object has penalties array
               if (penalties.penalties && Array.isArray(penalties.penalties)) {
-                // Add each penalty
+                // Add each penalty with required fields
                 penalties.penalties.forEach((penalty: any) => {
                   // Now penalties.penalties array is guaranteed to exist
-                  payslip.deductionsDetails!.penalties!.penalties!.push({
-                    ...penalty,
-                    addedToPayslip: new Date(),
-                  });
+                  // Ensure required fields exist
+                  if (penalty.reason && penalty.amount !== undefined) {
+                    payslip.deductionsDetails!.penalties!.penalties!.push({
+                      reason: penalty.reason,
+                      amount: penalty.amount,
+                    } as any);
+                  }
                 });
               }
             }
@@ -1049,12 +1124,10 @@ async debugEmployeeDatabaseConnection(runId: string) {
 
         // Only PENALTY can be added to schema arrays
         this.ensurePayslipStructure(payslip);
+        // Add penalty with only required fields from schema
         payslip.deductionsDetails!.penalties!.penalties!.push({
-          _id: new Types.ObjectId(),
           reason: dto.reason || 'Manual deduction',
           amount: adjustmentAmount,
-          date: new Date(),
-          type: 'MANUAL_PENALTY',
         } as any);
       }
 
@@ -1746,7 +1819,7 @@ async debugEmployeeDatabaseConnection(runId: string) {
         // we'll throw a helpful error for now
         throw new BadRequestException(
           `Employee ID must be a valid MongoDB ObjectId (24 hex characters). ` +
-            `Received: ${employeeId}. Please use the employee's ObjectId instead of string identifier.`,
+          `Received: ${employeeId}. Please use the employee's ObjectId instead of string identifier.`,
         );
       }
     } catch (error) {
@@ -1840,32 +1913,32 @@ async debugEmployeeDatabaseConnection(runId: string) {
             0,
           law: this.getInsuranceLawReference(
             (insurance as any).name ||
-              (insurance as any).insuranceType ||
-              'Health Insurance',
+            (insurance as any).insuranceType ||
+            'Health Insurance',
           ),
           bracket: this.getInsuranceBracket(
             (insurance as any).name ||
-              (insurance as any).insuranceType ||
-              'Health Insurance',
+            (insurance as any).insuranceType ||
+            'Health Insurance',
             payslip.earningsDetails.baseSalary,
           ),
         }),
       ),
       penalties: payslip.deductionsDetails.penalties
         ? {
-            employeeId: payslip.deductionsDetails.penalties.employeeId,
-            penalties: (
-              payslip.deductionsDetails.penalties.penalties || []
-            ).map((penalty) => ({
-              type: (penalty as any).penaltyType || 'Penalty',
-              amount: penalty.amount,
-              reason: penalty.reason,
-              date: (penalty as any).date || new Date(),
-            })),
-            totalPenalties: (
-              payslip.deductionsDetails.penalties.penalties || []
-            ).reduce((sum, p) => sum + p.amount, 0),
-          }
+          employeeId: payslip.deductionsDetails.penalties.employeeId,
+          penalties: (
+            payslip.deductionsDetails.penalties.penalties || []
+          ).map((penalty) => ({
+            type: (penalty as any).penaltyType || 'Penalty',
+            amount: penalty.amount,
+            reason: penalty.reason,
+            date: (penalty as any).date || new Date(),
+          })),
+          totalPenalties: (
+            payslip.deductionsDetails.penalties.penalties || []
+          ).reduce((sum, p) => sum + p.amount, 0),
+        }
         : { employeeId: payslip.employeeId, penalties: [], totalPenalties: 0 },
       totalDeductions: (payslip as any).totaDeductions || 0,
     };
@@ -2019,5 +2092,176 @@ async debugEmployeeDatabaseConnection(runId: string) {
       return 'Bracket 3: $7000+ (4%)';
     }
     return 'Standard rate applies';
+  }
+
+  // === TEST DATA SEEDING ===
+
+  /**
+   * Seeds test data for signing bonuses and termination benefits
+   * This creates sample benefit records that can be reviewed/approved
+   */
+  async seedTestBenefits() {
+    try {
+      const db = this.payrollRunModel.db;
+      const employeesCollection = db.collection('employees');
+
+      // Ensure employees exist first
+      const employeeCount = await employeesCollection.countDocuments();
+      if (employeeCount === 0) {
+        await this.seedMockEmployees();
+        this.logger.log('Seeded mock employees first');
+      }
+
+      // Get employee IDs
+      const employees = await employeesCollection.find({}).limit(4).toArray();
+
+      if (employees.length === 0) {
+        throw new Error('No employees found to create benefits for');
+      }
+
+      // Clear existing benefits to avoid duplicates
+      await this.signingBonusModel.deleteMany({});
+      await this.terminationModel.deleteMany({});
+      this.logger.log('Cleared existing benefits');
+
+      // Create signing bonuses for testing
+      const signingBonuses = [
+        {
+          employeeId: employees[0]._id,
+          signingBonusId: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5f1'), // Reference to a bonus config
+          givenAmount: 5000,
+          status: BonusStatus.PENDING,
+          paymentDate: null,
+        },
+        {
+          employeeId: employees[1]._id,
+          signingBonusId: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5f1'),
+          givenAmount: 3000,
+          status: BonusStatus.PENDING,
+          paymentDate: null,
+        },
+        {
+          employeeId: employees[2]._id,
+          signingBonusId: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5f1'),
+          givenAmount: 4000,
+          status: BonusStatus.APPROVED, // Pre-approved for testing
+          paymentDate: null,
+        },
+      ];
+
+      // Create termination benefits for testing
+      const terminationBenefits = [
+        {
+          employeeId: employees[3]._id,
+          benefitId: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5f2'), // Reference to a benefit config
+          terminationId: new Types.ObjectId('64f1b2b3e4b0a1a2b3c4d5f3'), // Reference to termination request
+          givenAmount: 10000,
+          status: BenefitStatus.PENDING,
+        },
+      ];
+
+      // Insert into database
+      const insertedBonuses = await this.signingBonusModel.insertMany(signingBonuses);
+      const insertedTerminations = await this.terminationModel.insertMany(terminationBenefits);
+
+      // Create some penalties for testing deductions
+      await this.penaltiesModel.deleteMany({});
+      const penalties = [
+        {
+          employeeId: employees[1]._id,
+          penalties: [
+            { reason: 'Late arrival - 3 days', amount: 150 },
+            { reason: 'Unauthorized absence', amount: 200 },
+          ],
+        },
+      ];
+      await this.penaltiesModel.insertMany(penalties);
+
+      this.logger.log('✅ Test benefits seeded successfully');
+
+      return {
+        success: true,
+        message: 'Test benefits seeded successfully',
+        data: {
+          signingBonuses: {
+            total: insertedBonuses.length,
+            pending: signingBonuses.filter(b => b.status === BonusStatus.PENDING).length,
+            approved: signingBonuses.filter(b => b.status === BonusStatus.APPROVED).length,
+            employees: insertedBonuses.map(b => ({
+              id: b._id,
+              employeeId: b.employeeId,
+              amount: b.givenAmount,
+              status: b.status,
+            })),
+          },
+          terminationBenefits: {
+            total: insertedTerminations.length,
+            pending: terminationBenefits.filter(t => t.status === BenefitStatus.PENDING).length,
+            employees: insertedTerminations.map(t => ({
+              id: t._id,
+              employeeId: t.employeeId,
+              amount: t.givenAmount,
+              status: t.status,
+            })),
+          },
+          penalties: {
+            total: penalties.length,
+            employees: penalties.map(p => ({
+              employeeId: p.employeeId,
+              totalAmount: p.penalties.reduce((sum, pen) => sum + pen.amount, 0),
+              count: p.penalties.length,
+            })),
+          },
+          availableEmployees: employees.map(e => ({
+            _id: e._id.toString(),
+            name: e.name || 'Unknown',
+          })),
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error seeding test benefits: ${error.message}`);
+      throw new BadRequestException(`Failed to seed test benefits: ${error.message}`);
+    }
+  }
+
+  /**
+   * Clears all test data from the database
+   */
+  async clearTestData() {
+    try {
+      // Clear payroll runs
+      const runsDeleted = await this.payrollRunModel.deleteMany({});
+
+      // Clear payslips
+      const payslipsDeleted = await this.paySlipModel.deleteMany({});
+
+      // Clear employee payroll details
+      const detailsDeleted = await this.empDetailsModel.deleteMany({});
+
+      // Clear benefits
+      const bonusesDeleted = await this.signingBonusModel.deleteMany({});
+      const terminationsDeleted = await this.terminationModel.deleteMany({});
+
+      // Clear penalties
+      const penaltiesDeleted = await this.penaltiesModel.deleteMany({});
+
+      this.logger.log('✅ All test data cleared successfully');
+
+      return {
+        success: true,
+        message: 'All test data cleared successfully',
+        deleted: {
+          payrollRuns: runsDeleted.deletedCount,
+          payslips: payslipsDeleted.deletedCount,
+          employeeDetails: detailsDeleted.deletedCount,
+          signingBonuses: bonusesDeleted.deletedCount,
+          terminationBenefits: terminationsDeleted.deletedCount,
+          penalties: penaltiesDeleted.deletedCount,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error clearing test data: ${error.message}`);
+      throw new BadRequestException(`Failed to clear test data: ${error.message}`);
+    }
   }
 }

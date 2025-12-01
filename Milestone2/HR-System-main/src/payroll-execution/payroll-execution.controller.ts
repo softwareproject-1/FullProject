@@ -39,8 +39,8 @@ export class PayrollExecutionController {
     async initiatePeriod(@Body() dto: InitiateRunDto, @Req() req: any) {
         // Use authenticated user if present; otherwise a fixed test ObjectId
         const specialistId = (req && req.user && req.user.userId);
-           // ? req.user.userId;
-            //: '64f1b2b3e4b0a1a2b3c4d999';
+        // ? req.user.userId;
+        //: '64f1b2b3e4b0a1a2b3c4d999';
         return this.payrollService.initiatePeriod(dto, specialistId);
     }
 
@@ -74,41 +74,41 @@ export class PayrollExecutionController {
     }
 
 
-// Add to PayrollExecutionController
-@Get('test/db-status')
-async testDatabaseStatus() {
-    return this.payrollService.debugDatabaseStatus();
-}
+    // Add to PayrollExecutionController
+    @Get('test/db-status')
+    async testDatabaseStatus() {
+        return this.payrollService.debugDatabaseStatus();
+    }
 
-@Get('debug/employees-data')
-async debugEmployeesData() {
-    return this.payrollService.debugEmployeesCollection();
-}
-
-
-@Get('debug/run/:runId/employees')
-async debugRunEmployees(@Param('runId') runId: string) {
-    return this.payrollService.debugRunEmployees(runId);
-}
+    @Get('debug/employees-data')
+    async debugEmployeesData() {
+        return this.payrollService.debugEmployeesCollection();
+    }
 
 
-@Get('runs/:runId/payslips')
-async getRunPayslips(@Param('runId') runId: string) {
-    return this.payrollService.getPayslipsForRun(runId);
-} 
-// // TEMPORARY: Debug endpoint to see mock data for a run
-
-//     // Add this to your controller
-//     @Get('debug/all-runs')
-//     async debugAllMockRuns() {
-//         return this.payrollService.debugAllMockRuns();
-//     }
+    @Get('debug/run/:runId/employees')
+    async debugRunEmployees(@Param('runId') runId: string) {
+        return this.payrollService.debugRunEmployees(runId);
+    }
 
 
-//     @Get('runs/:runId/debug')
-//     async debugMockData(@Param('runId') runId: string) {
-//         return this.payrollService.debugMockData(runId);
-//     }
+    @Get('runs/:runId/payslips')
+    async getRunPayslips(@Param('runId') runId: string) {
+        return this.payrollService.getPayslipsForRun(runId);
+    }
+    // // TEMPORARY: Debug endpoint to see mock data for a run
+
+    //     // Add this to your controller
+    //     @Get('debug/all-runs')
+    //     async debugAllMockRuns() {
+    //         return this.payrollService.debugAllMockRuns();
+    //     }
+
+
+    //     @Get('runs/:runId/debug')
+    //     async debugMockData(@Param('runId') runId: string) {
+    //         return this.payrollService.debugMockData(runId);
+    //     }
 
 
     // ==================== MEMBER 2 (CALCULATION) END ====================
@@ -155,5 +155,19 @@ async getRunPayslips(@Param('runId') runId: string) {
         @Param('runId') runId: string
     ) {
         return this.payrollService.getPayslipDetails(employeeId, runId);
+    }
+
+    // === TEST DATA SEEDING ===
+
+    // Seed test benefits (signing bonuses and termination benefits)
+    @Post('seed/benefits')
+    async seedTestBenefits() {
+        return this.payrollService.seedTestBenefits();
+    }
+
+    // Clear all test data
+    @Post('seed/clear')
+    async clearTestData() {
+        return this.payrollService.clearTestData();
     }
 }
