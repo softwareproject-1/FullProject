@@ -1,22 +1,23 @@
 export enum BankStatus {
-    VALID = 'valid',
-    MISSING = 'missing',
+  VALID = 'valid',
+  MISSING = 'missing',
 }
-export enum BonusStatus{
-    PENDING='pending',
-    PAID='paid',
-    APPROVED='approved',
-    REJECTED='rejected'
+export enum BonusStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
 }
 export enum BenefitStatus {
-    PENDING = 'pending',
-    PAID = 'paid',
-    APPROVED = 'approved',
-    REJECTED = 'rejected'
+  PENDING = 'pending',
+  PAID = 'paid',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
 }
 
 export enum PayRollStatus {
   DRAFT = 'draft',
+  CALCULATED = 'calculated', //aded this in m2 
   UNDER_REVIEW = 'under review', // pending manager Approval
   PENDING_FINANCE_APPROVAL = 'pending finance approval',
   REJECTED = 'rejected',
@@ -29,6 +30,6 @@ export enum PayRollPaymentStatus {
   PENDING = 'pending'
 }
 export enum PaySlipPaymentStatus {
-    PENDING = 'pending',// until bank response  which is not our case
-    PAID = 'paid' // when bank responds
+  PENDING = 'pending',// until bank response  which is not our case
+  PAID = 'paid' // when bank responds
 }

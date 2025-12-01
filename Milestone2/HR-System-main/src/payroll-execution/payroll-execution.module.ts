@@ -6,6 +6,7 @@ import { terminationAndResignationBenefits, terminationAndResignationBenefitsSch
 import { employeePayrollDetails, employeePayrollDetailsSchema } from './models/employeePayrollDetails.schema';
 import { employeePenalties, employeePenaltiesSchema } from './models/employeePenalties.schema';
 import { employeeSigningBonus, employeeSigningBonusSchema } from './models/EmployeeSigningBonus.schema';
+import { EmployeeTerminationResignation, EmployeeTerminationResignationSchema } from './models/EmployeeTerminationResignation.schema';
 import { payrollRuns, payrollRunsSchema } from './models/payrollRuns.schema';
 import { paySlip, paySlipSchema } from './models/payslip.schema';
 import { PayrollTrackingModule } from '../payroll-tracking/payroll-tracking.module';
@@ -21,6 +22,7 @@ import { LeavesModule } from '../leaves/leaves.module';
     { name: paySlip.name, schema: paySlipSchema },
     { name: employeePayrollDetails.name, schema: employeePayrollDetailsSchema },
     { name: employeeSigningBonus.name, schema: employeeSigningBonusSchema },
+    { name: EmployeeTerminationResignation.name, schema: EmployeeTerminationResignationSchema },
     { name: terminationAndResignationBenefits.name, schema: terminationAndResignationBenefitsSchema },
     { name: employeePenalties.name, schema: employeePenaltiesSchema },
 
