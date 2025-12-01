@@ -355,8 +355,8 @@ export class PerformanceService {
       publishedAt: record.hrPublishedAt,
       cycleId: record.cycleId,
       templateId: record.templateId,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
+      createdAt: (record as any).createdAt || undefined,
+      updatedAt: (record as any).updatedAt || undefined,
     }));
   }
 
