@@ -34,6 +34,21 @@ export class employeePayrollDetails {
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: payrollRuns.name, required: true })
     payrollRunId: mongoose.Types.ObjectId;
 
+    @Prop()
+    grossPay?: number; // total earnings before deductions
+
+    @Prop()
+    totalTaxes?: number; // total tax amount
+
+    @Prop()
+    totalInsurance?: number; // total insurance amount
+
+    @Prop()
+    penalties?: number; // penalties deducted
+
+    @Prop()
+    refunds?: number; // refunds added
+
 }
 
 
