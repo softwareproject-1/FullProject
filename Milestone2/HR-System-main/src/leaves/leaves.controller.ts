@@ -19,6 +19,14 @@ import { AddHolidayDto } from './dtos/add-holiday.dto';
 import { BlockedDayDto } from './dtos/blocked-day.dto';
 import { ApprovalStepDto } from './dtos/create-leave-type.dto';
 
+import { UseGuards } from '@nestjs/common';
+import { AuthenticationGuard } from '../auth/guards/authentication.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+
+
+
+@UseGuards(AuthenticationGuard, RolesGuard)
 @Controller('leaves')
 export class LeavesController {
   constructor(private readonly leavesService: LeavesService) {}
@@ -32,6 +40,8 @@ export class LeavesController {
 
 
   @Post('types')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async createLeaveType(@Body() dto: CreateLeaveTypeDto) {
     return this.leavesService.createLeaveType(dto);
   }
@@ -42,6 +52,8 @@ export class LeavesController {
 
 
   @Post('types/:leaveTypeId/entitlement-rule')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async setEntitlementRule(
     @Param('leaveTypeId') leaveTypeId: string,
     @Body() dto: EntitlementRuleDto,
@@ -53,6 +65,8 @@ export class LeavesController {
   //PERSONALIZED ENTITLEMENTS ---> works
   //updates leave entitlement schema
   @Patch('entitlement/personalized')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async setPersonalizedEntitlement(
     @Body()
     body: {
@@ -73,6 +87,8 @@ export class LeavesController {
 
 
   @Post('accrual/:employeeId/:leaveTypeId')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async configureAccrualPolicy(
     @Param('employeeId') employeeId: string,
     @Param('leaveTypeId') leaveTypeId: string,
@@ -94,6 +110,8 @@ export class LeavesController {
   //updates the leave request database 
   
   @Patch('types/:leaveTypeId/workflow')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('SYSTEM_ADMIN')
   async configureApprovalWorkflow(
     @Param('leaveTypeId') leaveTypeId: string,
     @Body()
@@ -114,6 +132,8 @@ export class LeavesController {
  
 
   @Post('calendar/:year/holiday')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async addHoliday(
     @Param('year') year: string,
     @Body() dto: AddHolidayDto,
@@ -123,6 +143,8 @@ export class LeavesController {
 
   //BLOCKED DAYS MANAGEMENT -> works
   @Post('calendar/:year/blocked')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async addBlockedPeriod(
     @Param('year') year: string,
     @Body() dto: BlockedDayDto,
@@ -133,6 +155,8 @@ export class LeavesController {
   //  NET LEAVE CALCULATION -> works
 
   @Get('net-duration')
+  @UseGuards(AuthenticationGuard, RolesGuard)
+  @Roles('HR_ADMIN')
   async calculateNetLeaveDuration(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,

@@ -8,6 +8,13 @@ import { disputes, disputesSchema } from './models/disputes.schema';
 import { paySlip, paySlipSchema } from '../payroll-execution/models/payslip.schema';
 import { PayrollConfigurationModule } from '../payroll-configuration/payroll-configuration.module';
 import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.module';
+import { AuthModule } from '../auth/auth.module';
+import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
+import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
+import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
+import { EmployeeQualification, EmployeeQualificationSchema } from '../employee-profile/models/qualification.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
+import { EmployeeProfileChangeRequest, EmployeeProfileChangeRequestSchema } from '../employee-profile/models/ep-change-request.schema';
 
 
 
@@ -16,14 +23,20 @@ import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.m
   imports: [
     PayrollConfigurationModule,
     forwardRef(()=> PayrollExecutionModule),
+    AuthModule,
     MongooseModule.forFeature([
       { name: refunds.name, schema: refundsSchema },
       { name: claims.name, schema: claimsSchema },
       { name: disputes.name, schema: disputesSchema },
       { name: paySlip.name, schema: paySlipSchema },
+      { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
+      { name: Candidate.name, schema: CandidateSchema },
+      { name: EmployeeQualification.name, schema: EmployeeQualificationSchema },
+      { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
+      { name: EmployeeProfileChangeRequest.name, schema: EmployeeProfileChangeRequestSchema },
     ])],
   controllers: [PayrollTrackingController],
-  providers: [PayrollTrackingService],
+  providers: [PayrollTrackingService, EmployeeProfileService],
   exports:[PayrollTrackingService]
 })
 export class PayrollTrackingModule { }

@@ -1,0 +1,856 @@
+
+> hr-system-main@1.0.0 start:dev
+> nest start --watch
+
+[2J[3J[H[[90m9:51:15 PM[0m] Starting compilation in watch mode...
+
+[[90m9:51:17 PM[0m] Found 0 errors. Watching for file changes.
+
+(node:94205) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRecruitmentModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollConfigurationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollExecutionModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:18 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseCoreModule dependencies initialized[39m[38;5;3m +759ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +23ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmployeeProfileModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOrganizationStructureModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLeavesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPerformanceModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTimeManagementModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollTrackingModule dependencies initialized[39m[38;5;3m +0ms[39m
+ MongoDB connected successfully!
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +23ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTimeManagementController {/time-management}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/bulk, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/expiring/check, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/clock, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id/correct, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/missed-punches/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/escalate/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, DELETE} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/attendance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/overtime, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/notifications/employee/:employeeId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/escalate/payroll-cutoff, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEmployeeProfileController {/employee-profile}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/employment-state, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/supervisor, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/convert, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/qualifications/:qualificationId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/permissions, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests/:requestId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/access/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOrganizationStructureController {/organization-structure}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/by-name/:departmentName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/by-name/:positionName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/submit, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/approvals, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRecruitmentController {/recruitment}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLeavesController {/leaves}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/entitlement-rule, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/entitlement/personalized, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/accrual/:employeeId/:leaveTypeId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/workflow, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/holiday, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/blocked, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/net-duration, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollTrackingController {/payroll-tracking}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/review, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/manager-action, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/payslips, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/tax, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/insurance, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/departmental, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/financial, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/tax-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/insurance-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/refunds/:id/pay, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollConfigurationController {/payroll-configuration}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollExecutionController {/payroll-execution}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPerformanceController {/performance}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/status/:status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:assignmentId/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/publish, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/acknowledge, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/disputes, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 94226  - [39m12/01/2025, 9:51:19 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +1ms[39m
+ Nest backend is running on http://localhost:3000
+ Swagger documentation available at http://localhost:3000/api
+[2J[3J[H[[90m9:56:13 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m9:56:13 PM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRecruitmentModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollConfigurationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollExecutionModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:14 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +5ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseCoreModule dependencies initialized[39m[38;5;3m +685ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +15ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmployeeProfileModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOrganizationStructureModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLeavesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPerformanceModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTimeManagementModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollTrackingModule dependencies initialized[39m[38;5;3m +0ms[39m
+ MongoDB connected successfully!
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +23ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTimeManagementController {/time-management}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/bulk, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, PUT} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/expiring/check, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/clock, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id/correct, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/missed-punches/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/escalate/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/attendance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/overtime, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/notifications/employee/:employeeId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/escalate/payroll-cutoff, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEmployeeProfileController {/employee-profile}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/employment-state, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/supervisor, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/convert, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/qualifications/:qualificationId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/permissions, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests/:requestId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/access/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOrganizationStructureController {/organization-structure}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/by-name/:departmentName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/by-name/:positionName, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/submit, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/approvals, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRecruitmentController {/recruitment}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLeavesController {/leaves}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/entitlement-rule, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/entitlement/personalized, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/accrual/:employeeId/:leaveTypeId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/workflow, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/holiday, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/blocked, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/net-duration, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollTrackingController {/payroll-tracking}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/review, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/me, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/payslips, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/tax, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/insurance, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/departmental, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/financial, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/tax-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/insurance-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/refunds/:id/pay, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollConfigurationController {/payroll-configuration}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollExecutionController {/payroll-execution}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPerformanceController {/performance}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/status/:status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:assignmentId/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/publish, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/acknowledge, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/disputes, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97896  - [39m12/01/2025, 9:56:15 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +1ms[39m
+ Nest backend is running on http://localhost:3000
+ Swagger documentation available at http://localhost:3000/api
+[2J[3J[H[[90m9:56:29 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m9:56:29 PM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +7ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRecruitmentModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollConfigurationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollExecutionModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseCoreModule dependencies initialized[39m[38;5;3m +507ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmployeeProfileModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOrganizationStructureModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLeavesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPerformanceModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTimeManagementModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollTrackingModule dependencies initialized[39m[38;5;3m +0ms[39m
+ MongoDB connected successfully!
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +15ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTimeManagementController {/time-management}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/bulk, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/expiring/check, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/clock, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id/correct, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/missed-punches/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/escalate/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/attendance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/overtime, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/notifications/employee/:employeeId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/escalate/payroll-cutoff, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEmployeeProfileController {/employee-profile}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/employment-state, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/supervisor, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/convert, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/qualifications/:qualificationId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/permissions, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests/:requestId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/access/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOrganizationStructureController {/organization-structure}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/by-name/:departmentName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/by-name/:positionName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/submit, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/approvals, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRecruitmentController {/recruitment}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLeavesController {/leaves}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/entitlement-rule, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/entitlement/personalized, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/accrual/:employeeId/:leaveTypeId, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/workflow, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/holiday, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/blocked, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/net-duration, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollTrackingController {/payroll-tracking}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/review, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/payslips, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/tax, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/insurance, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/departmental, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/financial, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/tax-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/insurance-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/refunds/:id/pay, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollConfigurationController {/payroll-configuration}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollExecutionController {/payroll-execution}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPerformanceController {/performance}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/status/:status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:assignmentId/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/publish, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/acknowledge, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/disputes, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 97933  - [39m12/01/2025, 9:56:30 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +1ms[39m
+ Nest backend is running on http://localhost:3000
+ Swagger documentation available at http://localhost:3000/api
+[2J[3J[H[[90m9:57:49 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m9:57:49 PM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 97986  - [39m12/01/2025, 9:57:49 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 97986  - [39m12/01/2025, 9:57:49 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +8ms[39m
+[32m[Nest] 97986  - [39m12/01/2025, 9:57:49 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[31m[Nest] 97986  - [39m12/01/2025, 9:57:49 PM [31m  ERROR[39m [38;5;3m[ExceptionHandler] [39m[31mNest can't resolve dependencies of the PayrollTrackingService (claimsModel, refundsModel, paySlipModel, disputesModel, ?). Please make sure that the argument EmployeeProfileService at index [4] is available in the PayrollTrackingModule context.
+
+Potential solutions:
+- Is PayrollTrackingModule a valid NestJS module?
+- If EmployeeProfileService is a provider, is it part of the current PayrollTrackingModule?
+- If EmployeeProfileService is exported from a separate @Module, is that module imported within PayrollTrackingModule?
+  @Module({
+    imports: [ /* the Module containing EmployeeProfileService */ ]
+  })
+[39m
+Error: Nest can't resolve dependencies of the PayrollTrackingService (claimsModel, refundsModel, paySlipModel, disputesModel, ?). Please make sure that the argument EmployeeProfileService at index [4] is available in the PayrollTrackingModule context.
+
+Potential solutions:
+- Is PayrollTrackingModule a valid NestJS module?
+- If EmployeeProfileService is a provider, is it part of the current PayrollTrackingModule?
+- If EmployeeProfileService is exported from a separate @Module, is that module imported within PayrollTrackingModule?
+  @Module({
+    imports: [ /* the Module containing EmployeeProfileService */ ]
+  })
+
+    at Injector.lookupComponentInParentModules (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:262:19)
+    at async Injector.resolveComponentInstance (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:215:33)
+    at async resolveParam (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:129:38)
+    at async Promise.all (index 4)
+    at async Injector.resolveConstructorParams (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:144:27)
+    at async Injector.loadInstance (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:70:13)
+    at async Injector.loadProvider (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:98:9)
+    at async /Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/instance-loader.js:56:13
+    at async Promise.all (index 3)
+    at async InstanceLoader.createInstancesOfProviders (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+[2J[3J[H[[90m9:58:01 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m9:58:02 PM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 97994  - [39m12/01/2025, 9:58:02 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 97994  - [39m12/01/2025, 9:58:02 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +8ms[39m
+[32m[Nest] 97994  - [39m12/01/2025, 9:58:02 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[31m[Nest] 97994  - [39m12/01/2025, 9:58:02 PM [31m  ERROR[39m [38;5;3m[ExceptionHandler] [39m[31mNest can't resolve dependencies of the EmployeeProfileService (EmployeeProfileModel, ?, EmployeeQualificationModel, EmployeeSystemRoleModel, EmployeeProfileChangeRequestModel). Please make sure that the argument "CandidateModel" at index [1] is available in the PayrollTrackingModule context.
+
+Potential solutions:
+- Is PayrollTrackingModule a valid NestJS module?
+- If "CandidateModel" is a provider, is it part of the current PayrollTrackingModule?
+- If "CandidateModel" is exported from a separate @Module, is that module imported within PayrollTrackingModule?
+  @Module({
+    imports: [ /* the Module containing "CandidateModel" */ ]
+  })
+[39m
+Error: Nest can't resolve dependencies of the EmployeeProfileService (EmployeeProfileModel, ?, EmployeeQualificationModel, EmployeeSystemRoleModel, EmployeeProfileChangeRequestModel). Please make sure that the argument "CandidateModel" at index [1] is available in the PayrollTrackingModule context.
+
+Potential solutions:
+- Is PayrollTrackingModule a valid NestJS module?
+- If "CandidateModel" is a provider, is it part of the current PayrollTrackingModule?
+- If "CandidateModel" is exported from a separate @Module, is that module imported within PayrollTrackingModule?
+  @Module({
+    imports: [ /* the Module containing "CandidateModel" */ ]
+  })
+
+    at Injector.lookupComponentInParentModules (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:262:19)
+    at async Injector.resolveComponentInstance (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:215:33)
+    at async resolveParam (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:129:38)
+    at async Promise.all (index 1)
+    at async Injector.resolveConstructorParams (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:144:27)
+    at async Injector.loadInstance (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:70:13)
+    at async Injector.loadProvider (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/injector.js:98:9)
+    at async /Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/instance-loader.js:56:13
+    at async Promise.all (index 4)
+    at async InstanceLoader.createInstancesOfProviders (/Users/fatmaosama/Public/Projects/FullProject/Milestone2/HR-System-main/node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+[2J[3J[H[[90m9:59:06 PM[0m] File change detected. Starting incremental compilation...
+
+[[90m9:59:07 PM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +6ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mRecruitmentModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollConfigurationModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollExecutionModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:07 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +4ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseCoreModule dependencies initialized[39m[38;5;3m +688ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +16ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMongooseModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEmployeeProfileModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOrganizationStructureModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mLeavesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPerformanceModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTimeManagementModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPayrollTrackingModule dependencies initialized[39m[38;5;3m +0ms[39m
+ MongoDB connected successfully!
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +21ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/logout, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTimeManagementController {/time-management}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-types/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shifts/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/schedule-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/bulk, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/shift-assignments/expiring/check, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/clock, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/records/:id/correct, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/missed-punches/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/attendance/correction-requests/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/time-exceptions/escalate/check, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/overtime-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/lateness-rules/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/holidays/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/attendance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/overtime, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/reports/exceptions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/notifications/employee/:employeeId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/time-management/escalate/payroll-cutoff, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEmployeeProfileController {/employee-profile}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId, PUT} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/employment-state, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/supervisor, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/candidates/:candidateId/convert, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/qualifications/:qualificationId, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/qualifications, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/permissions, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/system-roles, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/change-requests/:requestId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/archive, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/employee-profile/:profileId/access/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOrganizationStructureController {/organization-structure}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/by-name/:departmentName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/departments/:departmentId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/by-name/:positionName, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/positions/:positionId/deactivate, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/submit, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/organization-structure/change-requests/:requestId/approvals, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mRecruitmentController {/recruitment}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mLeavesController {/leaves}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/entitlement-rule, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/entitlement/personalized, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/accrual/:employeeId/:leaveTypeId, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/types/:leaveTypeId/workflow, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/holiday, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/calendar/:year/blocked, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/leaves/net-duration, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollTrackingController {/payroll-tracking}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/review, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/claims/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/me, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/disputes/:id/manager-action, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/payslips, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/tax, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/certificates/insurance, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/departmental, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/financial, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/tax-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/reports/insurance-compliance, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/payroll-tracking/refunds/:id/pay, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollConfigurationController {/payroll-configuration}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPayrollExecutionController {/payroll-execution}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPerformanceController {/performance}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/templates/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/status/:status, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/archive, PATCH} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/assignments, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/assignments/:assignmentId/records, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/records, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/publish, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/acknowledge, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/records/:id/delete, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/cycles/:cycleId/disputes, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/performance/disputes/:id/resolve, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 99535  - [39m12/01/2025, 9:59:08 PM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +1ms[39m
+ Nest backend is running on http://localhost:3000
+ Swagger documentation available at http://localhost:3000/api
