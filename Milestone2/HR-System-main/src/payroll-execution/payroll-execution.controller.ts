@@ -144,6 +144,20 @@ async getRunPayslips(@Param('runId') runId: string) {
         return this.payrollService.managerReview(runId, dto);
     }
 
+    // NEW: Finance Review (Approve/Reject) - REQ-PY-15
+    @Patch('runs/:id/finance-review')
+    @Roles('Finance Staff') // Phase 3: Finance Staff final approval before execution
+    async financeReview(@Param('id') runId: string, @Body() dto: ReviewActionDto) {
+        return this.payrollService.financeReview(runId, dto);
+    }
+
+    // NEW: Preview Dashboard - REQ-PY-6
+    @Get('runs/:id/preview')
+    @Roles('Payroll Specialist', 'Payroll Manager', 'Finance Staff') // REQ-PY-6: Preview dashboard for all payroll roles
+    async getPayrollPreview(@Param('id') runId: string) {
+        return this.payrollService.getPayrollPreview(runId);
+    }
+
     // 9. Finance Execute & Distribute Payslips (REQ-PY-8)
     @Patch('runs/:id/execute-and-distribute')
     @Roles('Finance Staff') // Phase 5: Only Finance Staff can execute final payment and distribution
