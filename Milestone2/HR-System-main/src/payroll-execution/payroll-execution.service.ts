@@ -985,6 +985,9 @@ export class PayrollExecutionService {
       this.logger.log(
         `Processed: ${processedCount} employees, Total Payout: ${totalPayout}`,
       );
+      this.logger.log(
+        `BR 63/BR 66: Skipped ${skippedEmployees.length} employees due to contract issues`,
+      );
 
       return {
         success: true,
@@ -993,6 +996,14 @@ export class PayrollExecutionService {
         runId: payrollRun.runId,
         status: payrollRun.status,
         message: `Processed ${processedCount} employees. Total Payout: ${totalPayout}`,
+        validation: {
+          skippedEmployees: skippedEmployees.length,
+          validationErrors: validationErrors.length,
+          details: {
+            skipped: skippedEmployees,
+            errors: validationErrors,
+          },
+        },
       };
     } catch (error) {
       this.logger.error(`Calculation failed: ${error.message}`);
@@ -1651,70 +1662,70 @@ export class PayrollExecutionService {
    * - bankDetails: Bank account availability (for exception flagging)
    * - isBonusApproved: Indicates if signing bonus was approved
    */
-  private getMockEmployeeData() {
-    return [
-      {
-        id: '64f1b2b3e4b0a1a2b3c4d5e1',
-        name: 'John Doe',
-        contractStatus: 'ACTIVE',
-        baseSalary: 5000,
-        bankDetails: true,
-        overtimeHours: 10,
-        penaltyDeduction: 0,
-        unpaidLeaveDays: 0,
-        isActiveContract: true,
-        isBonusApproved: false,
-      },
-      {
-        id: '64f1b2b3e4b0a1a2b3c4d5e2',
-        name: 'Jane Smith',
-        contractStatus: 'ACTIVE',
-        baseSalary: 7000,
-        bankDetails: true,
-        overtimeHours: 5,
-        penaltyDeduction: 100,
-        unpaidLeaveDays: 2,
-        isActiveContract: true,
-        isBonusApproved: false,
-      },
-      {
-        id: '64f1b2b3e4b0a1a2b3c4d5e3',
-        name: 'Bob Retired',
-        contractStatus: 'EXPIRED',
-        baseSalary: 4000,
-        bankDetails: true,
-        overtimeHours: 0,
-        penaltyDeduction: 0,
-        unpaidLeaveDays: 0,
-        isActiveContract: false, // BR 66: Should be skipped during processing
-        isBonusApproved: false,
-      },
-      {
-        id: '64f1b2b3e4b0a1a2b3c4d5e4',
-        name: 'Alice New',
-        contractStatus: 'ACTIVE',
-        baseSalary: 4500,
-        bankDetails: false, // Missing Bank Details - will create exception
-        overtimeHours: 8,
-        penaltyDeduction: 50,
-        unpaidLeaveDays: 1,
-        isActiveContract: true,
-        isBonusApproved: true, // New hire with approved signing bonus
-      },
-      {
-        id: '64f1b2b3e4b0a1a2b3c4d5e5',
-        name: 'Mike Johnson',
-        contractStatus: 'ACTIVE',
-        baseSalary: 6000,
-        bankDetails: true,
-        overtimeHours: 15,
-        penaltyDeduction: 200,
-        unpaidLeaveDays: 0,
-        isActiveContract: true,
-        isBonusApproved: false,
-      },
-    ];
-  }
+  // private getMockEmployeeData() {
+  //   return [
+  //     {
+  //       id: '64f1b2b3e4b0a1a2b3c4d5e1',
+  //       name: 'John Doe',
+  //       contractStatus: 'ACTIVE',
+  //       baseSalary: 5000,
+  //       bankDetails: true,
+  //       overtimeHours: 10,
+  //       penaltyDeduction: 0,
+  //       unpaidLeaveDays: 0,
+  //       isActiveContract: true,
+  //       isBonusApproved: false,
+  //     },
+  //     {
+  //       id: '64f1b2b3e4b0a1a2b3c4d5e2',
+  //       name: 'Jane Smith',
+  //       contractStatus: 'ACTIVE',
+  //       baseSalary: 7000,
+  //       bankDetails: true,
+  //       overtimeHours: 5,
+  //       penaltyDeduction: 100,
+  //       unpaidLeaveDays: 2,
+  //       isActiveContract: true,
+  //       isBonusApproved: false,
+  //     },
+  //     {
+  //       id: '64f1b2b3e4b0a1a2b3c4d5e3',
+  //       name: 'Bob Retired',
+  //       contractStatus: 'EXPIRED',
+  //       baseSalary: 4000,
+  //       bankDetails: true,
+  //       overtimeHours: 0,
+  //       penaltyDeduction: 0,
+  //       unpaidLeaveDays: 0,
+  //       isActiveContract: false, // BR 66: Should be skipped during processing
+  //       isBonusApproved: false,
+  //     },
+  //     {
+  //       id: '64f1b2b3e4b0a1a2b3c4d5e4',
+  //       name: 'Alice New',
+  //       contractStatus: 'ACTIVE',
+  //       baseSalary: 4500,
+  //       bankDetails: false, // Missing Bank Details - will create exception
+  //       overtimeHours: 8,
+  //       penaltyDeduction: 50,
+  //       unpaidLeaveDays: 1,
+  //       isActiveContract: true,
+  //       isBonusApproved: true, // New hire with approved signing bonus
+  //     },
+  //     {
+  //       id: '64f1b2b3e4b0a1a2b3c4d5e5',
+  //       name: 'Mike Johnson',
+  //       contractStatus: 'ACTIVE',
+  //       baseSalary: 6000,
+  //       bankDetails: true,
+  //       overtimeHours: 15,
+  //       penaltyDeduction: 200,
+  //       unpaidLeaveDays: 0,
+  //       isActiveContract: true,
+  //       isBonusApproved: false,
+  //     },
+  //   ];
+  // }
 
   // === MEMBER 3 (APPROVALS) ===
   // PHASE 2: ANOMALY DETECTION & VALIDATION
@@ -1966,15 +1977,19 @@ export class PayrollExecutionService {
       run.financeApprovalDate = new Date();
       await run.save();
 
-      this.logger.log(`REQ-PY-15: Payroll ${runId} approved by Finance. Ready for execution.`);
+      this.logger.log(`REQ-PY-15: Payroll ${runId} approved by Finance. Awaiting Manager to lock.`);
+
+      // TODO: Notify Payroll Manager to lock payroll
+      // await this.notificationService.notifyManagerToLock(run.payrollManagerId, runId);
 
       return {
-        message: 'Payroll approved by Finance. Ready for execution.',
+        message: 'Payroll approved by Finance. Awaiting Payroll Manager to lock payroll.',
         runId: run.runId,
         status: run.status,
         approvedAt: run.financeApprovalDate,
         comment: dto.comment,
-        nextStep: 'Execute payroll via EXECUTE_PAYROLL endpoint',
+        nextStep: 'Payroll Manager must lock the payroll via LOCK_PAYROLL endpoint',
+        managerAction: 'LOCK_REQUIRED',
       };
     } else if (dto.status === ReviewStatus.REJECTED) {
       // Rejected: Send back to draft for corrections
@@ -2138,9 +2153,10 @@ export class PayrollExecutionService {
     const run = await this.payrollRunModel.findOne({ runId });
     if (!run) throw new NotFoundException('Payroll Run not found');
 
-    if (run.status !== PayRollStatus.PENDING_FINANCE_APPROVAL) {
+    this.logger.log(`REQ-PY-8: Starting payroll execution for ${runId}`);\n\n    // STEP 1: Validate run is LOCKED (not just approved)
+    if (run.status !== PayRollStatus.LOCKED) {
       throw new BadRequestException(
-        `Run ${runId} is not ready for finance execution`,
+        `Cannot execute payroll. Run must be LOCKED by Payroll Manager first. Current status: ${run.status}`,
       );
     }
 
@@ -2232,19 +2248,14 @@ export class PayrollExecutionService {
       `REQ-PY-8, BR 17: ${archivedPayslips.length} payslips generated and archived for long-term retention`,
     );
 
-    // STEP 4: Mark payroll run as completed
-    run.status = PayRollStatus.APPROVED;
+    // STEP 4: Mark payroll run as completed (already LOCKED, now COMPLETED)
+    run.status = PayRollStatus.COMPLETED;
     run.paymentStatus = PayRollPaymentStatus.PAID;
     run.totalnetpay = totalDisbursement;
+    run.executedAt = new Date();
     await run.save();
 
-    // STEP 5: Automatically Lock Payroll (REQ-PY-7 - Post-Approval Lock)
-    await this.lockPayroll(runId);
-    this.logger.log(
-      `REQ-PY-7: Payroll run ${runId} automatically locked after finance approval`,
-    );
-
-    // STEP 6: Log distribution completion
+    // STEP 5: Log distribution completion
     this.logger.log(
       `REQ-PY-8: Generated and distributed ${distributedPayslips.length} payslips for run ${runId}`,
     );
@@ -2302,22 +2313,23 @@ export class PayrollExecutionService {
       );
     }
 
-    // Lock the payroll
+    // Lock the payroll and set payment status
     run.status = PayRollStatus.LOCKED;
+    run.paymentStatus = PayRollPaymentStatus.PAID;
     await run.save();
 
     this.logger.log(
-      `REQ-PY-7: Payroll run ${runId} has been locked to prevent unauthorized changes`,
+      `REQ-PY-7: Payroll Manager locked payroll ${runId}. Ready for execution.`,
     );
 
     return {
-      message:
-        'Payroll run successfully locked. No retroactive changes allowed.',
+      message: 'Payroll run locked successfully by Payroll Manager. Ready for execution.',
       runId: run.runId,
       status: run.status,
       lockedAt: new Date(),
       paymentStatus: run.paymentStatus,
       totalNetPay: run.totalnetpay,
+      nextStep: 'Finance Staff can now execute payroll via EXECUTE_PAYROLL endpoint',
     };
   }
 
