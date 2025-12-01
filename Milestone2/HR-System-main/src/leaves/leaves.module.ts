@@ -2,14 +2,14 @@ import { Module } from '@nestjs/common';
 import { LeavesController } from './leaves.controller';
 import { LeavesService } from './leaves.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { LeaveType, LeaveTypeSchema } from './models/leave-type.schema';
-import { LeaveRequest, LeaveRequestSchema } from './models/leave-request.schema';
-import { LeavePolicy, LeavePolicySchema } from './models/leave-policy.schema';
-import { LeaveEntitlement, LeaveEntitlementSchema } from './models/leave-entitlement.schema';
-import { LeaveCategory, LeaveCategorySchema } from './models/leave-category.schema';
-import { LeaveAdjustment, LeaveAdjustmentSchema } from './models/leave-adjustment.schema';
-import { Calendar, CalendarSchema} from './models/calendar.schema';
-import { Attachment,AttachmentSchema } from './models/attachment.schema';
+import { LeaveType, LeaveTypeSchema } from './schemas/leave-type.schema';
+import { LeaveRequest, LeaveRequestSchema } from './schemas/leave-request.schema';
+import { LeavePolicy, LeavePolicySchema } from './schemas/leave-policy.schema';
+import { LeaveEntitlement, LeaveEntitlementSchema } from './schemas/leave-entitlement.schema';
+import { LeaveCategory, LeaveCategorySchema } from './schemas/leave-category.schema';
+import { LeaveAdjustment, LeaveAdjustmentSchema } from './schemas/leave-adjustment.schema';
+import { Calendar, CalendarSchema} from './schemas/calendar.schema';
+import { Attachment,AttachmentSchema } from './schemas/attachment.schema';
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
 import { TimeManagementModule } from '../time-management/time-management.module';
 
@@ -28,3 +28,4 @@ import { TimeManagementModule } from '../time-management/time-management.module'
   exports:[LeavesService]
 })
 export class LeavesModule {}
+
