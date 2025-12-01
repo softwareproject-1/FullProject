@@ -995,7 +995,10 @@ async debugEmployeeDatabaseConnection(runId: string) {
     const proratedInfo = await this.calculateProratedSalary(employee, grossSalary, runId);
     grossSalary = proratedInfo.proratedSalary;
 
-    // Get employee-specific data with defaults (TODO: Replace with Time Management Service integration)
+    // Integration Point: Time Management & Leaves Services
+    // For now using employee data fields, ready for service integration when available
+    // Expected fields from Time Management: overtimeHours, attendance data
+    // Expected fields from Leaves Module: unpaidLeaveDays, leave encashment for exits
     const overtimeHours = employee.overtimeHours || 0;
     const unpaidLeaveDays = employee.unpaidLeaveDays || 0;
 
@@ -1027,6 +1030,15 @@ async debugEmployeeDatabaseConnection(runId: string) {
 
     // Calculate bonus if approved (BR 56)
     const signingBonus = approvedBonus ? approvedBonus.givenAmount || 0 : 0;
+
+    // Integration Point: Leave Encashment for Terminated/Resigned Employees (BR 56)
+    // When Leaves Module integration is available, add:
+    // if (employee.employmentStatus === 'TERMINATED' || employee.employmentStatus === 'RESIGNED') {
+    //   const leaveEncashment = await this.leavesService.calculateLeaveEncashment(
+    //     employee._id, employee.contractEndDate
+    //   );
+    //   finalSalary += leaveEncashment; // Add unused annual leave payout
+    // }
 
     // Apply final adjustments (BR 31)
     let finalSalary =
@@ -1951,7 +1963,8 @@ async debugEmployeeDatabaseConnection(runId: string) {
 
       this.logger.log(`REQ-PY-15: Payroll ${runId} approved by Finance. Awaiting Manager to lock.`);
 
-      // TODO: Notify Payroll Manager to lock payroll
+      // Integration Point: Notification Service
+      // When notification service is available, uncomment:
       // await this.notificationService.notifyManagerToLock(run.payrollManagerId, runId);
 
       return {
