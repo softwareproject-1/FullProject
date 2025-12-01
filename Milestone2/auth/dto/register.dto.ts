@@ -8,7 +8,6 @@ import {
 } from 'class-validator';
 
 export class RegisterDto {
-  // Required fields from UserProfileBase
   @IsString()
   @IsNotEmpty()
   firstName: string;
@@ -30,7 +29,6 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
-  // Optional fields from UserProfileBase
   @IsOptional()
   @IsEmail()
   personalEmail?: string;
@@ -39,7 +37,6 @@ export class RegisterDto {
   @IsString()
   mobilePhone?: string;
 
-  // Required fields from EmployeeProfile
   @IsString()
   @IsNotEmpty()
   employeeNumber: string;
@@ -48,7 +45,6 @@ export class RegisterDto {
   @IsNotEmpty()
   dateOfHire: string;
 
-  // Optional fields from EmployeeProfile
   @IsOptional()
   @IsEmail()
   workEmail?: string;

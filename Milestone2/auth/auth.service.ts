@@ -2,7 +2,6 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,9 +11,15 @@ import { EmployeeProfile, EmployeeProfileDocument } from '../employee-profile/mo
 import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../employee-profile/models/employee-system-role.schema';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { JwtPayload } from './strategies/jwt.strategy';
-import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
-import { EmployeeStatus } from '../employee-profile/enums/employee-profile.enums';
+import { SystemRole, EmployeeStatus } from '../employee-profile/enums/employee-profile.enums';
+
+export interface JwtPayload {
+  sub: string;
+  nationalId: string;
+  employeeNumber: string;
+  roles?: string[];
+  permissions?: string[];
+}
 
 @Injectable()
 export class AuthService {
@@ -27,7 +32,6 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    // Check if nationalId already exists
     const existingByNationalId = await this.employeeProfileModel
       .findOne({ nationalId: registerDto.nationalId })
       .exec();
@@ -36,7 +40,6 @@ export class AuthService {
       throw new ConflictException('National ID already registered');
     }
 
-    // Check if employeeNumber already exists
     const existingByEmployeeNumber = await this.employeeProfileModel
       .findOne({ employeeNumber: registerDto.employeeNumber })
       .exec();
@@ -45,7 +48,6 @@ export class AuthService {
       throw new ConflictException('Employee number already exists');
     }
 
-    // Check if workEmail already exists (if provided)
     if (registerDto.workEmail) {
       const existingByEmail = await this.employeeProfileModel
         .findOne({ workEmail: registerDto.workEmail })
@@ -56,10 +58,8 @@ export class AuthService {
       }
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // Create employee profile
     const employeeProfile = new this.employeeProfileModel({
       firstName: registerDto.firstName,
       middleName: registerDto.middleName,
@@ -69,14 +69,13 @@ export class AuthService {
       personalEmail: registerDto.personalEmail,
       mobilePhone: registerDto.mobilePhone,
       employeeNumber: registerDto.employeeNumber,
-      dateOfHire: registerDto.dateOfHire,
+      dateOfHire: new Date(registerDto.dateOfHire),
       workEmail: registerDto.workEmail,
       status: EmployeeStatus.ACTIVE,
     });
 
     await employeeProfile.save();
 
-    // Create default system role (DEPARTMENT_EMPLOYEE)
     const systemRole = new this.employeeSystemRoleModel({
       employeeProfileId: employeeProfile._id,
       roles: [SystemRole.DEPARTMENT_EMPLOYEE],
@@ -86,11 +85,9 @@ export class AuthService {
 
     await systemRole.save();
 
-    // Update employee profile with accessProfileId
     employeeProfile.accessProfileId = systemRole._id;
     await employeeProfile.save();
 
-    // Generate JWT token
     const payload: JwtPayload = {
       sub: employeeProfile._id.toString(),
       nationalId: employeeProfile.nationalId,
@@ -102,40 +99,36 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload);
 
     return {
-      accessToken,
-      employeeProfile: {
+      access_token: accessToken,
+      payload: {
         id: employeeProfile._id,
         nationalId: employeeProfile.nationalId,
         employeeNumber: employeeProfile.employeeNumber,
         firstName: employeeProfile.firstName,
         lastName: employeeProfile.lastName,
         workEmail: employeeProfile.workEmail,
+        roles: systemRole.roles,
+        permissions: systemRole.permissions,
       },
-      roles: systemRole.roles,
-      permissions: systemRole.permissions,
     };
   }
 
-  async login(loginDto: LoginDto) {
-    // Validate that at least one identifier is provided
-    if (!loginDto.nationalId && !loginDto.workEmail && !loginDto.personalEmail) {
-      throw new UnauthorizedException('Either nationalId, workEmail, or personalEmail must be provided');
-    }
-
-    // Find employee by nationalId, workEmail, or personalEmail
+  async signIn(identifier: string, password: string) {
     let employeeProfile: EmployeeProfileDocument | null = null;
 
-    if (loginDto.workEmail) {
+    employeeProfile = await this.employeeProfileModel
+      .findOne({ workEmail: identifier })
+      .exec();
+
+    if (!employeeProfile) {
       employeeProfile = await this.employeeProfileModel
-        .findOne({ workEmail: loginDto.workEmail })
+        .findOne({ personalEmail: identifier })
         .exec();
-    } else if (loginDto.personalEmail) {
+    }
+
+    if (!employeeProfile) {
       employeeProfile = await this.employeeProfileModel
-        .findOne({ personalEmail: loginDto.personalEmail })
-        .exec();
-    } else if (loginDto.nationalId) {
-      employeeProfile = await this.employeeProfileModel
-        .findOne({ nationalId: loginDto.nationalId })
+        .findOne({ nationalId: identifier })
         .exec();
     }
 
@@ -143,18 +136,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if employee is active
     if (employeeProfile.status !== EmployeeStatus.ACTIVE) {
       throw new UnauthorizedException('Employee account is not active');
     }
 
-    // Verify password
     if (!employeeProfile.password) {
       throw new UnauthorizedException('Password not set for this account');
     }
 
     const isPasswordValid = await bcrypt.compare(
-      loginDto.password,
+      password,
       employeeProfile.password,
     );
 
@@ -162,7 +153,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Fetch roles and permissions
     const systemRole = await this.employeeSystemRoleModel
       .findOne({
         employeeProfileId: employeeProfile._id,
@@ -170,7 +160,6 @@ export class AuthService {
       })
       .exec();
 
-    // Generate JWT token
     const payload: JwtPayload = {
       sub: employeeProfile._id.toString(),
       nationalId: employeeProfile.nationalId,
@@ -182,43 +171,30 @@ export class AuthService {
     const accessToken = this.jwtService.sign(payload);
 
     return {
-      accessToken,
-      employeeProfile: {
+      access_token: accessToken,
+      payload: {
         id: employeeProfile._id,
         nationalId: employeeProfile.nationalId,
         employeeNumber: employeeProfile.employeeNumber,
         firstName: employeeProfile.firstName,
         lastName: employeeProfile.lastName,
         workEmail: employeeProfile.workEmail,
+        roles: systemRole?.roles || [],
+        permissions: systemRole?.permissions || [],
       },
-      roles: systemRole?.roles || [],
-      permissions: systemRole?.permissions || [],
     };
   }
 
-  async validateUser(userId: string) {
+  async findById(userId: string) {
     const employeeProfile = await this.employeeProfileModel
       .findById(userId)
       .exec();
 
-    if (!employeeProfile || employeeProfile.status !== EmployeeStatus.ACTIVE) {
+    if (!employeeProfile) {
       return null;
     }
 
-    const systemRole = await this.employeeSystemRoleModel
-      .findOne({
-        employeeProfileId: employeeProfile._id,
-        isActive: true,
-      })
-      .exec();
-
-    return {
-      employeeProfileId: employeeProfile._id.toString(),
-      nationalId: employeeProfile.nationalId,
-      employeeNumber: employeeProfile.employeeNumber,
-      roles: systemRole?.roles || [],
-      permissions: systemRole?.permissions || [],
-    };
+    return employeeProfile;
   }
 }
 

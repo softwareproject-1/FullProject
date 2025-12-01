@@ -4,7 +4,7 @@ export class LoginDto {
   @ValidateIf((o) => !o.workEmail && !o.personalEmail)
   @IsString()
   @IsNotEmpty()
-  nationalId?: string; // Login using nationalId from UserProfileBase
+  nationalId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -14,12 +14,12 @@ export class LoginDto {
   @IsOptional()
   @IsEmail()
   @IsString()
-  workEmail?: string; // Login using workEmail from EmployeeProfile
+  workEmail?: string;
 
   @ValidateIf((o) => !o.nationalId && !o.workEmail)
   @IsOptional()
   @IsEmail()
   @IsString()
-  personalEmail?: string; // Login using personalEmail from UserProfileBase
+  personalEmail?: string;
 }
 
