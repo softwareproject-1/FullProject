@@ -1,0 +1,92 @@
+{
+ 
+    "firstName": "John",
+    "middleName": "omar",
+    "lastName": "Doe",
+    "nationalId": "7890123",
+    "password": "password",
+    "personalEmail": "john.omar@example.com",
+    "mobilePhone": "1055022745",
+    "employeeNumber": "EMP101",
+    "dateOfHire": "2024-01-15T00:00:00.000Z",
+    "workEmail": "john.omar@company.com"
+  },
+  "login": {
+    "nationalId": "1234567890123",
+    "password": "SecurePass123!"
+  },
+  "loginWithEmail": {
+    "workEmail": "john.doe@company.com",
+    "password": "SecurePass123!"
+  },
+  "createTemplate": {
+    "name": "Annual Performance Review Template 2024",
+    "description": "Comprehensive annual performance evaluation template for all employees",
+    "templateType": "ANNUAL",
+    "ratingScale": {
+      "type": "FIVE_POINT",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "labels": [
+        "Needs Improvement",
+        "Below Expectations",
+        "Meets Expectations",
+        "Exceeds Expectations",
+        "Outstanding"
+      ]
+    },
+    "criteria": [
+      {
+        "key": "job_knowledge",
+        "title": "Job Knowledge",
+        "details": "Demonstrates understanding of job requirements and responsibilities",
+        "weight": 20,
+        "maxScore": 5,
+        "required": true
+      },
+      {
+        "key": "quality_of_work",
+        "title": "Quality of Work",
+        "details": "Accuracy, thoroughness, and attention to detail in work output",
+        "weight": 25,
+        "maxScore": 5,
+        "required": true
+      },
+      {
+        "key": "productivity",
+        "title": "Productivity",
+        "details": "Efficiency and volume of work completed within deadlines",
+        "weight": 20,
+        "maxScore": 5,
+        "required": true
+      },
+      {
+        "key": "communication",
+        "title": "Communication Skills",
+        "details": "Effectiveness in verbal and written communication",
+        "weight": 15,
+        "maxScore": 5,
+        "required": true
+      },
+      {
+        "key": "teamwork",
+        "title": "Teamwork & Collaboration",
+        "details": "Ability to work effectively with colleagues and contribute to team goals",
+        "weight": 20,
+        "maxScore": 5,
+        "required": true
+      }
+    ],
+    "instructions": "Please rate each criterion on a scale of 1-5. Provide specific examples to support your ratings.",
+    "isActive": true
+  },
+  "endpoints": {
+    "register": "POST http://localhost:5000/api/auth/register",
+    "login": "POST http://localhost:5000/api/auth/login",
+    "createTemplate": "POST http://localhost:5000/api/performance/templates",
+    "getTemplates": "GET http://localhost:5000/api/performance/templates",
+    "getTemplateById": "GET http://localhost:5000/api/performance/templates/{templateId}"
+  }
+}
+
