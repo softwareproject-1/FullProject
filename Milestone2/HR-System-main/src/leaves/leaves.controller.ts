@@ -11,6 +11,14 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { LeavesService } from './leaves.service';
 
 import { CreateLeaveTypeDto } from './dtos/create-leave-type.dto';
@@ -19,6 +27,12 @@ import { AccrualPolicyDto } from './dtos/accrual-policy.dto';
 import { AddHolidayDto } from './dtos/add-holiday.dto';
 import { BlockedDayDto } from './dtos/blocked-day.dto';
 import { ApprovalStepDto } from './dtos/create-leave-type.dto';
+import { SubmitLeaveRequestDto } from './dtos/submit-leave-request.dto';
+import { ApproveLeaveRequestDto } from './dtos/approve-leave-request.dto';
+import { ReviewLeaveRequestDto } from './dtos/review-leave-request.dto';
+import { RetroactiveDeductionDto } from './dtos/retroactive-deduction.dto';
+import { SetDelegationDto } from './dtos/set-delegation.dto';
+import { RevokeDelegationDto } from './dtos/revoke-delegation.dto';
 
 import { AuthenticationGuard } from '../auth/guards/authentication.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -28,6 +42,7 @@ import { LeaveStatus } from './enums/leave-status.enum';
 
 
 
+@ApiTags('leaves')
 @UseGuards(AuthenticationGuard, RolesGuard)
 @Controller('leaves')
 export class LeavesController {
@@ -235,33 +250,41 @@ async applyRetroactiveDeduction(@Body() dto: RetroactiveDeductionDto) {
     dto.reason,
   );
 }
+
+// ============================ Delegation Management ============================
+
+@Post('delegation/set')
+@ApiOperation({ summary: 'Set delegation: Manager delegates approval authority to another employee' })
+@ApiBody({ type: SetDelegationDto })
+@ApiResponse({ status: 201, description: 'Delegation set successfully' })
+@ApiResponse({ status: 404, description: 'Manager or delegate not found' })
+@ApiBearerAuth('JWT-auth')
+async setDelegation(@Body() dto: SetDelegationDto) {
+  return this.leavesService.setDelegation(
+    dto.managerId,
+    dto.delegateId,
+    dto.startDate ? new Date(dto.startDate) : undefined,
+    dto.endDate ? new Date(dto.endDate) : null,
+  );
 }
 
-export class SubmitLeaveRequestDto {
-employeeId: string;
-leaveTypeId: string;
-dates: { from: Date; to: Date };
-justification: string;
-attachmentId?: string;
+@Post('delegation/revoke')
+@ApiOperation({ summary: 'Revoke delegation for a manager' })
+@ApiBody({ type: RevokeDelegationDto })
+@ApiResponse({ status: 200, description: 'Delegation revoked successfully' })
+@ApiResponse({ status: 404, description: 'No active delegation found' })
+@ApiBearerAuth('JWT-auth')
+async revokeDelegation(@Body() dto: RevokeDelegationDto) {
+  return this.leavesService.revokeDelegation(dto.managerId);
 }
 
-export class ApproveLeaveRequestDto {
-managerId: string;
-status: LeaveStatus;
-reason?: string;
+@Get('delegation/status/:managerId')
+@ApiOperation({ summary: 'Get delegation status for a manager' })
+@ApiParam({ name: 'managerId', description: 'Manager ID to check delegation status' })
+@ApiResponse({ status: 200, description: 'Delegation status retrieved successfully' })
+@ApiBearerAuth('JWT-auth')
+async getDelegationStatus(@Param('managerId') managerId: string) {
+  return this.leavesService.getDelegationStatus(managerId);
 }
-
-export class ReviewLeaveRequestDto {
-hrId: string;
-status: LeaveStatus;
-overrideReason?: string;
 }
-
-export class RetroactiveDeductionDto {
-employeeId: string;
-leaveTypeId: string;
-dates: { from: Date; to: Date };
-reason: string;
-}
-
 

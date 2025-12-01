@@ -17,6 +17,7 @@ import { LeavesModule } from '../leaves/leaves.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
+<<<<<<< HEAD
   imports: [
     forwardRef(() => PayrollTrackingModule), 
     PayrollConfigurationModule, 
@@ -24,6 +25,9 @@ import { AuthModule } from '../auth/auth.module';
     EmployeeProfileModule, 
     LeavesModule,
     AuthModule, // Import AuthModule to provide AuthGuard and RolesGuard
+=======
+  imports: [forwardRef(() => PayrollTrackingModule), PayrollConfigurationModule, TimeManagementModule, EmployeeProfileModule, forwardRef(() => LeavesModule),
+>>>>>>> 773b1c58d2259d2c02622fca9b4f6da05aa29525
   MongooseModule.forFeature([
     { name: payrollRuns.name, schema: payrollRunsSchema },
     { name: paySlip.name, schema: paySlipSchema },

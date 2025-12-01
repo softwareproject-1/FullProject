@@ -37,6 +37,7 @@ import { AuthModule } from '../auth/auth.module';
     ]),
   ],
   controllers: [TimeManagementController],
-  providers: [TimeManagementService]
+  providers: [TimeManagementService],
+  exports: [TimeManagementService]
 })
 export class TimeManagementModule {}
