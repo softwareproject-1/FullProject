@@ -55,11 +55,15 @@ import {
 } from './enums/payroll-execution-enum';
 
 // Services
-//import { EmployeeProfileService } from './services/employee-profile.service';
+import { TaxRulesService } from '../payroll-configuration/services/tax-rules.service';
+import { InsuranceBracketsService } from '../payroll-configuration/services/insurance-brackets.service';
 
 @Injectable()
 export class PayrollExecutionService {
   private readonly logger = new Logger(PayrollExecutionService.name);
+  private readonly MINIMUM_WAGE = 3000; // Egyptian minimum wage (BR 60)
+  private readonly WORKING_DAYS_PER_MONTH = 22; // Standard working days
+  private readonly HOURS_PER_DAY = 8; // Standard working hours
 
   constructor(
     @InjectModel(payrollRuns.name)
@@ -73,6 +77,10 @@ export class PayrollExecutionService {
     private terminationModel: Model<EmployeeTerminationResignationDocument>,
     @InjectModel(employeePenalties.name)
     private penaltiesModel: Model<employeePenaltiesDocument>,
+    @Inject(TaxRulesService)
+    private taxRulesService: TaxRulesService,
+    @Inject(InsuranceBracketsService)
+    private insuranceBracketsService: InsuranceBracketsService,
   ) { }
 
   // GANNAH
@@ -994,6 +1002,7 @@ export class PayrollExecutionService {
 
   /**
    * Calculate comprehensive salary breakdown for an employee
+   * Includes: Progressive Tax (BR 5, 6), Insurance Brackets (BR 7, 8), Prorated Salary (REQ-PY-2), Minimum Wage (BR 60)
    */
   private async calculateSalary(
     empDetail: any,
@@ -1002,11 +1011,16 @@ export class PayrollExecutionService {
     approvedBonus: any,
     runId: string,
   ): Promise<any> {
-    const grossSalary = empDetail.baseSalary || 0;
+    let grossSalary = empDetail.baseSalary || 0;
 
-    // Get employee-specific data with defaults
-    const overtimeHours = employee.overtimeHours || 0; // Default to 0 if not exists
-    const unpaidLeaveDays = employee.unpaidLeaveDays || 0; // Default to 0 if not exists
+    // REQ-PY-2: Calculate Prorated Salary for mid-month hires/exits
+    const proratedInfo = await this.calculateProratedSalary(employee, grossSalary, runId);
+    grossSalary = proratedInfo.proratedSalary;
+
+    // Get employee-specific data with defaults (TODO: Replace with Time Management Service integration)
+    const overtimeHours = employee.overtimeHours || 0;
+    const unpaidLeaveDays = employee.unpaidLeaveDays || 0;
+
     // Calculate penalty deduction
     let penaltyDeduction = 0;
     if (penalties && penalties.penalties) {
@@ -1017,38 +1031,66 @@ export class PayrollExecutionService {
     }
 
     // Calculate daily rate for unpaid leave deductions
-    const workingDaysPerMonth = 22;
-    const dailyRate = grossSalary / workingDaysPerMonth;
+    const dailyRate = grossSalary / this.WORKING_DAYS_PER_MONTH;
     const unpaidLeaveDeduction = unpaidLeaveDays * dailyRate;
 
     // Calculate overtime pay (1.5x normal rate)
-    const hourlyRate = grossSalary / (workingDaysPerMonth * 8);
+    const hourlyRate = grossSalary / (this.WORKING_DAYS_PER_MONTH * this.HOURS_PER_DAY);
     const overtimePay = overtimeHours * hourlyRate * 1.5;
 
-    // Calculate standard deductions
-    const tax = grossSalary * 0.1; // 10% tax
-    const insurance = grossSalary * 0.05; // 5% insurance
+    // BR 5, 6: Calculate Progressive Tax
+    const tax = await this.calculateProgressiveTax(grossSalary);
 
-    // Calculate net salary before adjustments
-    const netSalary = grossSalary - tax - insurance;
+    // BR 7, 8: Calculate Insurance based on brackets
+    const insurance = await this.calculateInsurance(grossSalary);
 
-    // Calculate bonus if approved
+    // Calculate net salary before adjustments (BR 31, 34)
+    const netSalary = grossSalary - tax.totalTax - insurance.totalInsurance;
+
+    // Calculate bonus if approved (BR 56)
     const signingBonus = approvedBonus ? approvedBonus.givenAmount || 0 : 0;
 
-    // Apply final adjustments
-    const finalSalary =
+    // Apply final adjustments (BR 31)
+    let finalSalary =
       netSalary +
       overtimePay +
       signingBonus -
       penaltyDeduction -
       unpaidLeaveDeduction;
 
+    // BR 60: Ensure minimum wage floor
+    const beforeMinWageCheck = finalSalary;
+    finalSalary = Math.max(this.MINIMUM_WAGE, finalSalary);
+
+    if (finalSalary === this.MINIMUM_WAGE && beforeMinWageCheck < this.MINIMUM_WAGE) {
+      this.logger.warn(
+        `BR 60: Employee ${empDetail.employeeId} salary adjusted to minimum wage. ` +
+        `Calculated: ${beforeMinWageCheck}, Adjusted to: ${this.MINIMUM_WAGE}`
+      );
+    }
+
     return {
       employeeId: empDetail.employeeId,
       runId,
-      grossSalary,
-      tax,
-      insurance,
+      grossSalary: proratedInfo.proratedSalary,
+      fullMonthSalary: proratedInfo.fullMonthSalary,
+      prorated: proratedInfo.isProrated,
+      proratedDetails: proratedInfo.isProrated ? {
+        workingDays: proratedInfo.workingDays,
+        totalDays: proratedInfo.totalDays,
+        reason: proratedInfo.reason,
+      } : null,
+      tax: {
+        amount: tax.totalTax,
+        breakdown: tax.breakdown,
+        progressive: true,
+      },
+      insurance: {
+        amount: insurance.totalInsurance,
+        employeeAmount: insurance.employeeAmount,
+        employerAmount: insurance.employerAmount,
+        bracket: insurance.bracket,
+      },
       overtime: {
         hours: overtimeHours,
         rate: 1.5,
@@ -1065,10 +1107,229 @@ export class PayrollExecutionService {
       },
       allowances: overtimePay + signingBonus,
       totalDeductions:
-        tax + insurance + penaltyDeduction + unpaidLeaveDeduction,
+        tax.totalTax + insurance.totalInsurance + penaltyDeduction + unpaidLeaveDeduction,
       netSalary,
-      finalSalary: Math.max(0, finalSalary),
+      finalSalary: finalSalary,
+      minimumWageApplied: finalSalary === this.MINIMUM_WAGE && beforeMinWageCheck < this.MINIMUM_WAGE,
       calculationDate: new Date(),
+    };
+  }
+
+  /**
+   * REQ-PY-2: Calculate prorated salary for mid-month hires or terminations
+   */
+  private async calculateProratedSalary(
+    employee: any,
+    fullMonthSalary: number,
+    runId: string,
+  ): Promise<any> {
+    const run = await this.payrollRunModel.findOne({ runId });
+    if (!run) {
+      return {
+        fullMonthSalary,
+        proratedSalary: fullMonthSalary,
+        isProrated: false,
+        workingDays: this.WORKING_DAYS_PER_MONTH,
+        totalDays: this.WORKING_DAYS_PER_MONTH,
+      };
+    }
+
+    const payrollPeriod = run.payrollPeriod;
+    const periodStart = new Date(payrollPeriod.getFullYear(), payrollPeriod.getMonth(), 1);
+    const periodEnd = new Date(payrollPeriod.getFullYear(), payrollPeriod.getMonth() + 1, 0);
+
+    let effectiveStartDate = periodStart;
+    let effectiveEndDate = periodEnd;
+    let isProrated = false;
+    let reason = '';
+
+    // Check for mid-month hire (contract start date)
+    if (employee.contractStartDate) {
+      const hireDate = new Date(employee.contractStartDate);
+      if (hireDate > periodStart && hireDate <= periodEnd) {
+        effectiveStartDate = hireDate;
+        isProrated = true;
+        reason = 'Mid-month hire';
+      }
+    }
+
+    // Check for mid-month termination (contract end date or termination)
+    if (employee.contractEndDate) {
+      const exitDate = new Date(employee.contractEndDate);
+      if (exitDate >= periodStart && exitDate < periodEnd) {
+        effectiveEndDate = exitDate;
+        isProrated = true;
+        reason = reason ? 'Mid-month hire and exit' : 'Mid-month exit';
+      }
+    }
+
+    if (!isProrated) {
+      return {
+        fullMonthSalary,
+        proratedSalary: fullMonthSalary,
+        isProrated: false,
+        workingDays: this.WORKING_DAYS_PER_MONTH,
+        totalDays: this.WORKING_DAYS_PER_MONTH,
+      };
+    }
+
+    // Calculate working days in the period
+    const totalMonthDays = this.WORKING_DAYS_PER_MONTH;
+    const workingDays = this.calculateWorkingDays(effectiveStartDate, effectiveEndDate);
+    const proratedSalary = (fullMonthSalary / totalMonthDays) * workingDays;
+
+    this.logger.log(
+      `REQ-PY-2: Prorated salary for employee ${employee._id}. ` +
+      `Reason: ${reason}, Working Days: ${workingDays}/${totalMonthDays}, ` +
+      `Salary: ${proratedSalary} (Full: ${fullMonthSalary})`
+    );
+
+    return {
+      fullMonthSalary,
+      proratedSalary,
+      isProrated: true,
+      workingDays,
+      totalDays: totalMonthDays,
+      reason,
+      effectiveStartDate,
+      effectiveEndDate,
+    };
+  }
+
+  /**
+   * Calculate working days between two dates (simplified - assumes all weekdays)
+   */
+  private calculateWorkingDays(startDate: Date, endDate: Date): number {
+    const oneDay = 24 * 60 * 60 * 1000;
+    const diffDays = Math.round(Math.abs((endDate.getTime() - startDate.getTime()) / oneDay));
+    // Simplified: Assume ~22 working days per 30 calendar days
+    return Math.ceil((diffDays / 30) * this.WORKING_DAYS_PER_MONTH);
+  }
+
+  /**
+   * BR 5, 6: Calculate progressive income tax based on brackets
+   */
+  private async calculateProgressiveTax(grossSalary: number): Promise<any> {
+    try {
+      // Fetch all tax rules from configuration
+      const taxRules = await this.taxRulesService.findAll();
+
+      if (!taxRules || taxRules.length === 0) {
+        // Fallback to default progressive brackets if no rules configured
+        this.logger.warn('No tax rules configured. Using default progressive tax brackets.');
+        return this.calculateDefaultProgressiveTax(grossSalary);
+      }
+
+      // Apply progressive tax calculation
+      let totalTax = 0;
+      const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
+
+      for (const rule of taxRules) {
+        if (rule.status === 'APPROVED') {
+          const taxAmount = grossSalary * (rule.rate / 100);
+          totalTax += taxAmount;
+          breakdown.push({
+            name: rule.name,
+            rate: rule.rate,
+            amount: taxAmount,
+          });
+        }
+      }
+
+      return { totalTax, breakdown };
+    } catch (error) {
+      this.logger.error(`Error calculating progressive tax: ${error.message}`);
+      return this.calculateDefaultProgressiveTax(grossSalary);
+    }
+  }
+
+  /**
+   * Default progressive tax calculation (BR 5, 6)
+   */
+  private calculateDefaultProgressiveTax(grossSalary: number): any {
+    let totalTax = 0;
+    const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
+
+    // Progressive brackets per Egyptian tax law
+    if (grossSalary <= 3000) {
+      const tax = grossSalary * 0.05;
+      totalTax = tax;
+      breakdown.push({ name: 'Income Tax (0-3000)', rate: 5, amount: tax });
+    } else if (grossSalary <= 6000) {
+      const tax = grossSalary * 0.10;
+      totalTax = tax;
+      breakdown.push({ name: 'Income Tax (3000-6000)', rate: 10, amount: tax });
+    } else if (grossSalary <= 10000) {
+      const tax = grossSalary * 0.15;
+      totalTax = tax;
+      breakdown.push({ name: 'Income Tax (6000-10000)', rate: 15, amount: tax });
+    } else {
+      const tax = grossSalary * 0.20;
+      totalTax = tax;
+      breakdown.push({ name: 'Income Tax (10000+)', rate: 20, amount: tax });
+    }
+
+    return { totalTax, breakdown };
+  }
+
+  /**
+   * BR 7, 8: Calculate insurance based on salary brackets
+   */
+  private async calculateInsurance(grossSalary: number): Promise<any> {
+    try {
+      // Fetch insurance brackets from configuration
+      const brackets = await this.insuranceBracketsService.findAll();
+
+      if (!brackets || brackets.length === 0) {
+        // Fallback to default rates
+        this.logger.warn('No insurance brackets configured. Using default rates.');
+        return this.calculateDefaultInsurance(grossSalary);
+      }
+
+      const applicableBracket = brackets.find(
+        (bracket) =>
+          grossSalary >= bracket.minSalary &&
+          grossSalary <= bracket.maxSalary
+      );
+
+      if (applicableBracket) {
+        const employeeAmount = grossSalary * (applicableBracket.employeeRate / 100);
+        const employerAmount = grossSalary * (applicableBracket.employerRate / 100);
+        const totalInsurance = employeeAmount; // Employee pays their portion
+
+        return {
+          totalInsurance,
+          employeeAmount,
+          employerAmount,
+          bracket: applicableBracket.name,
+          employeeRate: applicableBracket.employeeRate,
+          employerRate: applicableBracket.employerRate,
+        };
+      }
+
+      // No bracket found, use default
+      return this.calculateDefaultInsurance(grossSalary);
+    } catch (error) {
+      this.logger.error(`Error calculating insurance: ${error.message}`);
+      return this.calculateDefaultInsurance(grossSalary);
+    }
+  }
+  /**
+   * Default insurance calculation (BR 7, 8)
+   */
+  private calculateDefaultInsurance(grossSalary: number): any {
+    const employeeRate = 5; // 5% employee contribution
+    const employerRate = 10; // 10% employer contribution
+    const employeeAmount = grossSalary * (employeeRate / 100);
+    const employerAmount = grossSalary * (employerRate / 100);
+
+    return {
+      totalInsurance: employeeAmount,
+      employeeAmount,
+      employerAmount,
+      bracket: 'Default',
+      employeeRate,
+      employerRate,
     };
   }
   async addManualAdjustment(
@@ -1459,39 +1720,173 @@ export class PayrollExecutionService {
   // PHASE 2: ANOMALY DETECTION & VALIDATION
 
   /**
-   * Submits payroll run for manager approval after performing anomaly checks.
-   * Validates that no employee has negative net salary before proceeding.
+   * REQ-PY-5: Comprehensive anomaly detection before manager approval
+   * Validates: negative salary, missing bank details, salary spikes, contract issues, min wage
    *
    * @param runId - The payroll run identifier (e.g., "PR-2025-NOV")
-   * @throws BadRequestException if any employee has negative net salary
-   * @returns Updated payroll run with WAITING_MANAGER status
+   * @throws BadRequestException if critical anomalies detected
+   * @returns Updated payroll run with anomaly report
    */
   async submitForApproval(runId: string) {
     const run = await this.payrollRunModel.findOne({ runId });
     if (!run) throw new NotFoundException('Payroll Run not found');
 
-    // Anomaly Check: Verify no negative net salary exists
-    const payslips = await this.paySlipModel
-      .find({ payrollRunId: run._id })
-      .exec();
+    this.logger.log(`REQ-PY-5: Starting comprehensive anomaly detection for ${runId}`);
 
+    // Get payslips and employee details
+    const payslips = await this.paySlipModel.find({ payrollRunId: run._id }).exec();
+    const employeeDetails = await this.empDetailsModel.find({ payrollRunId: run._id }).exec();
+
+    const anomalies = {
+      critical: [] as any[],
+      major: [] as any[],
+      minor: [] as any[],
+    };
+
+    // REQ-PY-5: Anomaly Check 1 - Negative Net Salary
     for (const payslip of payslips) {
       if (payslip.netPay < 0) {
-        throw new BadRequestException(
-          `Negative Salary Detected for Employee ID: ${payslip.employeeId}. Net Pay: ${payslip.netPay}`,
-        );
+        anomalies.critical.push({
+          type: 'NEGATIVE_SALARY',
+          employeeId: payslip.employeeId,
+          netPay: payslip.netPay,
+          message: `Negative salary: ${payslip.netPay}`,
+        });
       }
     }
 
-    // No anomalies found - proceed to manager review
+    // REQ-PY-5: Anomaly Check 2 - Missing Bank Details
+    for (const empDetail of employeeDetails) {
+      if (empDetail.bankStatus === BankStatus.MISSING) {
+        anomalies.major.push({
+          type: 'MISSING_BANK_DETAILS',
+          employeeId: empDetail.employeeId,
+          message: 'Missing bank account information',
+        });
+      }
+    }
+
+    // REQ-PY-5: Anomaly Check 3 - Salary Spike Detection (>20% increase)
+    const db = this.payrollRunModel.db;
+    const employeesCollection = db.collection('employees');
+
+    for (const empDetail of employeeDetails) {
+      const employee = await employeesCollection.findOne({ _id: empDetail.employeeId });
+      if (employee && employee.baseSalary) {
+        const salaryDiff = Math.abs(empDetail.netPay - employee.baseSalary);
+        const percentageChange = (salaryDiff / employee.baseSalary) * 100;
+
+        if (percentageChange > 20) {
+          anomalies.major.push({
+            type: 'SALARY_SPIKE',
+            employeeId: empDetail.employeeId,
+            previousSalary: employee.baseSalary,
+            currentSalary: empDetail.netPay,
+            percentageChange: percentageChange.toFixed(2),
+            message: `Salary spike detected: ${percentageChange.toFixed(2)}% change`,
+          });
+        }
+      }
+    }
+
+    // REQ-PY-5: Anomaly Check 4 - Below Minimum Wage (BR 60)
+    for (const empDetail of employeeDetails) {
+      if (empDetail.netPay < this.MINIMUM_WAGE) {
+        anomalies.major.push({
+          type: 'BELOW_MINIMUM_WAGE',
+          employeeId: empDetail.employeeId,
+          netPay: empDetail.netPay,
+          minimumWage: this.MINIMUM_WAGE,
+          message: `Salary below minimum wage: ${empDetail.netPay} < ${this.MINIMUM_WAGE}`,
+        });
+      }
+    }
+
+    // REQ-PY-5: Anomaly Check 5 - Contract Validation (BR 1, BR 66)
+    for (const empDetail of employeeDetails) {
+      const employee = await employeesCollection.findOne({ _id: empDetail.employeeId });
+
+      if (employee) {
+        // Check contract status
+        if (!employee.isActive || employee.contractStatus !== 'ACTIVE') {
+          anomalies.critical.push({
+            type: 'INACTIVE_CONTRACT',
+            employeeId: empDetail.employeeId,
+            contractStatus: employee.contractStatus,
+            message: 'Employee contract not active',
+          });
+        }
+
+        // Check contract dates
+        if (employee.contractEndDate) {
+          const contractEnd = new Date(employee.contractEndDate);
+          const now = new Date();
+          if (contractEnd < now) {
+            anomalies.critical.push({
+              type: 'EXPIRED_CONTRACT',
+              employeeId: empDetail.employeeId,
+              contractEndDate: contractEnd,
+              message: 'Contract expired',
+            });
+          }
+        }
+      }
+    }
+
+    // REQ-PY-5: Anomaly Check 6 - Duplicate Processing
+    const employeeIds = employeeDetails.map(e => e.employeeId.toString());
+    const uniqueIds = new Set(employeeIds);
+    if (employeeIds.length !== uniqueIds.size) {
+      anomalies.critical.push({
+        type: 'DUPLICATE_PROCESSING',
+        message: 'Duplicate employee entries detected in payroll run',
+        duplicates: employeeIds.length - uniqueIds.size,
+      });
+    }
+
+    // Count total anomalies
+    const totalAnomalies = anomalies.critical.length + anomalies.major.length + anomalies.minor.length;
+
+    // Block submission if critical anomalies exist
+    if (anomalies.critical.length > 0) {
+      this.logger.error(`REQ-PY-5: ${anomalies.critical.length} critical anomalies detected for ${runId}`);
+      throw new BadRequestException({
+        message: 'Critical anomalies detected. Cannot submit for approval.',
+        anomalies: anomalies,
+        criticalCount: anomalies.critical.length,
+        majorCount: anomalies.major.length,
+        minorCount: anomalies.minor.length,
+      });
+    }
+
+    // Update run with anomaly count
     run.status = PayRollStatus.UNDER_REVIEW;
+    run.exceptions = anomalies.major.length + anomalies.minor.length;
     await run.save();
+
+    this.logger.log(
+      `REQ-PY-5: Anomaly detection complete for ${runId}. ` +
+      `Total: ${totalAnomalies} (Major: ${anomalies.major.length}, Minor: ${anomalies.minor.length})`
+    );
 
     return {
       message: 'Payroll run submitted for manager approval',
       runId: run.runId,
       status: run.status,
       employeesProcessed: payslips.length,
+      anomalyDetection: {
+        totalAnomalies,
+        critical: anomalies.critical.length,
+        major: anomalies.major.length,
+        minor: anomalies.minor.length,
+        details: {
+          majorAnomalies: anomalies.major,
+          minorAnomalies: anomalies.minor,
+        },
+      },
+      warnings: anomalies.major.length > 0
+        ? `${anomalies.major.length} major anomalies require attention before approval`
+        : 'No major anomalies detected',
     };
   }
 
@@ -1543,6 +1938,190 @@ export class PayrollExecutionService {
     throw new BadRequestException(
       'Invalid review status. Must be APPROVED or REJECTED.',
     );
+  }
+
+  /**
+   * REQ-PY-15: Finance staff reviews and approves payroll for execution
+   * Final approval step before EXECUTE_PAYROLL can be triggered
+   *
+   * @param runId - The payroll run identifier
+   * @param dto - Review action containing APPROVED/REJECTED status and comment
+   * @returns Updated payroll run with final approval status
+   */
+  async financeReview(runId: string, dto: ReviewActionDto) {
+    const run = await this.payrollRunModel.findOne({ runId });
+    if (!run) throw new NotFoundException('Payroll Run not found');
+
+    if (run.status !== PayRollStatus.PENDING_FINANCE_APPROVAL) {
+      throw new BadRequestException(
+        `Run ${runId} is not awaiting finance approval. Current status: ${run.status}`,
+      );
+    }
+
+    this.logger.log(`REQ-PY-15: Finance review initiated for ${runId} by Finance Staff`);
+
+    if (dto.status === ReviewStatus.APPROVED) {
+      // Approved: Ready for execution
+      run.status = PayRollStatus.APPROVED;
+      run.financeApprovalDate = new Date();
+      await run.save();
+
+      this.logger.log(`REQ-PY-15: Payroll ${runId} approved by Finance. Ready for execution.`);
+
+      return {
+        message: 'Payroll approved by Finance. Ready for execution.',
+        runId: run.runId,
+        status: run.status,
+        approvedAt: run.financeApprovalDate,
+        comment: dto.comment,
+        nextStep: 'Execute payroll via EXECUTE_PAYROLL endpoint',
+      };
+    } else if (dto.status === ReviewStatus.REJECTED) {
+      // Rejected: Send back to draft for corrections
+      run.status = PayRollStatus.DRAFT;
+      run.rejectionReason = dto.comment;
+      await run.save();
+
+      this.logger.warn(`REQ-PY-15: Payroll ${runId} rejected by Finance. Returned to draft.`);
+
+      return {
+        message: 'Payroll rejected by Finance. Returned to draft status for corrections.',
+        runId: run.runId,
+        status: run.status,
+        rejectionReason: dto.comment,
+      };
+    }
+
+    throw new BadRequestException(
+      'Invalid review status. Must be APPROVED or REJECTED.',
+    );
+  }
+
+  /**
+   * REQ-PY-6: Preview Dashboard for Finance Staff
+   * Provides comprehensive overview before final approval/execution
+   *
+   * @param runId - The payroll run identifier
+   * @returns Dashboard with summary, breakdown, anomalies, and status
+   */
+  async getPayrollPreview(runId: string) {
+    const run = await this.payrollRunModel.findOne({ runId });
+    if (!run) throw new NotFoundException('Payroll Run not found');
+
+    this.logger.log(`REQ-PY-6: Generating preview dashboard for ${runId}`);
+
+    // Get all payslips and employee details
+    const payslips = await this.paySlipModel.find({ payrollRunId: run._id }).exec();
+    const employeeDetails = await this.empDetailsModel.find({ payrollRunId: run._id }).exec();
+
+    // Calculate totals
+    const totalGrossSalary = employeeDetails.reduce((sum, emp) => sum + emp.baseSalary, 0);
+    const totalTaxes = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
+    const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.deductions * 0.3), 0);
+    const totalNetPayout = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
+    const totalDeductions = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
+    const totalBonuses = employeeDetails.reduce((sum, emp) => sum + (emp.bonus || 0), 0);
+
+    // Count employees by status
+    const activeEmployees = employeeDetails.filter(e => e.bankStatus === BankStatus.VALID).length;
+    const missingBankDetails = employeeDetails.filter(e => e.bankStatus === BankStatus.MISSING).length;
+    const pendingBankDetails = 0;
+
+    // Get exceptions and anomalies
+    const exceptions = employeeDetails.filter(e =>
+      e.netPay < this.MINIMUM_WAGE ||
+      e.bankStatus === BankStatus.MISSING
+    );
+
+    // Status-based insights
+    const canExecute = run.status === PayRollStatus.APPROVED;
+    const needsApproval = run.status === PayRollStatus.PENDING_FINANCE_APPROVAL;
+
+    this.logger.log(
+      `REQ-PY-6: Preview generated for ${runId}. ` +
+      `${employeeDetails.length} employees, Total payout: ${totalNetPayout}, Exceptions: ${exceptions.length}`
+    );
+
+    return {
+      runId: run.runId,
+      status: run.status,
+      period: run.payrollPeriod,
+      employeeSummary: {
+        totalEmployees: employeeDetails.length,
+        activeEmployees,
+        missingBankDetails,
+        pendingBankDetails,
+        exceptionsCount: exceptions.length,
+      },
+      financialBreakdown: {
+        totalGrossSalary: Math.round(totalGrossSalary * 100) / 100,
+        totalTaxes: Math.round(totalTaxes * 100) / 100,
+        totalInsurance: Math.round(totalInsurance * 100) / 100,
+        totalBonuses: Math.round(totalBonuses * 100) / 100,
+        totalDeductions: Math.round(totalDeductions * 100) / 100,
+        totalNetPayout: Math.round(totalNetPayout * 100) / 100,
+      },
+      paymentDistribution: {
+        byBankStatus: {
+          ready: activeEmployees,
+          pending: pendingBankDetails,
+          missing: missingBankDetails,
+        },
+        readyForPayment: activeEmployees,
+        blockedPayments: missingBankDetails + pendingBankDetails,
+      },
+      exceptions: exceptions.map(e => ({
+        employeeId: e.employeeId,
+        reason: e.bankStatus === BankStatus.MISSING ? 'Missing Bank Details' : 'Below Minimum Wage',
+        netPay: e.netPay,
+        bankStatus: e.bankStatus,
+      })),
+      workflowStatus: {
+        currentPhase: run.status,
+        canExecute,
+        needsApproval,
+        approvedAt: run.financeApprovalDate,
+        executedAt: null,
+      },
+      recommendations: this.generateRecommendations(run, exceptions.length, missingBankDetails, totalNetPayout),
+    };
+  }
+
+  /**
+   * Helper method for preview dashboard recommendations
+   */
+  private generateRecommendations(run: any, exceptionsCount: number, missingBankDetails: number, totalNetPayout: number) {
+    const recommendations: string[] = [];
+
+    if (run.status === PayRollStatus.DRAFT) {
+      recommendations.push('Submit for manager approval to proceed with workflow');
+    }
+
+    if (run.status === PayRollStatus.UNDER_REVIEW) {
+      recommendations.push('Awaiting manager review and approval');
+    }
+
+    if (run.status === PayRollStatus.PENDING_FINANCE_APPROVAL) {
+      recommendations.push('Review all exceptions before final approval');
+      if (missingBankDetails > 0) {
+        recommendations.push(`${missingBankDetails} employees missing bank details - payments will be blocked`);
+      }
+    }
+
+    if (run.status === PayRollStatus.APPROVED) {
+      recommendations.push('Payroll approved - ready to execute payments');
+      recommendations.push(`Total payout amount: ${totalNetPayout.toFixed(2)}`);
+    }
+
+    if (exceptionsCount > 0) {
+      recommendations.push(`${exceptionsCount} exceptions require attention before execution`);
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push('No issues detected. Payroll run is healthy.');
+    }
+
+    return recommendations;
   }
 
   // PHASE 5: PAYMENT EXECUTION
