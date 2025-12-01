@@ -14,6 +14,7 @@ import { disputes as Dispute, disputesDocument as DisputeDocument } from './mode
 import { DisputeStatus } from './enums/payroll-tracking-enum'; 
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
+import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
 
 @Injectable()
 export class PayrollTrackingService {
@@ -30,6 +31,9 @@ export class PayrollTrackingService {
     // === MAYA'S INJECTION ===
     @InjectModel(Dispute.name) private disputeModel: Model<DisputeDocument>,
     // === MAYA'S INJECTION END ===
+
+    // === EMPLOYEE PROFILE SERVICE ===
+    private readonly employeeProfileService: EmployeeProfileService,
   ) {}
 
   // === FATMA START ===
@@ -40,6 +44,12 @@ export class PayrollTrackingService {
    * @returns The created claim document
    */
   async submitClaim(userId: string, dto: CreateClaimDto): Promise<claims> {
+    // Verify employee exists
+    const employee = await this.employeeProfileService.getProfileById(userId);
+    if (!employee) {
+      throw new NotFoundException('Employee not found');
+    }
+
     const newClaim = new this.claimModel({
       claimId: `CLM-${Date.now()}`,
       employeeId: new Types.ObjectId(userId),
@@ -308,6 +318,10 @@ try {
         throw new NotFoundException(`No payslips found for tax year ${taxYear}`);
       }
 
+      // Fetch employee details
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      const employeeName = `${employee.firstName} ${employee.lastName}`;
+
       // Calculate total taxable income and tax deducted
       let totalTaxableIncome = 0;
       let totalTaxDeducted = 0;
@@ -327,7 +341,7 @@ try {
       const certificate = {
         certificateType: 'Tax Certificate',
         employeeId: userId,
-        employeeName: 'Employee Name', // TODO: Fetch from employee profile in M3
+        employeeName,
         taxId: `TAX-${userId}-${taxYear}`, // Generate tax ID
         taxYear,
         totalTaxableIncome,
@@ -359,6 +373,10 @@ try {
         throw new NotFoundException(`No payslips found for year ${year}`);
       }
 
+      // Fetch employee details
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      const employeeName = `${employee.firstName} ${employee.lastName}`;
+
       // Calculate total employee and employer contributions
       let totalEmployeeContribution = 0;
       let totalEmployerContribution = 0;
@@ -376,7 +394,7 @@ try {
       const certificate = {
         certificateType: 'Insurance Certificate',
         employeeId: userId,
-        employeeName: 'Employee Name', // TODO: Fetch from employee profile in M3
+        employeeName,
         insurancePolicyNumber: `INS-${userId}-${year}`,
         coveragePeriod: {
           startDate,
