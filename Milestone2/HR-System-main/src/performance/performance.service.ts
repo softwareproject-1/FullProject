@@ -308,6 +308,58 @@ export class PerformanceService {
     return record;
   }
 
+  async getEmployeeRecords(
+    employeeId: string,
+    filters?: { cycleId?: string; startDate?: string; endDate?: string },
+  ) {
+    const query: any = {
+      employeeProfileId: new Types.ObjectId(employeeId),
+      // Only return completed records (HR_PUBLISHED or ARCHIVED)
+      status: {
+        $in: [
+          AppraisalRecordStatus.HR_PUBLISHED,
+          AppraisalRecordStatus.ARCHIVED,
+        ],
+      },
+    };
+
+    if (filters?.cycleId) {
+      query.cycleId = new Types.ObjectId(filters.cycleId);
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      query.hrPublishedAt = {};
+      if (filters.startDate) {
+        query.hrPublishedAt.$gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        query.hrPublishedAt.$lte = new Date(filters.endDate);
+      }
+    }
+
+    const records = await this.recordModel
+      .find(query)
+      .select(
+        '_id overallRatingLabel status managerSummary totalScore hrPublishedAt cycleId templateId createdAt updatedAt',
+      )
+      .sort({ hrPublishedAt: -1 })
+      .lean()
+      .exec();
+
+    return records.map((record) => ({
+      id: record._id,
+      overallRating: record.overallRatingLabel,
+      status: record.status,
+      managerComments: record.managerSummary,
+      totalScore: record.totalScore,
+      publishedAt: record.hrPublishedAt,
+      cycleId: record.cycleId,
+      templateId: record.templateId,
+      createdAt: (record as any).createdAt || undefined,
+      updatedAt: (record as any).updatedAt || undefined,
+    }));
+  }
+
   // NOTE: typically HR Manager or System Admin
   async deleteRecord(id: string) {
     const deleted = await this.recordModel
