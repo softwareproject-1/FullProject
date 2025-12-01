@@ -42,8 +42,7 @@ export class PayrollTrackingController {
    */
   @Post('claims')
   submitClaim(@Req() req, @Body() dto: CreateClaimDto): Promise<claims> {
-    // const userId = req.user.userId; // TODO: Uncomment when Auth is ready
-    const userId = '507f1f77bcf86cd799439011'; // Hardcoded for M2 testing
+    const userId = req.user.userId;
     return this.trackingService.submitClaim(userId, dto);
   }
 
@@ -53,8 +52,7 @@ export class PayrollTrackingController {
    */
   @Get('claims/me')
   getMyClaims(@Req() req): Promise<claims[]> {
-    // const userId = req.user.userId; // TODO: Uncomment when Auth is ready
-    const userId = '507f1f77bcf86cd799439011'; // Hardcoded for M2 testing
+    const userId = req.user.userId;
     return this.trackingService.getMyClaims(userId);
   }
 
@@ -69,8 +67,7 @@ export class PayrollTrackingController {
     @Req() req,
     @Body() body: UpdateClaimDto,
   ): Promise<claims> {
-    // const adminId = req.user.userId; // TODO: Uncomment when Auth is ready
-    const adminId = '507f1f77bcf86cd799439099'; // Hardcoded admin ID for M2 testing
+    const adminId = req.user.userId;
     return this.trackingService.reviewClaim(id, adminId, body);
   }
 
@@ -84,8 +81,7 @@ export class PayrollTrackingController {
     @Req() req,
     @Body() body: ManagerActionClaimDto,
   ): Promise<claims> {
-    // const managerId = req.user.userId; // TODO: Uncomment when Auth is ready
-    const managerId = '507f1f77bcf86cd799439088'; // Hardcoded manager ID for M2 testing
+    const managerId = req.user.userId;
     return this.trackingService.managerActionClaim(id, managerId, body);
   }
   // === FATMA END ===
@@ -101,10 +97,10 @@ export class PayrollTrackingController {
  * POST /payroll-tracking/disputes
  */
 @Post('disputes')
-submitDispute(@Body() dto: CreateDisputeDto) {
-    // Use the hardcoded user ID
+submitDispute(@Req() req, @Body() dto: CreateDisputeDto) {
+    const userId = req.user.userId;
     return this.trackingService.submitDispute(
-        new Types.ObjectId(this.DUMMY_EMPLOYEE_ID), 
+        new Types.ObjectId(userId), 
         dto
     );
 }
@@ -114,9 +110,9 @@ submitDispute(@Body() dto: CreateDisputeDto) {
  * GET /payroll-tracking/disputes/me
  */
 @Get('disputes/me')
-getMyDisputes() {
-    // Use the hardcoded user ID
-    return this.trackingService.getMyDisputes(new Types.ObjectId(this.DUMMY_EMPLOYEE_ID));
+getMyDisputes(@Req() req) {
+    const userId = req.user.userId;
+    return this.trackingService.getMyDisputes(new Types.ObjectId(userId));
 }
 
 /**
@@ -130,10 +126,10 @@ resolveDispute(
     @Body() dto: ResolveDisputeDto,
     @Req() req,
 ) {
-    // Use the hardcoded admin ID for the specialist ID
+    const specialistId = req.user.userId;
     return this.trackingService.resolveDispute(
         disputeId, 
-        new Types.ObjectId(this.DUMMY_ADMIN_ID), // The ID of the Payroll Specialist who resolves it
+        new Types.ObjectId(specialistId),
         dto
     );
 }
@@ -148,8 +144,7 @@ managerActionDispute(
     @Body() dto: ManagerActionDisputeDto,
     @Req() req,
 ) {
-    // const managerId = req.user.userId; // TODO: Uncomment when Auth is ready
-    const managerId = '507f1f77bcf86cd799439088'; // Hardcoded manager ID for M2 testing
+    const managerId = req.user.userId;
     return this.trackingService.managerActionDispute(
         disputeId, 
         new Types.ObjectId(managerId),
@@ -169,8 +164,7 @@ managerActionDispute(
      */
     @Get('payslips')
     async getMyPayslips(@Req() req) {
-      // const userId = req.user.userId; // TODO: Uncomment when Auth is ready
-      const userId = this.DUMMY_EMPLOYEE_ID; // Using consistent employee ID
+      const userId = req.user.userId;
       return this.trackingService.getMyPayslips(userId); 
     }
 
@@ -181,8 +175,7 @@ managerActionDispute(
      */
     @Post('certificates/tax')
     async generateTaxCertificate(@Req() req, @Body('taxYear') taxYear: number) {
-      // const userId = req.user.userId; // TODO: Uncomment when Auth is ready
-      const userId = this.DUMMY_EMPLOYEE_ID;
+      const userId = req.user.userId;
       return this.trackingService.generateTaxCertificate(userId, taxYear);
     }
 
@@ -193,8 +186,7 @@ managerActionDispute(
      */
     @Post('certificates/insurance')
     async generateInsuranceCertificate(@Req() req, @Body('year') year: number) {
-      // const userId = req.user.userId; // TODO: Uncomment when Auth is ready
-      const userId = this.DUMMY_EMPLOYEE_ID;
+      const userId = req.user.userId;
       return this.trackingService.generateInsuranceCertificate(userId, year);
     }
 
