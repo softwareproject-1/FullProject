@@ -17,27 +17,23 @@ import { LeavesModule } from '../leaves/leaves.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-<<<<<<< HEAD
   imports: [
-    forwardRef(() => PayrollTrackingModule), 
-    PayrollConfigurationModule, 
-    TimeManagementModule, 
-    EmployeeProfileModule, 
-    LeavesModule,
+    forwardRef(() => PayrollTrackingModule),
+    PayrollConfigurationModule,
+    TimeManagementModule,
+    EmployeeProfileModule,
+    forwardRef(() => LeavesModule),
     AuthModule, // Import AuthModule to provide AuthGuard and RolesGuard
-=======
-  imports: [forwardRef(() => PayrollTrackingModule), PayrollConfigurationModule, TimeManagementModule, EmployeeProfileModule, forwardRef(() => LeavesModule),
->>>>>>> 773b1c58d2259d2c02622fca9b4f6da05aa29525
-  MongooseModule.forFeature([
-    { name: payrollRuns.name, schema: payrollRunsSchema },
-    { name: paySlip.name, schema: paySlipSchema },
-    { name: employeePayrollDetails.name, schema: employeePayrollDetailsSchema },
-    { name: employeeSigningBonus.name, schema: employeeSigningBonusSchema },
-    { name: EmployeeTerminationResignation.name, schema: EmployeeTerminationResignationSchema },
-    { name: terminationAndResignationBenefits.name, schema: terminationAndResignationBenefitsSchema },
-    { name: employeePenalties.name, schema: employeePenaltiesSchema },
+    MongooseModule.forFeature([
+      { name: payrollRuns.name, schema: payrollRunsSchema },
+      { name: paySlip.name, schema: paySlipSchema },
+      { name: employeePayrollDetails.name, schema: employeePayrollDetailsSchema },
+      { name: employeeSigningBonus.name, schema: employeeSigningBonusSchema },
+      { name: EmployeeTerminationResignation.name, schema: EmployeeTerminationResignationSchema },
+      { name: terminationAndResignationBenefits.name, schema: terminationAndResignationBenefitsSchema },
+      { name: employeePenalties.name, schema: employeePenaltiesSchema },
 
-  ])],
+    ])],
   controllers: [PayrollExecutionController],
   providers: [PayrollExecutionService],
   exports: [PayrollExecutionService]
