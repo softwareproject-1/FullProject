@@ -15,6 +15,7 @@ import { Candidate, CandidateSchema } from '../employee-profile/models/candidate
 import { EmployeeQualification, EmployeeQualificationSchema } from '../employee-profile/models/qualification.schema';
 import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
 import { EmployeeProfileChangeRequest, EmployeeProfileChangeRequestSchema } from '../employee-profile/models/ep-change-request.schema';
+import { NotificationLog, NotificationLogSchema } from '../time-management/models/notification-log.schema';
 
 
 
@@ -34,6 +35,7 @@ import { EmployeeProfileChangeRequest, EmployeeProfileChangeRequestSchema } from
       { name: EmployeeQualification.name, schema: EmployeeQualificationSchema },
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
       { name: EmployeeProfileChangeRequest.name, schema: EmployeeProfileChangeRequestSchema },
+      { name: NotificationLog.name, schema: NotificationLogSchema },
     ])],
   controllers: [PayrollTrackingController],
   providers: [PayrollTrackingService, EmployeeProfileService],
