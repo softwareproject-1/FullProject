@@ -20,27 +20,27 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 // Models
-import { Onboarding, OnboardingDocument } from '../models/onboarding.schema';
-import { Contract, ContractDocument } from '../models/contract.schema';
-import { Offer, OfferDocument } from '../models/offer.schema';
-import { Document as RecruitmentDocument, DocumentDocument } from '../models/document.schema';
-import { Application, ApplicationDocument } from '../models/application.schema';
-import { employeeSigningBonus, employeeSigningBonusDocument } from '../../payroll-execution/models/EmployeeSigningBonus.schema';
-import { signingBonus, signingBonusDocument } from '../../payroll-configuration/models/signingBonus.schema';
-import { NotificationLog, NotificationLogDocument } from '../../time-management/models/notification-log.schema';
-import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
-import { Candidate, CandidateDocument } from '../../employee-profile/models/candidate.schema';
-import { BonusStatus } from '../../payroll-execution/enums/payroll-execution-enum';
-import { ConfigStatus } from '../../payroll-configuration/enums/payroll-configuration-enums';
-import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
+import { Onboarding, OnboardingDocument } from './models/onboarding.schema';
+import { Contract, ContractDocument } from './models/contract.schema';
+import { Offer, OfferDocument } from './models/offer.schema';
+import { Document as RecruitmentDocument, DocumentDocument } from './models/document.schema';
+import { Application, ApplicationDocument } from './models/application.schema';
+import { employeeSigningBonus, employeeSigningBonusDocument } from '../payroll-execution/models/EmployeeSigningBonus.schema';
+import { signingBonus, signingBonusDocument } from '../payroll-configuration/models/signingBonus.schema';
+import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../employee-profile/models/employee-system-role.schema';
+import { Candidate, CandidateDocument } from '../employee-profile/models/candidate.schema';
+import { BonusStatus } from '../payroll-execution/enums/payroll-execution-enum';
+import { ConfigStatus } from '../payroll-configuration/enums/payroll-configuration-enums';
+import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
 
 // Enums
-import { OnboardingTaskStatus } from '../enums/onboarding-task-status.enum';
-import { DocumentType } from '../enums/document-type.enum';
+import { OnboardingTaskStatus } from './enums/onboarding-task-status.enum';
+import { DocumentType } from './enums/document-type.enum';
 
 // Services
 import { NotificationService } from './notification.service';
-import { EmployeeProfileService } from '../../employee-profile/employee-profile.service';
+import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
 import { ITProvisioningService, ProvisioningRequest, RevocationRequest } from './it-provisioning.service';
 
 // DTOs
@@ -86,7 +86,7 @@ import {
   // ONB-019
   ProcessSigningBonusDto,
   SigningBonusResultDto,
-} from '../dto/onboarding.dto';
+} from './dto/onboarding.dto';
 
 @Injectable()
 export class OnboardingService {
@@ -154,8 +154,8 @@ export class OnboardingService {
   ): Promise<OnboardingDocument> {
     // Check if onboarding already exists for this contract
     const existing = await this.onboardingModel.findOne({
-      contractId: new Types.ObjectId(contractId),
-    }).exec();
+      employeeId: new Types.ObjectId(candidateId),
+    } as any).exec();
 
     if (existing) {
       return existing;
@@ -209,10 +209,13 @@ export class OnboardingService {
 
     const onboarding = new this.onboardingModel({
       employeeId: new Types.ObjectId(candidateId),
-      contractId: new Types.ObjectId(contractId),
       tasks: defaultTasks,
       completed: false,
-    });
+    } as any);
+    // Store contractId in a task note for reference
+    if (defaultTasks.length > 0) {
+      (onboarding.tasks[0] as any).contractIdRef = contractId;
+    }
 
     const savedOnboarding = await onboarding.save();
 
@@ -823,8 +826,10 @@ export class OnboardingService {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
 
-    const contract = await this.contractModel.findById(onboarding.contractId).exec();
-    const offer = contract ? await this.offerModel.findById(contract.offerId).exec() : null;
+    // Find contract through employeeId -> application -> offer -> contract
+    const application = await this.applicationModel.findOne({ candidateId: onboarding.employeeId }).exec();
+    const offer = application ? await this.offerModel.findOne({ applicationId: application._id }).exec() : null;
+    const contract = offer ? await this.contractModel.findOne({ offerId: offer._id }).exec() : null;
 
     // Look up candidate to get employee name
     const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
@@ -1146,8 +1151,10 @@ export class OnboardingService {
       ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
       : 'New Hire';
 
-    const contract = await this.contractModel.findById(onboarding.contractId).exec();
-    const offer = contract ? await this.offerModel.findById(contract.offerId).exec() : null;
+    // Find contract through employeeId -> application -> offer -> contract
+    const application = await this.applicationModel.findOne({ candidateId: onboarding.employeeId }).exec();
+    const offer = application ? await this.offerModel.findOne({ applicationId: application._id }).exec() : null;
+    const contract = offer ? await this.contractModel.findOne({ offerId: offer._id }).exec() : null;
 
     const provRequest: ProvisioningRequest = {
       employeeId: onboarding.employeeId.toString(),
@@ -1246,7 +1253,7 @@ export class OnboardingService {
     // Mark onboarding as cancelled (set all tasks to cancelled state)
     for (const task of onboarding.tasks) {
       if (task.status !== OnboardingTaskStatus.COMPLETED) {
-        task.status = OnboardingTaskStatus.CANCELLED;
+        task.status = 'cancelled' as any;
         task.notes = `Cancelled: ${dto.reason}`;
       }
     }
@@ -1461,7 +1468,7 @@ export class OnboardingService {
     return {
       onboardingId: (onboarding._id as Types.ObjectId).toString(),
       employeeId: onboarding.employeeId.toString(),
-      contractId: onboarding.contractId.toString(),
+      contractId: '', // Contract ID not stored in schema - find through employeeId if needed
       tasks,
       progressPercentage,
       completedTasks,

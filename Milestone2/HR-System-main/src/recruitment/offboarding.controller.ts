@@ -11,7 +11,7 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { OffboardingService } from '../services/offboarding.service';
+import { OffboardingService } from './offboarding.service';
 import {
   InitiateTerminationReviewDto,
   UpdateTerminationStatusDto,
@@ -25,7 +25,7 @@ import {
   ScheduleAccessRevocationDto,
   TriggerFinalSettlementDto,
   RevokeAccessImmediatelyDto,
-} from '../dto/offboarding.dto';
+} from './dto/offboarding.dto';
 
 /**
  * OffboardingController handles:
