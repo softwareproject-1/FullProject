@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, InternalServerErrorException, BadRequest
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { claims, claimsDocument } from './models/claims.schema';
+import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { UpdateClaimDto } from './dto/update-claim.dto';
 import { ClaimStatus } from './enums/payroll-tracking-enum';
@@ -31,6 +32,10 @@ export class PayrollTrackingService {
     // === MAYA'S INJECTION ===
     @InjectModel(Dispute.name) private disputeModel: Model<DisputeDocument>,
     // === MAYA'S INJECTION END ===
+
+    // === NOTIFICATION INJECTION ===
+    @InjectModel(NotificationLog.name) private notificationLogModel: Model<NotificationLogDocument>,
+    // === NOTIFICATION INJECTION END ===
 
     // === EMPLOYEE PROFILE SERVICE ===
     private readonly employeeProfileService: EmployeeProfileService,
@@ -263,6 +268,8 @@ try {
      * 3. Returns a list of payslips for the logged-in employee with full breakdown.
      * Returns detailed earnings (base salary, allowances, bonuses, benefits, refunds)
      * and deductions (taxes, insurance, penalties) from payslip schema.
+     * 
+     * REQ-PY-18: Sends notification when new payslip is detected.
      */
     async getMyPayslips(userId: string): Promise<any[]> {
       // Query payslips for the employee
@@ -271,11 +278,37 @@ try {
         .sort({ createdAt: -1 })
         .exec();
 
+      // REQ-PY-18: Check for new payslips and send notification
+      if (payslips.length > 0) {
+        const latestPayslip = payslips[0] as any; // Type cast for timestamp access
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        
+        // If payslip was created in the last 24 hours, it's considered "new"
+        if (latestPayslip.createdAt && new Date(latestPayslip.createdAt) > oneDayAgo) {
+          // Check if notification already sent for this payslip
+          const existingNotification = await this.notificationLogModel.findOne({
+            to: new Types.ObjectId(userId),
+            type: 'PAYSLIP_AVAILABLE',
+            message: { $regex: latestPayslip._id.toString() },
+          }).exec();
+
+          if (!existingNotification) {
+            // Send notification
+            await this.notificationLogModel.create({
+              to: new Types.ObjectId(userId),
+              type: 'PAYSLIP_AVAILABLE',
+              message: `Your payslip for ${latestPayslip.createdAt?.toLocaleDateString() || 'the current period'} is now available. Payslip ID: ${latestPayslip._id}`,
+            });
+          }
+        }
+      }
+
       // Transform to include full breakdown as required
       return payslips.map(payslip => ({
         _id: payslip._id,
         employeeId: payslip.employeeId,
         payrollRunId: payslip.payrollRunId,
+        createdAt: (payslip as any).createdAt,
         // Earnings breakdown
         earnings: {
           baseSalary: payslip.earningsDetails?.baseSalary || 0,
@@ -296,6 +329,119 @@ try {
         netPay: payslip.netPay,
         paymentStatus: payslip.paymentStatus,
       }));
+    }
+
+    /**
+     * REQ-PY-6: Get salary history with year-over-year comparison
+     * Returns historical salary records grouped by year with percentage changes
+     * @param userId - Employee ID from JWT
+     * @param years - Number of years to include (default 3)
+     * @returns Salary history with year-over-year analysis
+     */
+    async getSalaryHistory(userId: string, years: number = 3): Promise<any> {
+      // Calculate date range
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setFullYear(startDate.getFullYear() - years);
+
+      // Get all payslips for the period
+      const payslips = await this.payslipModel
+        .find({
+          employeeId: new Types.ObjectId(userId),
+          createdAt: { $gte: startDate, $lte: endDate },
+        })
+        .sort({ createdAt: 1 })
+        .exec();
+
+      if (!payslips || payslips.length === 0) {
+        return {
+          employeeId: userId,
+          yearRange: `${startDate.getFullYear()}-${endDate.getFullYear()}`,
+          totalPayslips: 0,
+          yearlyData: [],
+          message: 'No salary history found for the specified period',
+        };
+      }
+
+      // Group payslips by year
+      const yearlyData: any[] = [];
+      const yearMap = new Map<number, any[]>();
+
+      payslips.forEach(payslip => {
+        const year = new Date((payslip as any).createdAt).getFullYear();
+        if (!yearMap.has(year)) {
+          yearMap.set(year, []);
+        }
+        yearMap.get(year)!.push(payslip);
+      });
+
+      // Sort years in descending order
+      const sortedYears = Array.from(yearMap.keys()).sort((a, b) => b - a);
+
+      // Calculate yearly statistics
+      for (let i = 0; i < sortedYears.length; i++) {
+        const year = sortedYears[i];
+        const yearPayslips = yearMap.get(year)!;
+
+        const totalGross = yearPayslips.reduce((sum, p) => sum + (p.totalGrossSalary || 0), 0);
+        const totalDeductions = yearPayslips.reduce((sum, p) => sum + (p.totaDeductions || 0), 0);
+        const totalNet = yearPayslips.reduce((sum, p) => sum + (p.netPay || 0), 0);
+        const avgGross = totalGross / yearPayslips.length;
+        const avgNet = totalNet / yearPayslips.length;
+
+        // Calculate year-over-year change
+        let yoyGrossChange: number | null = null;
+        let yoyNetChange: number | null = null;
+        let yoyGrossPercentage: string | null = null;
+        let yoyNetPercentage: string | null = null;
+
+        if (i < sortedYears.length - 1) {
+          const previousYear = sortedYears[i + 1];
+          const previousYearPayslips = yearMap.get(previousYear)!;
+          const prevTotalGross = previousYearPayslips.reduce((sum, p) => sum + (p.totalGrossSalary || 0), 0);
+          const prevTotalNet = previousYearPayslips.reduce((sum, p) => sum + (p.netPay || 0), 0);
+          const prevAvgGross = prevTotalGross / previousYearPayslips.length;
+          const prevAvgNet = prevTotalNet / previousYearPayslips.length;
+
+          yoyGrossChange = avgGross - prevAvgGross;
+          yoyNetChange = avgNet - prevAvgNet;
+          yoyGrossPercentage = prevAvgGross > 0 
+            ? `${((yoyGrossChange / prevAvgGross) * 100).toFixed(2)}%` 
+            : 'N/A';
+          yoyNetPercentage = prevAvgNet > 0 
+            ? `${((yoyNetChange / prevAvgNet) * 100).toFixed(2)}%` 
+            : 'N/A';
+        }
+
+        yearlyData.push({
+          year,
+          totalPayslips: yearPayslips.length,
+          totalGrossSalary: totalGross,
+          totalDeductions,
+          totalNetPay: totalNet,
+          averageGrossSalary: avgGross,
+          averageNetPay: avgNet,
+          yearOverYearChange: {
+            grossSalaryChange: yoyGrossChange,
+            grossSalaryPercentage: yoyGrossPercentage,
+            netPayChange: yoyNetChange,
+            netPayPercentage: yoyNetPercentage,
+          },
+        });
+      }
+
+      // Get employee details for display
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+
+      return {
+        employeeId: userId,
+        employeeName,
+        yearRange: `${startDate.getFullYear()}-${endDate.getFullYear()}`,
+        totalPayslips: payslips.length,
+        yearlyData,
+        generatedAt: new Date(),
+      };
     }
 
     /**

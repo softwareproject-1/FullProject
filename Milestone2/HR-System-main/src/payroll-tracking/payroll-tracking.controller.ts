@@ -206,15 +206,33 @@ export class PayrollTrackingController {
    * REQ-PY-18: Employee Self-Service - View Payslips with Full Breakdown
    * GET /payroll-tracking/payslips
    * Returns detailed earnings and deductions
+   * Includes notification integration for new payslip availability
    */
   @Get('payslips')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get my payslips' })
-  @ApiResponse({ status: 200, description: 'Payslips retrieved successfully' })
+  @ApiOperation({ summary: 'Get my payslips with notification on new payslip availability' })
+  @ApiResponse({ status: 200, description: 'Payslips retrieved successfully. Notification sent if new payslip detected.' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMyPayslips(@Req() req) {
     const userId = req.user.sub;
     return this.trackingService.getMyPayslips(userId); 
+  }
+
+  /**
+   * REQ-PY-6: View Salary History with Year-over-Year Comparison
+   * GET /payroll-tracking/salary-history
+   * Query: ?years=3 (default 3 years)
+   * Returns historical salary records grouped by year with percentage changes
+   */
+  @Get('salary-history')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'View salary history with year-over-year comparison' })
+  @ApiResponse({ status: 200, description: 'Salary history retrieved successfully with YoY analysis' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getSalaryHistory(@Req() req, @Query('years') years?: number) {
+    const userId = req.user.sub;
+    const yearsToRetrieve = years ? parseInt(years.toString(), 10) : 3;
+    return this.trackingService.getSalaryHistory(userId, yearsToRetrieve);
   }
 
   /**
