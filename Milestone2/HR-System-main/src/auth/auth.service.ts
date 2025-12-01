@@ -116,16 +116,19 @@ export class AuthService {
   async signIn(identifier: string, password: string) {
     let employeeProfile: EmployeeProfileDocument | null = null;
 
+    // Try to find user by workEmail (case-insensitive)
     employeeProfile = await this.employeeProfileModel
-      .findOne({ workEmail: identifier })
+      .findOne({ workEmail: { $regex: new RegExp(`^${identifier}$`, 'i') } })
       .exec();
 
+    // Try to find user by personalEmail (case-insensitive)
     if (!employeeProfile) {
       employeeProfile = await this.employeeProfileModel
-        .findOne({ personalEmail: identifier })
+        .findOne({ personalEmail: { $regex: new RegExp(`^${identifier}$`, 'i') } })
         .exec();
     }
 
+    // Try to find user by nationalId (exact match)
     if (!employeeProfile) {
       employeeProfile = await this.employeeProfileModel
         .findOne({ nationalId: identifier })
@@ -133,15 +136,15 @@ export class AuthService {
     }
 
     if (!employeeProfile) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('User not found. Please check your email or national ID.');
     }
 
     if (employeeProfile.status !== EmployeeStatus.ACTIVE) {
-      throw new UnauthorizedException('Employee account is not active');
+      throw new UnauthorizedException(`Employee account is ${employeeProfile.status}. Please contact HR.`);
     }
 
     if (!employeeProfile.password) {
-      throw new UnauthorizedException('Password not set for this account');
+      throw new UnauthorizedException('Password not set for this account. Please contact HR to set your password.');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -150,7 +153,7 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid password. Please check your password and try again.');
     }
 
     const systemRole = await this.employeeSystemRoleModel

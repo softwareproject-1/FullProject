@@ -1,9 +1,11 @@
-import { Body, Controller, HttpStatus, Post, HttpException, Res, Req, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpStatus, Post, HttpException, Res, Req, Get, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthenticationGuard } from './guards/authentication.guard';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -11,6 +13,11 @@ export class AuthController {
   ) {}
 
   @Post('login')
+  @ApiOperation({ summary: 'User login' })
+  @ApiBody({ type: LoginDto })
+  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiResponse({ status: 400, description: 'Bad request - Missing required fields' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid credentials' })
   async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res) {
     try {
       const identifier = signInDto.workEmail || signInDto.personalEmail || signInDto.nationalId;
@@ -40,11 +47,11 @@ export class AuthController {
         user: result.payload,
       };
     } catch (error) {
-      console.log(error);
-      if (error instanceof HttpException) {
+      if (error instanceof HttpException || error instanceof UnauthorizedException) {
         throw error;
       }
 
+      console.error('Login error:', error);
       throw new HttpException(
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -56,6 +63,11 @@ export class AuthController {
   }
 
   @Post('register')
+  @ApiOperation({ summary: 'User registration' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid input data' })
+  @ApiResponse({ status: 409, description: 'Conflict - User already exists' })
   async signup(@Body() registerRequestDto: RegisterDto) {
     try {
       const result = await this.authService.register(registerRequestDto);
@@ -88,6 +100,11 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(AuthenticationGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
+  @ApiResponse({ status: 404, description: 'User profile not found' })
   async getMe(@Req() req: any) {
     try {
       const userId = req.user.sub;
@@ -134,6 +151,10 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthenticationGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
   logout(@Res({ passthrough: true }) res) {
     res.cookie('token', '', {
       httpOnly: true,

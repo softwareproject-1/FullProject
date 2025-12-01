@@ -27,7 +27,18 @@ export class AuthenticationGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const token = request.cookies?.token || request.headers['authorization']?.split(' ')[1];
+    
+    // Try to get token from cookies first
+    let token = request.cookies?.token;
+    
+    // If not in cookies, try to get from Authorization header
+    if (!token && request.headers['authorization']) {
+      const authHeader = request.headers['authorization'];
+      // Handle both "Bearer <token>" and just "<token>" formats
+      token = authHeader.startsWith('Bearer ') 
+        ? authHeader.split(' ')[1] 
+        : authHeader;
+    }
 
     if (!token) {
       throw new UnauthorizedException('Authentication token missing');

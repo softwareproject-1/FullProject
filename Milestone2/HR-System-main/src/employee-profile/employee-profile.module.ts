@@ -35,6 +35,5 @@ import {
   ],
   controllers: [EmployeeProfileController],
   providers: [EmployeeProfileService],
-  exports: [MongooseModule],
 })
 export class EmployeeProfileModule {}
