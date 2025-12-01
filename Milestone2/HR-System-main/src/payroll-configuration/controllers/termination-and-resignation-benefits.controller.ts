@@ -11,19 +11,20 @@ import {
 import { TerminationAndResignationBenefitsService } from '../services/termination-and-resignation-benefits.service';
 import { CreateTerminationBenefitsDto } from '../dtos/termination-and-resignation-benefits/create-termination-benefits.dto';
 import { UpdateTerminationBenefitsDto } from '../dtos/termination-and-resignation-benefits/update-termination-benefits.dto';
-// import { AuthGuard } from '@nestjs/passport';
-// import { RolesGuard } from '../guards/roles.guard';
-// import { Roles } from '../guards/roles.decorator';
+import { Roles } from '../../auth/decorators/roles.decorator'; // import from auth
+import { RolesGuard } from '../../auth/guards/roles.guard'; // import from auth
+import { AuthGuard } from '@nestjs/passport'; // JWT auth
 // @UseGuards(AuthGuard('jwt'), RolesGuard)
 
 @Controller('termination-and-resignation-benefits')
+@UseGuards(AuthGuard('jwt'), RolesGuard) // apply auth + roles guard to all routes
 export class TerminationAndResignationBenefitsController {
   constructor(
     private readonly service: TerminationAndResignationBenefitsService,
   ) {}
 
   @Post()
-   // @Roles('PayrollSpecialist') // Only Payroll Specialist can create
+   @Roles('Payroll Specialist') // Only Payroll Specialist can create
 
   create(@Body() dto: CreateTerminationBenefitsDto) {
     return this.service.create(dto);
@@ -40,14 +41,14 @@ export class TerminationAndResignationBenefitsController {
   }
 
   @Patch(':id')
-    //@Roles('PayrollSpecialist') // Only Payroll Specialist can update
+    @Roles('Payroll Specialist') // Only Payroll Specialist can update
 
   update(@Param('id') id: string, @Body() dto: UpdateTerminationBenefitsDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  //  @Roles('PayrollSpecialist') // Only Payroll Specialist can delete
+   @Roles('Payroll Specialist') // Only Payroll Specialist can delete
 
   remove(@Param('id') id: string) {
     return this.service.remove(id);

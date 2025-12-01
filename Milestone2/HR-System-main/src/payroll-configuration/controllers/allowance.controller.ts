@@ -12,16 +12,17 @@ import {
 import { AllowanceService } from '../services/allowance.service';
 import { CreateAllowanceDto } from '../dtos/allowance/create-allowance.dto';
 import { UpdateAllowanceDto } from '../dtos/allowance/update-allowance.dto';
-// import { Roles } from '../guards/roles.decorator';
-// import { RolesGuard } from '../guards/roles.guard';
-// import { AuthGuard } from '@nestjs/passport'; // assuming JWT auth
-// @UseGuards(AuthGuard('jwt'), RolesGuard)
+import { Roles } from '../../auth/decorators/roles.decorator'; // import from auth
+import { RolesGuard } from '../../auth/guards/roles.guard'; // import from auth
+import { AuthGuard } from '@nestjs/passport'; // JWT auth
 @Controller('allowances')
+@UseGuards(AuthGuard('jwt'), RolesGuard) // apply auth + roles guard to all routes
+
 export class AllowanceController {
   constructor(private readonly service: AllowanceService) {}
 
   @Post()
-  //@Roles('Payroll Specialist')
+  @Roles('Payroll Specialist')
   create(@Body() dto: CreateAllowanceDto) {
     return this.service.create(dto);
   }
@@ -37,13 +38,13 @@ export class AllowanceController {
   }
 
   @Patch(':id')
-  //@Roles('Payroll Specialist')
+  @Roles('Payroll Specialist')
   update(@Param('id') id: string, @Body() dto: UpdateAllowanceDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  // @Roles('Payroll Specialist')
+   @Roles('Payroll Specialist')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }

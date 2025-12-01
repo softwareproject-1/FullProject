@@ -12,17 +12,18 @@ import {
 import { CompanySettingsService } from '../services/company-settings.service';
 import { CreateCompanySettingsDto } from '../dtos/company-settings/create-company-settings.dto';
 import { UpdateCompanySettingsDto } from '../dtos/company-settings/update-company-settings.dto';
-// import { AuthGuard } from '@nestjs/passport'; // JWT authentication
-// import { RolesGuard } from '../guards/roles.guard'; // your RolesGuard
-// import { Roles } from '../guards/roles.decorator'; // your Roles decorator
-// @UseGuards(AuthGuard('jwt'), RolesGuard)
+import { Roles } from '../../auth/decorators/roles.decorator'; // import from auth
+import { RolesGuard } from '../../auth/guards/roles.guard'; // import from auth
+import { AuthGuard } from '@nestjs/passport'; // JWT auth
 
 @Controller('company-settings')
+@UseGuards(AuthGuard('jwt'), RolesGuard) // apply auth + roles guard to all routes
+
 export class CompanySettingsController {
   constructor(private readonly service: CompanySettingsService) {}
 
   @Post()
-  // @Roles('System Admin') // only System Admin can create
+   @Roles('System Admin') // only System Admin can create
   create(@Body() dto: CreateCompanySettingsDto) {
     return this.service.create(dto);
   }
@@ -38,13 +39,13 @@ export class CompanySettingsController {
   }
 
   @Patch(':id')
-  // @Roles('System Admin') // only System Admin can update
+   @Roles('System Admin') // only System Admin can update
   update(@Param('id') id: string, @Body() dto: UpdateCompanySettingsDto) {
     return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  // @Roles('System Admin') // only System Admin can delete
+   @Roles('System Admin') // only System Admin can delete
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }
