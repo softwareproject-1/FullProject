@@ -15,7 +15,7 @@ import { EmployeeProfileModule } from '../employee-profile/employee-profile.modu
 import { LeavesModule } from '../leaves/leaves.module';
 
 @Module({
-  imports: [forwardRef(() => PayrollTrackingModule), PayrollConfigurationModule, TimeManagementModule, EmployeeProfileModule, LeavesModule,
+  imports: [forwardRef(() => PayrollTrackingModule), PayrollConfigurationModule, TimeManagementModule, EmployeeProfileModule, forwardRef(() => LeavesModule),
   MongooseModule.forFeature([
     { name: payrollRuns.name, schema: payrollRunsSchema },
     { name: paySlip.name, schema: paySlipSchema },

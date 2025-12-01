@@ -72,6 +72,182 @@ export class LeavesService {
 
   ) {}
 
+  // ========== DELEGATION MAP (In-Memory) ==========
+  // Stores delegation assignments: managerId -> delegation info
+  // This avoids schema changes as per user requirement
+  private delegationMap: Map<string, {
+    managerId: string;
+    delegateId: string;
+    startDate: Date;
+    endDate: Date | null; // null = indefinite
+    isActive: boolean;
+  }> = new Map();
+
+  // ========== DELEGATION METHODS ==========
+
+  /**
+   * Set delegation: Manager delegates approval authority to another employee
+   * Uses in-memory map - no schema changes needed
+   */
+  async setDelegation(
+    managerId: string,
+    delegateId: string,
+    startDate?: Date,
+    endDate?: Date | null,
+  ) {
+    // Validate both employees exist
+    const [manager, delegate] = await Promise.all([
+      this.employeeModel.findById(managerId),
+      this.employeeModel.findById(delegateId),
+    ]);
+
+    if (!manager) {
+      throw new NotFoundException('Manager not found');
+    }
+    if (!delegate) {
+      throw new NotFoundException('Delegate employee not found');
+    }
+
+    // Check if manager is actually a manager (has employees reporting to them)
+    // This is optional validation - you can remove if not needed
+    const hasReports = await this.employeeModel.findOne({
+      supervisorPositionId: manager.primaryPositionId,
+      status: 'ACTIVE'
+    });
+
+    if (!hasReports) {
+      console.warn(`Manager ${managerId} has no direct reports. Delegation still set.`);
+    }
+
+    const key = managerId;
+    this.delegationMap.set(key, {
+      managerId,
+      delegateId,
+      startDate: startDate || new Date(),
+      endDate: endDate || null,
+      isActive: true,
+    });
+
+    return {
+      managerId,
+      delegateId,
+      startDate: startDate || new Date(),
+      endDate: endDate || null,
+      message: 'Delegation set successfully',
+    };
+  }
+
+  /**
+   * Revoke delegation for a manager
+   */
+  revokeDelegation(managerId: string) {
+    const key = managerId;
+    const delegation = this.delegationMap.get(key);
+    
+    if (!delegation) {
+      throw new NotFoundException('No active delegation found for this manager');
+    }
+
+    delegation.isActive = false;
+    this.delegationMap.set(key, delegation);
+    
+    return { message: 'Delegation revoked successfully' };
+  }
+
+  /**
+   * Get active delegate for a manager at a given date
+   * Returns delegateId if delegation is active, otherwise returns managerId
+   * This is used when setting approvalFlow[].decidedBy
+   */
+  private getActiveDelegate(managerId: string, checkDate: Date = new Date()): string {
+    const key = managerId;
+    const delegation = this.delegationMap.get(key);
+
+    // No delegation or inactive
+    if (!delegation || !delegation.isActive) {
+      return managerId;
+    }
+
+    // Check date range
+    if (checkDate < delegation.startDate) {
+      return managerId; // Delegation hasn't started yet
+    }
+
+    if (delegation.endDate && checkDate > delegation.endDate) {
+      return managerId; // Delegation has expired
+    }
+
+    // Delegation is active - return delegate
+    return delegation.delegateId;
+  }
+
+  /**
+   * Helper: Find manager for an employee and apply delegation if active
+   * Returns the approver ID (manager or delegate) to be stored in approvalFlow[].decidedBy
+   */
+  private async findApproverWithDelegation(
+    employeeId: string,
+    requestDate: Date = new Date(),
+  ): Promise<Types.ObjectId> {
+    // Get employee profile
+    const employee = await this.employeeModel
+      .findById(employeeId)
+      .populate('supervisorPositionId')
+      .exec();
+
+    if (!employee) {
+      throw new NotFoundException('Employee not found');
+    }
+
+    // Find manager through supervisor position
+    const supervisorPosition = employee.supervisorPositionId;
+    if (!supervisorPosition) {
+      throw new BadRequestException('Employee has no supervisor assigned');
+    }
+
+    // Find employee(s) in that supervisor position
+    const managers = await this.employeeModel
+      .find({ primaryPositionId: supervisorPosition })
+      .exec();
+
+    if (managers.length === 0) {
+      throw new NotFoundException('No manager found for supervisor position');
+    }
+
+    // Use first manager
+    const managerId = managers[0]._id.toString();
+
+    // Check for active delegation - returns delegateId if active, otherwise managerId
+    const actualApproverId = this.getActiveDelegate(managerId, requestDate);
+
+    return new Types.ObjectId(actualApproverId);
+  }
+
+  /**
+   * Get delegation status for a manager
+   */
+  getDelegationStatus(managerId: string) {
+    const key = managerId;
+    const delegation = this.delegationMap.get(key);
+
+    if (!delegation || !delegation.isActive) {
+      return { hasDelegation: false };
+    }
+
+    const now = new Date();
+    const isActive = now >= delegation.startDate && 
+                     (delegation.endDate === null || now <= delegation.endDate);
+
+    return {
+      hasDelegation: true,
+      isActive,
+      managerId: delegation.managerId,
+      delegateId: delegation.delegateId,
+      startDate: delegation.startDate,
+      endDate: delegation.endDate,
+    };
+  }
+
     //============================== Omar service methods ============================//
     //leave types(point 1)
     async createLeaveType(dto: CreateLeaveTypeDto) { 
@@ -927,8 +1103,33 @@ private async verifyManagerAuthorization(employee: any, managerId: string): Prom
     }
   }
 
-  // 4. Explicit Delegation Check (REQ-023)
-  // Check if manager has been assigned the supervisor's position temporarily
+  // 4. Explicit Delegation Check (REQ-023) - In-Memory Delegation Map
+  // Check if manager has delegated authority to another employee via delegation map
+  if (employee.supervisorPositionId) {
+    // Find the actual manager for this employee
+    const managers = await this.employeeModel
+      .find({ primaryPositionId: employee.supervisorPositionId })
+      .exec();
+
+    if (managers.length > 0) {
+      const actualManagerId = managers[0]._id.toString();
+      
+      // Check if the managerId trying to approve is the delegate
+      const delegation = this.delegationMap.get(actualManagerId);
+      if (delegation && delegation.isActive) {
+        const now = new Date();
+        const isActive = now >= delegation.startDate && 
+                         (delegation.endDate === null || now <= delegation.endDate);
+        
+        if (isActive && delegation.delegateId === managerId) {
+          console.log(`Manager ${managerId} authorized via In-Memory Delegation`);
+          return true;
+        }
+      }
+    }
+  }
+
+  // 5. Legacy PositionAssignment Delegation Check (if still needed)
   if (employee.supervisorPositionId) {
     const now = new Date();
     const delegation = await this.positionAssignmentModel.findOne({
