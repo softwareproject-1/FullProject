@@ -11,7 +11,6 @@ import { Position } from '../../organization-structure/models/position.schema';
 import { AppraisalCycle } from '../../performance/models/appraisal-cycle.schema';
 import { AppraisalRecord } from '../../performance/models/appraisal-record.schema';
 import { AppraisalTemplate } from '../../performance/models/appraisal-template.schema';
-import { payGrade } from '../../payroll-configuration/models/payGrades.schema';
 import { UserProfileBase } from './user-schema';
 
 export type EmployeeProfileDocument = HydratedDocument<EmployeeProfile>;
@@ -36,6 +35,13 @@ export class EmployeeProfile extends UserProfileBase {
 
   @Prop({ type: Date })
   contractEndDate?: Date;
+
+  // Banking details
+  @Prop({ type: String })
+  bankName?: string;
+
+  @Prop({ type: String })
+  bankAccountNumber?: string;
 
   
   @Prop({
@@ -73,7 +79,7 @@ export class EmployeeProfile extends UserProfileBase {
   @Prop({ type: Types.ObjectId, ref: 'Position' })
   supervisorPositionId?: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: payGrade.name })
+  @Prop({ type: Types.ObjectId, ref: 'PayGrade' })
   payGradeId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'AppraisalRecord' })
