@@ -1,6 +1,8 @@
 export enum BankStatus {
   VALID = 'valid',
   MISSING = 'missing',
+  READY = 'ready',
+  PENDING = 'pending',
 }
 export enum BonusStatus {
   PENDING = 'pending',
@@ -23,7 +25,8 @@ export enum PayRollStatus {
   REJECTED = 'rejected',
   APPROVED = 'approved',// when both manager and finance approved
   LOCKED = 'locked',
-  UNLOCKED = 'unlocked'
+  UNLOCKED = 'unlocked',
+  COMPLETED = 'completed' // after payroll execution
 }
 export enum PayRollPaymentStatus {
   PAID = 'paid', // when finace approved 

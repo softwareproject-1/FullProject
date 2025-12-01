@@ -57,6 +57,7 @@ import {
 // Services
 import { TaxRulesService } from '../payroll-configuration/services/tax-rules.service';
 import { InsuranceBracketsService } from '../payroll-configuration/services/insurance-brackets.service';
+import { ConfigStatus } from '../payroll-configuration/enums/payroll-configuration-enums';
 
 @Injectable()
 export class PayrollExecutionService {
@@ -847,6 +848,8 @@ export class PayrollExecutionService {
 
       let totalPayout = 0;
       let processedCount = 0;
+      const validationErrors: any[] = [];
+      const skippedEmployees: any[] = [];
 
       // Calculate salary for each employee
       for (const empDetail of employeeDetails) {
@@ -867,6 +870,10 @@ export class PayrollExecutionService {
             this.logger.error(
               `Invalid employeeId format: ${empDetail.employeeId}`,
             );
+            validationErrors.push({
+              employeeId: empDetail.employeeId,
+              error: 'Invalid employee ID format',
+            });
             continue;
           }
 
@@ -876,7 +883,42 @@ export class PayrollExecutionService {
 
           if (!employee) {
             this.logger.warn(`Employee not found: ${empDetail.employeeId}`);
+            validationErrors.push({
+              employeeId: empDetail.employeeId,
+              error: 'Employee not found in database',
+            });
             continue;
+          }
+
+          // BR 63: CRITICAL - Validate contract BEFORE calculation
+          if (!employee.isActive || employee.contractStatus !== 'ACTIVE') {
+            this.logger.warn(
+              `BR 63: Skipping employee ${empDetail.employeeId} - Contract not active (status: ${employee.contractStatus})`,
+            );
+            skippedEmployees.push({
+              employeeId: empDetail.employeeId,
+              reason: 'Contract inactive',
+              contractStatus: employee.contractStatus,
+              isActive: employee.isActive,
+            });
+            continue;
+          }
+
+          // BR 66: Check contract expiration BEFORE calculation
+          if (employee.contractEndDate) {
+            const endDate = new Date(employee.contractEndDate);
+            const now = new Date();
+            if (endDate < now) {
+              this.logger.warn(
+                `BR 66: Skipping employee ${empDetail.employeeId} - Contract expired on ${endDate.toISOString()}`,
+              );
+              skippedEmployees.push({
+                employeeId: empDetail.employeeId,
+                reason: 'Contract expired',
+                contractEndDate: endDate,
+              });
+              continue;
+            }
           }
 
           // Get penalties for this employee
@@ -1233,7 +1275,11 @@ export class PayrollExecutionService {
 
       // Apply progressive tax calculation
       let totalTax = 0;
+<<<<<<< HEAD
       const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
+=======
+      const breakdown: { name: string; rate: number; amount: number }[] = [];
+>>>>>>> 3ff01528a0005797b5664e0b26c1247883c25fef
 
       for (const rule of taxRules) {
         if (rule.status === 'APPROVED') {
@@ -1259,7 +1305,11 @@ export class PayrollExecutionService {
    */
   private calculateDefaultProgressiveTax(grossSalary: number): any {
     let totalTax = 0;
+<<<<<<< HEAD
     const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
+=======
+    const breakdown: { name: string; rate: number; amount: number }[] = [];
+>>>>>>> 3ff01528a0005797b5664e0b26c1247883c25fef
 
     // Progressive brackets per Egyptian tax law
     if (grossSalary <= 3000) {
@@ -1299,6 +1349,10 @@ export class PayrollExecutionService {
 
       const applicableBracket = brackets.find(
         (bracket) =>
+<<<<<<< HEAD
+=======
+          bracket.status === ConfigStatus.APPROVED &&
+>>>>>>> 3ff01528a0005797b5664e0b26c1247883c25fef
           grossSalary >= bracket.minSalary &&
           grossSalary <= bracket.maxSalary
       );
@@ -2030,9 +2084,15 @@ export class PayrollExecutionService {
     const employeeDetails = await this.empDetailsModel.find({ payrollRunId: run._id }).exec();
 
     // Calculate totals
+<<<<<<< HEAD
     const totalGrossSalary = employeeDetails.reduce((sum, emp) => sum + emp.baseSalary, 0);
     const totalTaxes = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
     const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.deductions * 0.3), 0);
+=======
+    const totalGrossSalary = employeeDetails.reduce((sum, emp) => sum + (emp.grossPay ?? 0), 0);
+    const totalTaxes = employeeDetails.reduce((sum, emp) => sum + (emp.totalTaxes ?? 0), 0);
+    const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.totalInsurance ?? 0), 0);
+>>>>>>> 3ff01528a0005797b5664e0b26c1247883c25fef
     const totalNetPayout = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
     const totalDeductions = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
     const totalBonuses = employeeDetails.reduce((sum, emp) => sum + (emp.bonus || 0), 0);
@@ -2153,14 +2213,16 @@ export class PayrollExecutionService {
     const run = await this.payrollRunModel.findOne({ runId });
     if (!run) throw new NotFoundException('Payroll Run not found');
 
-    this.logger.log(`REQ-PY-8: Starting payroll execution for ${runId}`);\n\n    // STEP 1: Validate run is LOCKED (not just approved)
+    this.logger.log(`REQ-PY-8: Starting payroll execution for ${runId}`);
+
+    // STEP 1: Validate run is LOCKED (not just approved)
     if (run.status !== PayRollStatus.LOCKED) {
       throw new BadRequestException(
         `Cannot execute payroll. Run must be LOCKED by Payroll Manager first. Current status: ${run.status}`,
       );
     }
 
-    // STEP 1: Retrieve all calculated payslips for this run
+    // STEP 2: Retrieve all calculated payslips for this run
     const payslips = await this.paySlipModel
       .find({ payrollRunId: run._id })
       .exec();
@@ -2172,7 +2234,7 @@ export class PayrollExecutionService {
     let totalDisbursement = 0;
     const distributedPayslips: any[] = [];
 
-    // STEP 2: Generate and Distribute Payslips (REQ-PY-8)
+    // STEP 3: Generate and Distribute Payslips (REQ-PY-8)
     for (const payslip of payslips) {
       // Mark payslip as PAID and ready for distribution
       // Use updateOne to bypass validation issues with embedded schemas
@@ -2182,7 +2244,7 @@ export class PayrollExecutionService {
       );
       totalDisbursement += payslip.netPay;
 
-      // STEP 2A: Generate Payslip Document (PDF format)
+      // STEP 3A: Generate Payslip Document (PDF format)
       // In production, this would call a PDF generation service
       const payslipDocument = {
         payslipId: payslip._id,
@@ -2197,7 +2259,7 @@ export class PayrollExecutionService {
         documentUrl: `/payslips/${payslip._id}/download`, // Portal access URL
       };
 
-      // STEP 2B: Distribute via multiple channels (REQ-PY-8)
+      // STEP 3B: Distribute via multiple channels (REQ-PY-8)
       const distributionStatus = {
         employeeId: payslip.employeeId,
         payslipId: payslip._id,
