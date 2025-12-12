@@ -19,6 +19,9 @@ export class ApplicationStatusHistory {
   @Prop()
   newStatus: string;
 
+  @Prop()
+  notes?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   changedBy: Types.ObjectId;
 }
