@@ -11,7 +11,7 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { OffboardingService } from './offboarding.service';
+import { OffboardingService } from '../services/offboarding.service';
 import {
   InitiateTerminationReviewDto,
   UpdateTerminationStatusDto,
@@ -25,7 +25,7 @@ import {
   ScheduleAccessRevocationDto,
   TriggerFinalSettlementDto,
   RevokeAccessImmediatelyDto,
-} from './dto/offboarding.dto';
+} from '../dto/offboarding.dto';
 
 /**
  * OffboardingController handles:
@@ -66,11 +66,11 @@ export class OffboardingController {
   }
 
   /**
-   * Get termination by ID
+   * Get pending terminations
    */
-  @Get('termination/:terminationId')
-  async getTerminationRequest(@Param('terminationId') terminationId: string) {
-    return this.offboardingService.getTerminationRequest(terminationId);
+  @Get('termination/pending')
+  async getPendingTerminations() {
+    return this.offboardingService.getPendingTerminations();
   }
 
   /**
@@ -82,11 +82,11 @@ export class OffboardingController {
   }
 
   /**
-   * Get pending terminations
+   * Get termination by ID
    */
-  @Get('termination/pending')
-  async getPendingTerminations() {
-    return this.offboardingService.getPendingTerminations();
+  @Get('termination/:terminationId')
+  async getTerminationRequest(@Param('terminationId') terminationId: string) {
+    return this.offboardingService.getTerminationRequest(terminationId);
   }
 
   /**
@@ -112,6 +112,14 @@ export class OffboardingController {
   }
 
   /**
+   * Get all my resignations (Employee)
+   */
+  @Get('resignation/my')
+  async getMyResignations(@Query('employeeId') employeeId: string) {
+    return this.offboardingService.getMyResignations(employeeId);
+  }
+
+  /**
    * Get resignation status (Employee)
    */
   @Get('resignation/:resignationId')
@@ -120,14 +128,6 @@ export class OffboardingController {
     @Query('employeeId') employeeId: string,
   ) {
     return this.offboardingService.getResignationStatus(resignationId, employeeId);
-  }
-
-  /**
-   * Get all my resignations (Employee)
-   */
-  @Get('resignation/my')
-  async getMyResignations(@Query('employeeId') employeeId: string) {
-    return this.offboardingService.getMyResignations(employeeId);
   }
 
   /**

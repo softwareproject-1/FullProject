@@ -15,6 +15,18 @@
  */
 
 import { OnboardingTaskStatus } from '../enums/onboarding-task-status.enum';
+import { 
+  IsString, 
+  IsNotEmpty, 
+  IsOptional, 
+  IsBoolean, 
+  IsArray, 
+  IsNumber, 
+  ValidateNested, 
+  ArrayMinSize,
+  IsDate
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 // ============================================================================
 // ONB-001: CHECKLIST TEMPLATE DTOs
@@ -27,36 +39,49 @@ export class ChecklistTaskTemplateDto {
   /**
    * Task name
    */
+  @IsString()
+  @IsNotEmpty()
   name: string;
 
   /**
    * Department responsible
    */
+  @IsString()
+  @IsNotEmpty()
   department: string;
 
   /**
    * Task category (for grouping)
    */
+  @IsString()
+  @IsOptional()
   category?: string;
 
   /**
    * Days from start date for deadline
    */
+  @IsNumber()
   daysFromStart: number;
 
   /**
    * Priority (1 = highest)
    */
+  @IsNumber()
+  @IsOptional()
   priority?: number;
 
   /**
    * Whether this task requires document upload
    */
+  @IsBoolean()
+  @IsOptional()
   requiresDocument?: boolean;
 
   /**
    * Description/instructions
    */
+  @IsString()
+  @IsOptional()
   description?: string;
 }
 
@@ -68,26 +93,38 @@ export class CreateChecklistTemplateDto {
   /**
    * Template name
    */
+  @IsString()
+  @IsNotEmpty()
   name: string;
 
   /**
    * Department this template is for (optional, for department-specific)
    */
+  @IsString()
+  @IsOptional()
   departmentId?: string;
 
   /**
    * Position this template is for (optional, for position-specific)
    */
+  @IsString()
+  @IsOptional()
   positionId?: string;
 
   /**
    * Whether this is the default template
    */
+  @IsBoolean()
+  @IsOptional()
   isDefault?: boolean;
 
   /**
    * Tasks in this template
    */
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChecklistTaskTemplateDto)
+  @ArrayMinSize(1)
   tasks: ChecklistTaskTemplateDto[];
 }
 
@@ -509,31 +546,43 @@ export class UploadDocumentDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Document type
    */
+  @IsString()
+  @IsNotEmpty()
   documentType: 'ID' | 'CONTRACT' | 'CERTIFICATION' | 'TAX_FORM' | 'OTHER';
 
   /**
    * File path
    */
+  @IsString()
+  @IsNotEmpty()
   filePath: string;
 
   /**
    * Document name
    */
+  @IsString()
+  @IsNotEmpty()
   documentName: string;
 
   /**
    * Expiry date if applicable
    */
+  @IsOptional()
+  @Type(() => Date)
   expiryDate?: Date;
 
   /**
    * Task index if this is for a specific task
    */
+  @IsOptional()
+  @IsNumber()
   taskIndex?: number;
 }
 
@@ -599,16 +648,22 @@ export class VerifyDocumentDto {
   /**
    * Verification decision
    */
+  @IsString()
+  @IsNotEmpty()
   decision: 'VERIFIED' | 'REJECTED';
 
   /**
    * Verifier ID
    */
+  @IsString()
+  @IsNotEmpty()
   verifiedBy: string;
 
   /**
    * Rejection reason if rejected
    */
+  @IsOptional()
+  @IsString()
   rejectionReason?: string;
 }
 
@@ -668,16 +723,22 @@ export class UploadSignedContractDto {
   /**
    * Contract ID
    */
+  @IsString()
+  @IsNotEmpty()
   contractId: string;
 
   /**
    * File path to the signed contract
    */
+  @IsString()
+  @IsNotEmpty()
   filePath: string;
 
   /**
    * Employee signature URL/path
    */
+  @IsOptional()
+  @IsString()
   employeeSignatureUrl?: string;
 }
 
@@ -688,21 +749,29 @@ export class UploadOnboardingFormDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Form type/name
    */
+  @IsString()
+  @IsNotEmpty()
   formType: string;
 
   /**
    * File path
    */
+  @IsString()
+  @IsNotEmpty()
   filePath: string;
 
   /**
    * Task index this form is for (if applicable)
    */
+  @IsOptional()
+  @IsNumber()
   taskIndex?: number;
 }
 
@@ -780,26 +849,35 @@ export class ProvisionAccessDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Systems to provision
    */
+  @IsArray()
+  @ArrayMinSize(1)
   systems: ('email' | 'payroll' | 'internal_systems' | 'vpn' | 'erp')[];
 
   /**
    * Scheduled start date (when access should be active)
    */
+  @Type(() => Date)
   startDate: Date;
 
   /**
    * Requested by (admin ID)
    */
+  @IsString()
+  @IsNotEmpty()
   requestedBy: string;
 
   /**
    * Priority
    */
+  @IsOptional()
+  @IsString()
   priority?: 'normal' | 'high' | 'urgent';
 }
 
@@ -912,31 +990,41 @@ export class ReserveEquipmentDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Equipment type
    */
+  @IsString()
+  @IsNotEmpty()
   equipmentType: 'laptop' | 'desktop' | 'phone' | 'headset' | 'monitor' | 'other';
 
   /**
    * Equipment specification/model
    */
+  @IsOptional()
+  @IsString()
   specification?: string;
 
   /**
    * Quantity
    */
+  @IsNumber()
   quantity: number;
 
   /**
    * Needed by date
    */
+  @Type(() => Date)
   neededByDate: Date;
 
   /**
    * Notes
    */
+  @IsOptional()
+  @IsString()
   notes?: string;
 }
 
@@ -947,31 +1035,42 @@ export class ReserveDeskDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Building/location
    */
+  @IsOptional()
+  @IsString()
   building?: string;
 
   /**
    * Floor
    */
+  @IsOptional()
+  @IsString()
   floor?: string;
 
   /**
    * Preferred area/zone
    */
+  @IsOptional()
+  @IsString()
   preferredArea?: string;
 
   /**
    * Special requirements
    */
+  @IsOptional()
+  @IsString()
   specialRequirements?: string;
 
   /**
    * Start date
    */
+  @Type(() => Date)
   startDate: Date;
 }
 
@@ -982,26 +1081,34 @@ export class ReserveAccessCardDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Card type
    */
+  @IsString()
+  @IsNotEmpty()
   cardType: 'standard' | 'restricted' | 'executive';
 
   /**
    * Access zones
    */
+  @IsArray()
+  @ArrayMinSize(1)
   accessZones: string[];
 
   /**
    * Photo provided
    */
+  @IsBoolean()
   photoProvided: boolean;
 
   /**
    * Needed by date
    */
+  @Type(() => Date)
   neededByDate: Date;
 }
 
@@ -1125,21 +1232,28 @@ export class ScheduleProvisioningDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Start date (when accounts should be active)
    */
+  @Type(() => Date)
+  @IsDate()
   startDate: Date;
 
   /**
    * Systems to provision
    */
+  @IsArray()
+  @ArrayMinSize(1)
   systems: string[];
 
   /**
    * Auto-provision on start date
    */
+  @IsBoolean()
   autoProvisionOnStartDate: boolean;
 }
 
@@ -1150,21 +1264,28 @@ export class ScheduleRevocationDto {
   /**
    * Employee ID
    */
+  @IsString()
+  @IsNotEmpty()
   employeeId: string;
 
   /**
    * Exit date
    */
+  @Type(() => Date)
+  @IsDate()
   exitDate: Date;
 
   /**
    * Reason
    */
+  @IsString()
+  @IsNotEmpty()
   reason: 'termination' | 'resignation' | 'no_show' | 'contract_cancelled';
 
   /**
    * Revoke immediately
    */
+  @IsBoolean()
   revokeImmediately: boolean;
 }
 
@@ -1175,21 +1296,29 @@ export class CancelOnboardingDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Reason for cancellation
    */
+  @IsString()
+  @IsNotEmpty()
   reason: 'no_show' | 'candidate_withdrawal' | 'offer_rescinded' | 'other';
 
   /**
    * Additional notes
    */
+  @IsOptional()
+  @IsString()
   notes?: string;
 
   /**
    * Cancelled by (HR employee ID)
    */
+  @IsString()
+  @IsNotEmpty()
   cancelledBy: string;
 }
 
@@ -1237,26 +1366,35 @@ export class InitiatePayrollDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Contract ID
    */
+  @IsString()
+  @IsNotEmpty()
   contractId: string;
 
   /**
    * Effective date (usually contract signing date or start date)
    */
+  @Type(() => Date)
+  @IsDate()
   effectiveDate: Date;
 
   /**
    * Payroll cycle to start in
    */
+  @IsOptional()
+  @IsString()
   payrollCycle?: 'current' | 'next';
 
   /**
    * Pro-rate first salary
    */
+  @IsBoolean()
   proRateFirstSalary: boolean;
 }
 
@@ -1319,32 +1457,44 @@ export class ProcessSigningBonusDto {
   /**
    * Onboarding ID
    */
+  @IsString()
+  @IsNotEmpty()
   onboardingId: string;
 
   /**
    * Contract ID
    */
+  @IsString()
+  @IsNotEmpty()
   contractId: string;
 
   /**
    * Optional: Reference to signingBonus configuration in payroll-configuration
    * If not provided, a placeholder ObjectId will be used
    */
+  @IsOptional()
+  @IsString()
   signingBonusConfigId?: string;
 
   /**
    * Override amount (if different from contract)
    */
+  @IsOptional()
+  @IsNumber()
   overrideAmount?: number;
 
   /**
    * Payment schedule
    */
+  @IsString()
+  @IsNotEmpty()
   paymentSchedule: 'immediate' | 'first_payroll' | 'after_probation';
 
   /**
    * Notes
    */
+  @IsOptional()
+  @IsString()
   notes?: string;
 }
 

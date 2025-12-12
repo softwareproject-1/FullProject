@@ -2,16 +2,16 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 // --- Controllers ---
-import { RecruitmentController } from './recruitment.controller';
-import { OffboardingController } from './offboarding.controller';
-import { OnboardingController } from './onboarding.controller';
+import { RecruitmentController, InterviewStatusController } from './controllers/recruitment.controller';
+import { OffboardingController } from './controllers/offboarding.controller';
+import { OnboardingController } from './controllers/onboarding.controller';
 
 // --- Services ---
-import { RecruitmentService } from './recruitment.service';
-import { OffboardingService } from './offboarding.service';
-import { OnboardingService } from './onboarding.service';
-import { NotificationService } from './notification.service';
-import { ITProvisioningService } from './it-provisioning.service';
+import { RecruitmentService, InterviewStatusService } from './services/recruitment.service';
+import { OffboardingService } from './services/offboarding.service';
+import { OnboardingService } from './services/onboarding.service';
+import { NotificationService } from './services/notification.service';
+import { ITProvisioningService } from './services/it-provisioning.service';
 
 // --- Recruitment Models ---
 import { JobTemplate, JobTemplateSchema } from './models/job-template.schema';
@@ -38,7 +38,7 @@ import { signingBonus, signingBonusSchema } from '../payroll-configuration/model
 import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
 import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
 import { AppraisalRecord, AppraisalRecordSchema } from '../performance/models/appraisal-record.schema';
-import { LeaveEntitlement, LeaveEntitlementSchema } from '../leaves/schemas/leave-entitlement.schema';
+import { LeaveEntitlement, LeaveEntitlementSchema } from '../leaves/models/leave-entitlement.schema';
 
 // --- Subsystem Modules (Dependencies) ---
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
@@ -88,11 +88,13 @@ import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.m
   ],
   controllers: [
     RecruitmentController,
+    InterviewStatusController,
     OffboardingController,
     OnboardingController,
   ],
   providers: [
     RecruitmentService,
+    InterviewStatusService,
     OffboardingService,
     OnboardingService,
     NotificationService,
@@ -100,6 +102,7 @@ import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.m
   ],
   exports: [
     RecruitmentService,
+    InterviewStatusService,
     OffboardingService,
     OnboardingService,
   ],

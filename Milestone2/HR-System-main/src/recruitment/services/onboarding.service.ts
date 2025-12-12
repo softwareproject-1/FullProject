@@ -20,27 +20,28 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 // Models
-import { Onboarding, OnboardingDocument } from './models/onboarding.schema';
-import { Contract, ContractDocument } from './models/contract.schema';
-import { Offer, OfferDocument } from './models/offer.schema';
-import { Document as RecruitmentDocument, DocumentDocument } from './models/document.schema';
-import { Application, ApplicationDocument } from './models/application.schema';
-import { employeeSigningBonus, employeeSigningBonusDocument } from '../payroll-execution/models/EmployeeSigningBonus.schema';
-import { signingBonus, signingBonusDocument } from '../payroll-configuration/models/signingBonus.schema';
-import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
-import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../employee-profile/models/employee-system-role.schema';
-import { Candidate, CandidateDocument } from '../employee-profile/models/candidate.schema';
-import { BonusStatus } from '../payroll-execution/enums/payroll-execution-enum';
-import { ConfigStatus } from '../payroll-configuration/enums/payroll-configuration-enums';
-import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
+import { Onboarding, OnboardingDocument } from '../models/onboarding.schema';
+import { Contract, ContractDocument } from '../models/contract.schema';
+import { Offer, OfferDocument } from '../models/offer.schema';
+import { Document as RecruitmentDocument, DocumentDocument } from '../models/document.schema';
+import { Application, ApplicationDocument } from '../models/application.schema';
+import { employeeSigningBonus, employeeSigningBonusDocument } from '../../payroll-execution/models/EmployeeSigningBonus.schema';
+import { signingBonus, signingBonusDocument } from '../../payroll-configuration/models/signingBonus.schema';
+import { NotificationLog, NotificationLogDocument } from '../../time-management/models/notification-log.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
+import { Candidate, CandidateDocument } from '../../employee-profile/models/candidate.schema';
+import { EmployeeProfile, EmployeeProfileDocument } from '../../employee-profile/models/employee-profile.schema';
+import { BonusStatus } from '../../payroll-execution/enums/payroll-execution-enum';
+import { ConfigStatus } from '../../payroll-configuration/enums/payroll-configuration-enums';
+import { SystemRole, EmployeeStatus, ContractType } from '../../employee-profile/enums/employee-profile.enums';
 
 // Enums
-import { OnboardingTaskStatus } from './enums/onboarding-task-status.enum';
-import { DocumentType } from './enums/document-type.enum';
+import { OnboardingTaskStatus } from '../enums/onboarding-task-status.enum';
+import { DocumentType } from '../enums/document-type.enum';
 
 // Services
 import { NotificationService } from './notification.service';
-import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
+import { EmployeeProfileService } from '../../employee-profile/employee-profile.service';
 import { ITProvisioningService, ProvisioningRequest, RevocationRequest } from './it-provisioning.service';
 
 // DTOs
@@ -86,7 +87,7 @@ import {
   // ONB-019
   ProcessSigningBonusDto,
   SigningBonusResultDto,
-} from './dto/onboarding.dto';
+} from '../dto/onboarding.dto';
 
 @Injectable()
 export class OnboardingService {
@@ -130,6 +131,9 @@ export class OnboardingService {
 
     @InjectModel(Candidate.name)
     private readonly candidateModel: Model<CandidateDocument>,
+
+    @InjectModel(EmployeeProfile.name)
+    private readonly employeeProfileModel: Model<EmployeeProfileDocument>,
     
     private readonly notificationService: NotificationService,
     private readonly employeeProfileService: EmployeeProfileService,
@@ -154,8 +158,8 @@ export class OnboardingService {
   ): Promise<OnboardingDocument> {
     // Check if onboarding already exists for this contract
     const existing = await this.onboardingModel.findOne({
-      employeeId: new Types.ObjectId(candidateId),
-    } as any).exec();
+      contractId: new Types.ObjectId(contractId),
+    }).exec();
 
     if (existing) {
       return existing;
@@ -209,13 +213,10 @@ export class OnboardingService {
 
     const onboarding = new this.onboardingModel({
       employeeId: new Types.ObjectId(candidateId),
+      contractId: new Types.ObjectId(contractId),
       tasks: defaultTasks,
       completed: false,
-    } as any);
-    // Store contractId in a task note for reference
-    if (defaultTasks.length > 0) {
-      (onboarding.tasks[0] as any).contractIdRef = contractId;
-    }
+    });
 
     const savedOnboarding = await onboarding.save();
 
@@ -326,14 +327,25 @@ export class OnboardingService {
       throw new NotFoundException(`Template with ID ${templateId} not found`);
     }
 
+    // Defensive check: ensure template.tasks exists and is an array
+    if (!template.tasks || !Array.isArray(template.tasks) || template.tasks.length === 0) {
+      throw new BadRequestException(
+        `Template "${template.name || templateId}" has no tasks defined. Please add tasks to the template before applying it.`
+      );
+    }
+
     // Convert template tasks to onboarding tasks
-    const newTasks = template.tasks.map((t) => ({
-      name: t.name,
-      department: t.department,
-      status: OnboardingTaskStatus.PENDING,
-      deadline: new Date(startDate.getTime() + t.daysFromStart * 24 * 60 * 60 * 1000),
-      notes: t.category ? `category:${t.category}` : undefined,
-    }));
+    // Support both daysFromStart (DTO) and dueInDays (legacy/Postman collection)
+    const newTasks = template.tasks.map((t: any) => {
+      const daysFromStart = t.daysFromStart || t.dueInDays || 0;
+      return {
+        name: t.name,
+        department: t.department,
+        status: OnboardingTaskStatus.PENDING,
+        deadline: new Date(startDate.getTime() + daysFromStart * 24 * 60 * 60 * 1000),
+        notes: t.category ? `category:${t.category}` : (t.description || undefined),
+      };
+    });
 
     // Add tasks to onboarding
     onboarding.tasks.push(...newTasks);
@@ -390,18 +402,50 @@ export class OnboardingService {
       throw new BadRequestException('Associated offer not found');
     }
 
+    const candidate = await this.candidateModel.findById(offer.candidateId).exec();
+    if (!candidate) {
+      throw new BadRequestException('Associated candidate not found');
+    }
+
     // Generate employee number
     const employeeNumber = `EMP-${Date.now()}`;
+    
+    // Generate work email
+    const workEmail = `${candidate.firstName.toLowerCase()}.${candidate.lastName.toLowerCase()}@company.com`;
 
-    // Stub: In real implementation, would call employeeProfileService.create()
-    console.log(`[ONBOARDING] Creating employee profile from contract ${dto.contractId}`);
-    console.log(`  - Candidate: ${offer.candidateId}`);
-    console.log(`  - Start Date: ${dto.startDate}`);
-    console.log(`  - Employee Number: ${employeeNumber}`);
+    // Create employee profile from candidate data
+    const employeeProfile = await this.employeeProfileModel.create({
+      employeeNumber,
+      firstName: candidate.firstName,
+      middleName: candidate.middleName,
+      lastName: candidate.lastName,
+      fullName: candidate.fullName || `${candidate.firstName} ${candidate.lastName}`,
+      nationalId: candidate.nationalId,
+      password: candidate.password,
+      gender: candidate.gender,
+      maritalStatus: candidate.maritalStatus,
+      dateOfBirth: candidate.dateOfBirth,
+      personalEmail: candidate.personalEmail,
+      mobilePhone: candidate.mobilePhone,
+      homePhone: candidate.homePhone,
+      address: candidate.address,
+      profilePictureUrl: candidate.profilePictureUrl,
+      dateOfHire: dto.startDate || new Date(),
+      workEmail,
+      contractType: ContractType.FULL_TIME_CONTRACT,
+      workType: dto.workType || 'FULL_TIME',
+      status: EmployeeStatus.ACTIVE,
+      statusEffectiveFrom: dto.startDate || new Date(),
+      contractStartDate: dto.startDate || new Date(),
+      primaryDepartmentId: candidate.departmentId,
+      primaryPositionId: candidate.positionId,
+    });
+
+    console.log(`[ONBOARDING] Created employee profile ${employeeProfile._id} from contract ${dto.contractId}`);
 
     return {
       success: true,
-      employeeProfileId: `profile-${Date.now()}`,
+      employeeProfileId: (employeeProfile._id as Types.ObjectId).toString(),
       employeeNumber,
       candidateId: offer.candidateId.toString(),
       contractId: dto.contractId,
@@ -746,9 +790,15 @@ export class OnboardingService {
       throw new NotFoundException(`Contract with ID ${dto.contractId} not found`);
     }
 
+    // Fetch the offer to get candidateId
+    const offer = await this.offerModel.findById(contract.offerId).exec();
+    if (!offer) {
+      throw new NotFoundException(`Offer associated with contract not found`);
+    }
+
     // Create document record
     const doc = await this.documentModel.create({
-      ownerId: contract.offerId,
+      ownerId: offer.candidateId,
       type: DocumentType.CONTRACT,
       filePath: dto.filePath,
       uploadedAt: new Date(),
@@ -826,10 +876,8 @@ export class OnboardingService {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
 
-    // Find contract through employeeId -> application -> offer -> contract
-    const application = await this.applicationModel.findOne({ candidateId: onboarding.employeeId }).exec();
-    const offer = application ? await this.offerModel.findOne({ applicationId: application._id }).exec() : null;
-    const contract = offer ? await this.contractModel.findOne({ offerId: offer._id }).exec() : null;
+    const contract = await this.contractModel.findById(onboarding.contractId).exec();
+    const offer = contract ? await this.offerModel.findById(contract.offerId).exec() : null;
 
     // Look up candidate to get employee name
     const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
@@ -1145,16 +1193,17 @@ export class OnboardingService {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
 
+    // Transform startDate to Date object if it's a string
+    const startDate = dto.startDate instanceof Date ? dto.startDate : new Date(dto.startDate);
+
     // Look up candidate to get employee name
     const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
     const employeeName = candidate?.firstName
       ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
       : 'New Hire';
 
-    // Find contract through employeeId -> application -> offer -> contract
-    const application = await this.applicationModel.findOne({ candidateId: onboarding.employeeId }).exec();
-    const offer = application ? await this.offerModel.findOne({ applicationId: application._id }).exec() : null;
-    const contract = offer ? await this.contractModel.findOne({ offerId: offer._id }).exec() : null;
+    const contract = await this.contractModel.findById(onboarding.contractId).exec();
+    const offer = contract ? await this.offerModel.findById(contract.offerId).exec() : null;
 
     const provRequest: ProvisioningRequest = {
       employeeId: onboarding.employeeId.toString(),
@@ -1162,7 +1211,7 @@ export class OnboardingService {
       email: `employee.${onboarding.employeeId}@company.com`,
       department: offer?.role || 'Unknown',
       position: offer?.role || 'Unknown',
-      startDate: dto.startDate,
+      startDate: startDate,
     };
 
     const result = await this.itProvisioningService.scheduleProvisioning(provRequest, dto.systems);
@@ -1181,12 +1230,12 @@ export class OnboardingService {
           recipientId: adminRole.employeeProfileId.toString(),
           type: 'IT_PROVISIONING_REQUESTED',
           subject: '🔧 IT Provisioning Request - New Hire Email Setup Required',
-          message: `A new hire (Employee ID: ${onboarding.employeeId}) requires IT provisioning. Please set up email and system access. Systems requested: ${dto.systems.join(', ')}. Start date: ${dto.startDate.toDateString()}.`,
+          message: `A new hire (Employee ID: ${onboarding.employeeId}) requires IT provisioning. Please set up email and system access. Systems requested: ${dto.systems.join(', ')}. Start date: ${startDate.toDateString()}.`,
           metadata: {
             onboardingId: dto.onboardingId,
             employeeId: onboarding.employeeId.toString(),
             systems: dto.systems,
-            startDate: dto.startDate.toISOString(),
+            startDate: startDate.toISOString(),
           },
         });
         notificationSent = true;
@@ -1217,10 +1266,13 @@ export class OnboardingService {
     scheduledFor: Date;
     taskId: string;
   }> {
+    // Transform exitDate to Date object if it's a string
+    const exitDate = dto.exitDate instanceof Date ? dto.exitDate : new Date(dto.exitDate);
+
     const revRequest: RevocationRequest = {
       employeeId: dto.employeeId,
       reason: dto.reason,
-      effectiveDate: dto.exitDate,
+      effectiveDate: exitDate,
       revokeImmediately: dto.revokeImmediately,
     };
 
@@ -1253,7 +1305,7 @@ export class OnboardingService {
     // Mark onboarding as cancelled (set all tasks to cancelled state)
     for (const task of onboarding.tasks) {
       if (task.status !== OnboardingTaskStatus.COMPLETED) {
-        task.status = 'cancelled' as any;
+        task.status = OnboardingTaskStatus.CANCELLED;
         task.notes = `Cancelled: ${dto.reason}`;
       }
     }
@@ -1468,7 +1520,7 @@ export class OnboardingService {
     return {
       onboardingId: (onboarding._id as Types.ObjectId).toString(),
       employeeId: onboarding.employeeId.toString(),
-      contractId: '', // Contract ID not stored in schema - find through employeeId if needed
+      contractId: onboarding.contractId.toString(),
       tasks,
       progressPercentage,
       completedTasks,

@@ -16,11 +16,11 @@
  */
 
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { OnboardingService } from './onboarding.service';
-import { AuthenticationGuard } from '../auth/guards/authentication.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
+import { OnboardingService } from '../services/onboarding.service';
+import { AuthenticationGuard } from '../../auth/guards/authentication.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { SystemRole } from '../../employee-profile/enums/employee-profile.enums';
 import {
   // ONB-001
   CreateChecklistTemplateDto,
@@ -65,7 +65,7 @@ import {
   // ONB-019
   ProcessSigningBonusDto,
   SigningBonusResultDto,
-} from './dto/onboarding.dto';
+} from '../dto/onboarding.dto';
 
 @Controller('onboarding')
 @UseGuards(AuthenticationGuard, RolesGuard)
@@ -124,7 +124,7 @@ export class OnboardingController {
   }
 
   /**
-   * POST /onboarding/:onboardingId/apply-template
+   * POST /onboarding/tracker/:onboardingId/apply-template
    * 
    * Apply a template to an existing onboarding.
    * Adds template tasks to the onboarding.
@@ -133,7 +133,7 @@ export class OnboardingController {
    * @param body - Template ID and start date
    * @returns OnboardingTrackerDto - Updated onboarding
    */
-  @Post(':onboardingId/apply-template')
+  @Post('tracker/:onboardingId/apply-template')
   @Roles(SystemRole.HR_MANAGER)
   async applyTemplateToOnboarding(
     @Param('onboardingId') onboardingId: string,

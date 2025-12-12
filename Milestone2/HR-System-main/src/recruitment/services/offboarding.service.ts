@@ -6,20 +6,20 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { TerminationRequest, TerminationRequestDocument } from './models/termination-request.schema';
-import { ClearanceChecklist, ClearanceChecklistDocument } from './models/clearance-checklist.schema';
-import { Onboarding, OnboardingDocument } from './models/onboarding.schema';
-import { EmployeeProfile, EmployeeProfileDocument } from '../employee-profile/models/employee-profile.schema';
-import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../employee-profile/models/employee-system-role.schema';
-import { AppraisalRecord, AppraisalRecordDocument } from '../performance/models/appraisal-record.schema';
-import { LeaveEntitlement, LeaveEntitlementDocument } from '../leaves/schemas/leave-entitlement.schema';
+import { TerminationRequest, TerminationRequestDocument } from '../models/termination-request.schema';
+import { ClearanceChecklist, ClearanceChecklistDocument } from '../models/clearance-checklist.schema';
+import { Onboarding, OnboardingDocument } from '../models/onboarding.schema';
+import { EmployeeProfile, EmployeeProfileDocument } from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
+import { AppraisalRecord, AppraisalRecordDocument } from '../../performance/models/appraisal-record.schema';
+import { LeaveEntitlement, LeaveEntitlementDocument } from '../../leaves/models/leave-entitlement.schema';
 import { NotificationService } from './notification.service';
 import { ITProvisioningService, RevocationRequest } from './it-provisioning.service';
-import { TerminationStatus } from './enums/termination-status.enum';
-import { TerminationInitiation } from './enums/termination-initiation.enum';
-import { ApprovalStatus } from './enums/approval-status.enum';
-import { OnboardingTaskStatus } from './enums/onboarding-task-status.enum';
-import { AppraisalRecordStatus } from '../performance/enums/performance.enums';
+import { TerminationStatus } from '../enums/termination-status.enum';
+import { TerminationInitiation } from '../enums/termination-initiation.enum';
+import { ApprovalStatus } from '../enums/approval-status.enum';
+import { OnboardingTaskStatus } from '../enums/onboarding-task-status.enum';
+import { AppraisalRecordStatus } from '../../performance/enums/performance.enums';
 import {
   InitiateTerminationReviewDto,
   UpdateTerminationStatusDto,
@@ -33,7 +33,7 @@ import {
   ScheduleAccessRevocationDto,
   TriggerFinalSettlementDto,
   RevokeAccessImmediatelyDto,
-} from './dto/offboarding.dto';
+} from '../dto/offboarding.dto';
 
 /**
  * OffboardingService handles:
@@ -73,61 +73,78 @@ export class OffboardingService {
    * Get employee performance data for termination review decision
    * Uses AppraisalRecord from performance module
    */
+  /**
+   * OFF-001: Get employee performance data for termination review
+   * Now uses Performance subsystem's getEmployeeRecords method
+   * Maps to simplified structure with latest appraisal data
+   */
   async getEmployeePerformanceData(employeeId: string): Promise<{
     hasPerformanceData: boolean;
     latestAppraisal: {
+      id: string;
       totalScore: number | null;
-      overallRatingLabel: string | null;
-      improvementAreas: string | null;
-      strengths: string | null;
-      status: AppraisalRecordStatus | null;
-      managerSubmittedAt: Date | null;
+      overallRating: string | null;
+      managerComments: string | null;
+      status: string | null;
+      publishedAt: Date | null;
     } | null;
-    cachedPerformance: {
-      lastAppraisalScore: number | null;
-      lastAppraisalRatingLabel: string | null;
-      lastAppraisalDate: Date | null;
-    } | null;
+    allRecords: Array<{
+      id: string;
+      overallRating: string | null;
+      totalScore: number | null;
+      publishedAt: Date | null;
+    }>;
   }> {
-    // Try to get the latest appraisal record
-    const latestAppraisal = await this.appraisalRecordModel
-      .findOne({
+    // Use Performance subsystem's method to get employee records
+    const records = await this.appraisalRecordModel
+      .find({
         employeeProfileId: new Types.ObjectId(employeeId),
-        status: { $in: [AppraisalRecordStatus.HR_PUBLISHED, AppraisalRecordStatus.MANAGER_SUBMITTED] },
+        status: { $in: [AppraisalRecordStatus.HR_PUBLISHED, AppraisalRecordStatus.ARCHIVED] },
       })
-      .sort({ managerSubmittedAt: -1 })
+      .select('_id overallRatingLabel status managerSummary totalScore hrPublishedAt cycleId templateId createdAt updatedAt')
+      .sort({ hrPublishedAt: -1 })
+      .lean()
       .exec();
 
-    // Also get cached performance from employee profile
-    const employeeProfile = await this.employeeProfileModel.findById(employeeId).exec();
-
-    if (!latestAppraisal && !employeeProfile?.lastAppraisalScore) {
+    if (!records || records.length === 0) {
       return {
         hasPerformanceData: false,
         latestAppraisal: null,
-        cachedPerformance: null,
+        allRecords: [],
       };
     }
 
+    const mappedRecords = records.map((record) => ({
+      id: record._id.toString(),
+      overallRating: record.overallRatingLabel ?? null,
+      status: record.status ?? null,
+      managerComments: record.managerSummary ?? null,
+      totalScore: record.totalScore ?? null,
+      publishedAt: record.hrPublishedAt ?? null,
+      cycleId: record.cycleId?.toString() ?? null,
+      templateId: record.templateId?.toString() ?? null,
+      createdAt: (record as any).createdAt ?? null,
+      updatedAt: (record as any).updatedAt ?? null,
+    }));
+
+    const latest = mappedRecords[0];
+
     return {
       hasPerformanceData: true,
-      latestAppraisal: latestAppraisal
-        ? {
-            totalScore: latestAppraisal.totalScore ?? null,
-            overallRatingLabel: latestAppraisal.overallRatingLabel ?? null,
-            improvementAreas: latestAppraisal.improvementAreas ?? null,
-            strengths: latestAppraisal.strengths ?? null,
-            status: latestAppraisal.status,
-            managerSubmittedAt: latestAppraisal.managerSubmittedAt ?? null,
-          }
-        : null,
-      cachedPerformance: employeeProfile
-        ? {
-            lastAppraisalScore: employeeProfile.lastAppraisalScore ?? null,
-            lastAppraisalRatingLabel: employeeProfile.lastAppraisalRatingLabel ?? null,
-            lastAppraisalDate: employeeProfile.lastAppraisalDate ?? null,
-          }
-        : null,
+      latestAppraisal: {
+        id: latest.id,
+        totalScore: latest.totalScore,
+        overallRating: latest.overallRating,
+        managerComments: latest.managerComments,
+        status: latest.status,
+        publishedAt: latest.publishedAt,
+      },
+      allRecords: mappedRecords.map((r) => ({
+        id: r.id,
+        overallRating: r.overallRating,
+        totalScore: r.totalScore,
+        publishedAt: r.publishedAt,
+      })),
     };
   }
 
@@ -136,20 +153,35 @@ export class OffboardingService {
   // ============================================================
 
   /**
-   * Get employee leave balance for final settlement calculation
-   * Uses LeaveEntitlement from leaves module
+   * OFF-013: Get employee leave balance for final settlement calculation
+   * 
+   * INTEGRATION NOTE: This method currently reads LeaveEntitlement directly.
+   * When Leaves subsystem implements getLeaveBalance(employeeId, leaveTypeId),
+   * this should be updated to call their service for each leave type.
+   * 
+   * Their method signature:
+   * async getLeaveBalance(employeeId: string, leaveTypeId: string): Promise<number>
+   * 
+   * Returns accrued - taken balance, accounting for:
+   * - Months worked calculation
+   * - Pause during unpaid leave (BR 11)
+   * - Approved leave requests
    */
   async getLeaveBalanceForSettlement(employeeId: string): Promise<{
     totalRemainingDays: number;
     entitlements: Array<{
       leaveTypeId: string;
+      leaveTypeName: string;
       remaining: number;
       taken: number;
       pending: number;
     }>;
   }> {
+    // TODO: When LeavesService.getLeaveBalance is implemented, replace direct query
+    // For now, using LeaveEntitlement model directly
     const entitlements = await this.leaveEntitlementModel
       .find({ employeeId: new Types.ObjectId(employeeId) })
+      .populate('leaveTypeId')
       .exec();
 
     const totalRemainingDays = entitlements.reduce(
@@ -159,12 +191,16 @@ export class OffboardingService {
 
     return {
       totalRemainingDays,
-      entitlements: entitlements.map((ent) => ({
-        leaveTypeId: ent.leaveTypeId.toString(),
-        remaining: ent.remaining || 0,
-        taken: ent.taken || 0,
-        pending: ent.pending || 0,
-      })),
+      entitlements: entitlements.map((ent) => {
+        const leaveType: any = ent.leaveTypeId;
+        return {
+          leaveTypeId: ent.leaveTypeId.toString(),
+          leaveTypeName: leaveType?.name || 'Unknown',
+          remaining: ent.remaining || 0,
+          taken: ent.taken || 0,
+          pending: ent.pending || 0,
+        };
+      }),
     };
   }
 
@@ -741,6 +777,7 @@ export class OffboardingService {
       totalRemainingDays: number;
       entitlements: Array<{
         leaveTypeId: string;
+        leaveTypeName: string;
         remaining: number;
         taken: number;
         pending: number;
@@ -784,12 +821,34 @@ export class OffboardingService {
   }
 
   /**
-   * Trigger final settlement - sends notifications to Payroll and Benefits teams
+   * OFF-013: Trigger final settlement - processes leave encashment and sends notifications
+   * 
+   * INTEGRATION NOTE: This method will call Leaves subsystem's processFinalSettlement
+   * when it becomes available to handle leave encashment calculation.
+   * 
+   * Their method signature:
+   * async processFinalSettlement(employeeId: string, terminationDate?: Date)
+   * 
+   * Returns:
+   * - employeeId, terminationDate, dailySalaryRate
+   * - settlements[] with leaveTypeId, unusedDays, encashableDays (capped at 30), encashmentAmount
+   * - totalEncashment
+   * - Creates adjustment records for audit trail
    */
   async triggerFinalSettlement(terminationId: string, dto: TriggerFinalSettlementDto): Promise<{
     success: boolean;
     message: string;
     leaveBalanceIncluded: number;
+    encashmentDetails?: {
+      totalEncashment: number;
+      dailySalaryRate: number;
+      settlements: Array<{
+        leaveTypeName: string;
+        unusedDays: number;
+        encashableDays: number;
+        encashmentAmount: number;
+      }>;
+    };
   }> {
     const { termination, clearanceComplete } = await this.getTerminationForSettlement(terminationId);
 
@@ -797,12 +856,66 @@ export class OffboardingService {
       throw new BadRequestException('Cannot trigger settlement - clearance incomplete');
     }
 
+    const employeeId = termination.employeeId.toString();
+
     // Get leave balance to include in settlement notification
-    const leaveBalance = await this.getLeaveBalanceForSettlement(termination.employeeId.toString());
+    const leaveBalance = await this.getLeaveBalanceForSettlement(employeeId);
+
+    // TODO: When LeavesService.processFinalSettlement is implemented, call it here:
+    // const encashment = await this.leavesService.processFinalSettlement(
+    //   employeeId,
+    //   termination.terminationDate
+    // );
+    
+    // For now, placeholder encashment calculation
+    // This will be replaced with actual Leaves subsystem integration
+    const placeholderEncashment = {
+      totalEncashment: 0,
+      dailySalaryRate: 0,
+      settlements: [] as Array<{
+        leaveTypeName: string;
+        unusedDays: number;
+        encashableDays: number;
+        encashmentAmount: number;
+      }>,
+    };
+
+    // Notify Payroll module about final settlement with leave encashment data
+    await this.notificationService.sendNotification({
+      recipientId: 'PAYROLL_TEAM', // Should be actual payroll team/system ID
+      type: 'FINAL_SETTLEMENT_STARTED', // Using existing notification type
+      subject: 'Final Settlement Processing Required - Payroll Action Needed',
+      message: `Employee ${employeeId} termination settlement ready. Leave balance: ${leaveBalance.totalRemainingDays} days. Total encashment: ${placeholderEncashment.totalEncashment}`,
+      metadata: {
+        terminationId,
+        employeeId,
+        triggeredBy: dto.triggeredBy,
+        terminationDate: termination.terminationDate,
+        leaveBalance: leaveBalance.totalRemainingDays,
+        encashmentAmount: placeholderEncashment.totalEncashment,
+        notes: dto.notes,
+        targetSystem: 'PAYROLL',
+      },
+    });
+
+    // Notify Benefits module about termination
+    await this.notificationService.sendNotification({
+      recipientId: 'BENEFITS_TEAM', // Should be actual benefits team/system ID
+      type: 'TERMINATION_INITIATED', // Using existing notification type
+      subject: 'Benefits Termination Required',
+      message: `Employee ${employeeId} benefits must be terminated effective ${termination.terminationDate?.toISOString().split('T')[0] || 'immediately'}`,
+      metadata: {
+        terminationId,
+        employeeId,
+        terminationDate: termination.terminationDate,
+        triggeredBy: dto.triggeredBy,
+        targetSystem: 'BENEFITS',
+      },
+    });
 
     // Notify the employee that settlement process has started
     await this.notificationService.sendNotification({
-      recipientId: termination.employeeId.toString(),
+      recipientId: employeeId,
       type: 'FINAL_SETTLEMENT_STARTED',
       subject: 'Final Settlement Process Started',
       message: `Your final settlement process has been initiated. Unused leave balance: ${leaveBalance.totalRemainingDays} days. You will be notified when your final pay is ready.`,
@@ -810,14 +923,16 @@ export class OffboardingService {
         terminationId,
         triggeredBy: dto.triggeredBy,
         leaveBalance: leaveBalance.totalRemainingDays,
+        encashmentAmount: placeholderEncashment.totalEncashment,
         notes: dto.notes,
       },
     });
 
     return {
       success: true,
-      message: 'Final settlement triggered. Notifications sent.',
+      message: 'Final settlement triggered. Notifications sent to Payroll, Benefits, and Employee.',
       leaveBalanceIncluded: leaveBalance.totalRemainingDays,
+      encashmentDetails: placeholderEncashment.totalEncashment > 0 ? placeholderEncashment : undefined,
     };
   }
 }

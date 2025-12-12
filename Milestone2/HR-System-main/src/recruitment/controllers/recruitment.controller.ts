@@ -10,7 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { RecruitmentService, InterviewStatusService } from './recruitment.service';
+import { RecruitmentService, InterviewStatusService } from '../services/recruitment.service';
 
 // DTOs
 import {
@@ -30,7 +30,7 @@ import {
   ApproveOfferDto,
   RespondToOfferDto,
   SignOfferDto,
-} from './dto';
+} from '../dto';
 
 @Controller('recruitment')
 export class RecruitmentController {
@@ -138,9 +138,7 @@ export class RecruitmentController {
     @Param('id') id: string,
     @Body() dto: UpdateJobRequisitionDto,
   ) {
-    const requisition = await this.recruitmentService.getJobRequisitionById(id);
-    Object.assign(requisition, dto);
-    return requisition.save();
+    return this.recruitmentService.updateJobRequisition(id, dto);
   }
 
   // ==================== REC-007: Applications ====================
@@ -305,7 +303,7 @@ export class RecruitmentController {
     if (!consent) {
       return { message: 'No consent found for this application', consent: null };
     }
-    return { consent: (consent as any).notes ? JSON.parse((consent as any).notes) : null };
+    return { consent: consent.notes ? JSON.parse(consent.notes) : null };
   }
 
   @Get('applications/:id/consent/verify')
@@ -320,7 +318,7 @@ export class RecruitmentController {
       count: consents.length,
       consents: consents.map((c) => ({
         applicationId: c.applicationId,
-        data: (c as any).notes ? JSON.parse((c as any).notes) : null,
+        data: c.notes ? JSON.parse(c.notes) : null,
         createdAt: (c as any).createdAt,
       })),
     };

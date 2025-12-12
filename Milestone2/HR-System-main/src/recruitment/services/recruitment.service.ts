@@ -3,27 +3,27 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
 // Models
-import { JobTemplate, JobTemplateDocument } from './models/job-template.schema';
-import { JobRequisition, JobRequisitionDocument } from './models/job-requisition.schema';
-import { Application, ApplicationDocument } from './models/application.schema';
-import { ApplicationStatusHistory, ApplicationStatusHistoryDocument } from './models/application-history.schema';
-import { Interview, InterviewDocument } from './models/interview.schema';
-import { AssessmentResult, AssessmentResultDocument } from './models/assessment-result.schema';
-import { Referral, ReferralDocument } from './models/referral.schema';
-import { Offer, OfferDocument } from './models/offer.schema';
-import { Contract, ContractDocument } from './models/contract.schema';
-import { EmployeeProfile } from '../employee-profile/models/employee-profile.schema';
-import { ShiftAssignment } from '../time-management/models/shift-assignment.schema';
-import { Shift } from '../time-management/models/shift.schema';
-import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
+import { JobTemplate, JobTemplateDocument } from '../models/job-template.schema';
+import { JobRequisition, JobRequisitionDocument } from '../models/job-requisition.schema';
+import { Application, ApplicationDocument } from '../models/application.schema';
+import { ApplicationStatusHistory, ApplicationStatusHistoryDocument } from '../models/application-history.schema';
+import { Interview, InterviewDocument } from '../models/interview.schema';
+import { AssessmentResult, AssessmentResultDocument } from '../models/assessment-result.schema';
+import { Referral, ReferralDocument } from '../models/referral.schema';
+import { Offer, OfferDocument } from '../models/offer.schema';
+import { Contract, ContractDocument } from '../models/contract.schema';
+import { EmployeeProfile } from '../../employee-profile/models/employee-profile.schema';
+import { ShiftAssignment } from '../../time-management/models/shift-assignment.schema';
+import { Shift } from '../../time-management/models/shift.schema';
+import { NotificationLog, NotificationLogDocument } from '../../time-management/models/notification-log.schema';
 
 // Enums
-import { ApplicationStage } from './enums/application-stage.enum';
-import { ApplicationStatus } from './enums/application-status.enum';
-import { InterviewStatus } from './enums/interview-status.enum';
-import { ApprovalStatus } from './enums/approval-status.enum';
-import { OfferFinalStatus } from './enums/offer-final-status.enum';
-import { OfferResponseStatus } from './enums/offer-response-status.enum';
+import { ApplicationStage } from '../enums/application-stage.enum';
+import { ApplicationStatus } from '../enums/application-status.enum';
+import { InterviewStatus } from '../enums/interview-status.enum';
+import { ApprovalStatus } from '../enums/approval-status.enum';
+import { OfferFinalStatus } from '../enums/offer-final-status.enum';
+import { OfferResponseStatus } from '../enums/offer-response-status.enum';
 
 // DTOs
 import {
@@ -43,10 +43,10 @@ import {
   ApproveOfferDto,
   RespondToOfferDto,
   SignOfferDto,
-} from './dto';
+} from '../dto';
 
 // Cross-team services (to be implemented by respective teams)
-import { OrganizationStructureService } from '../organization-structure/organization-structure.service';
+import { OrganizationStructureService } from '../../organization-structure/organization-structure.service';
 
 // Internal services
 import { OnboardingService } from './onboarding.service';
@@ -189,6 +189,16 @@ export class RecruitmentService {
     const requisition = await this.jobRequisitionModel
       .findById(id)
       .populate('templateId')
+      .exec();
+    if (!requisition) {
+      throw new NotFoundException(`Job requisition with ID ${id} not found`);
+    }
+    return requisition;
+  }
+
+  async updateJobRequisition(id: string, dto: UpdateJobRequisitionDto): Promise<JobRequisitionDocument> {
+    const requisition = await this.jobRequisitionModel
+      .findByIdAndUpdate(id, dto, { new: true })
       .exec();
     if (!requisition) {
       throw new NotFoundException(`Job requisition with ID ${id} not found`);
@@ -575,7 +585,6 @@ export class RecruitmentService {
   async getInterviewFeedback(interviewId: string): Promise<AssessmentResultDocument[]> {
     return this.assessmentResultModel
       .find({ interviewId: new Types.ObjectId(interviewId) })
-      .populate('interviewerId')
       .exec();
   }
 
@@ -611,12 +620,14 @@ export class RecruitmentService {
   async getReferralByCandidate(candidateId: string): Promise<ReferralDocument | null> {
     return this.referralModel
       .findOne({ candidateId: new Types.ObjectId(candidateId) })
-      .populate('referringEmployeeId')
       .exec();
   }
 
   async isApplicationReferral(applicationId: string): Promise<{ isReferral: boolean; referral: ReferralDocument | null }> {
-    const application = await this.getApplicationById(applicationId);
+    const application = await this.applicationModel.findById(applicationId).exec();
+    if (!application) {
+      throw new NotFoundException(`Application with ID ${applicationId} not found`);
+    }
     const referral = await this.getReferralByCandidate(application.candidateId.toString());
     return {
       isReferral: !!referral,
@@ -763,12 +774,11 @@ export class RecruitmentService {
     const applicationIds = applications.map((app) => app._id);
 
     // Then, get all consent records for these applications
-    // Note: notes field doesn't exist in schema, but may be stored in newStatus or oldStatus
     const consentRecords = await this.applicationHistoryModel
       .find({
         applicationId: { $in: applicationIds },
-        newStatus: 'CONSENT',
-      } as any)
+        notes: { $regex: '"type":"CONSENT"' },
+      })
       .sort({ createdAt: -1 })
       .exec();
 
@@ -778,12 +788,12 @@ export class RecruitmentService {
   async verifyConsent(applicationId: string): Promise<{ hasConsent: boolean; consent: any | null }> {
     const consentRecord = await this.getConsentByApplication(applicationId);
 
-    if (!consentRecord || !(consentRecord as any).notes) {
+    if (!consentRecord || !consentRecord.notes) {
       return { hasConsent: false, consent: null };
     }
 
     try {
-      const consentData = JSON.parse((consentRecord as any).notes);
+      const consentData = JSON.parse(consentRecord.notes);
       const hasValidConsent =
         consentData.type === 'CONSENT' &&
         consentData.dataProcessingConsent === true &&
@@ -866,7 +876,6 @@ export class RecruitmentService {
       .findById(id)
       .populate('applicationId')
       .populate('candidateId')
-      .populate('approvers.employeeId')
       .exec();
     if (!offer) {
       throw new NotFoundException(`Offer with ID ${id} not found`);
@@ -878,7 +887,6 @@ export class RecruitmentService {
     return this.offerModel
       .findOne({ applicationId: new Types.ObjectId(applicationId) })
       .populate('candidateId')
-      .populate('approvers.employeeId')
       .exec();
   }
 
@@ -887,7 +895,6 @@ export class RecruitmentService {
       .find()
       .populate('applicationId')
       .populate('candidateId')
-      .populate('approvers.employeeId')
       .sort({ createdAt: -1 })
       .exec();
   }
