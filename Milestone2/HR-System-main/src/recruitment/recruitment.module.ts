@@ -38,7 +38,7 @@ import { signingBonus, signingBonusSchema } from '../payroll-configuration/model
 import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
 import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
 import { AppraisalRecord, AppraisalRecordSchema } from '../performance/models/appraisal-record.schema';
-import { LeaveEntitlement, LeaveEntitlementSchema } from '../leaves/models/leave-entitlement.schema';
+import { LeaveEntitlement, LeaveEntitlementSchema } from '../leaves/schemas/leave-entitlement.schema';
 
 // --- Subsystem Modules (Dependencies) ---
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';

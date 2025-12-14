@@ -12,7 +12,7 @@ import { Onboarding, OnboardingDocument } from '../models/onboarding.schema';
 import { EmployeeProfile, EmployeeProfileDocument } from '../../employee-profile/models/employee-profile.schema';
 import { EmployeeSystemRole, EmployeeSystemRoleDocument } from '../../employee-profile/models/employee-system-role.schema';
 import { AppraisalRecord, AppraisalRecordDocument } from '../../performance/models/appraisal-record.schema';
-import { LeaveEntitlement, LeaveEntitlementDocument } from '../../leaves/models/leave-entitlement.schema';
+import { LeaveEntitlement, LeaveEntitlementDocument } from '../../leaves/schemas/leave-entitlement.schema';
 import { NotificationService } from './notification.service';
 import { ITProvisioningService, RevocationRequest } from './it-provisioning.service';
 import { TerminationStatus } from '../enums/termination-status.enum';
