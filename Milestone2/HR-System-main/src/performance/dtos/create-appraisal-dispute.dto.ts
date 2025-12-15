@@ -6,12 +6,12 @@ export class CreateAppraisalDisputeDto {
   appraisalId: string;
 
   @IsString()
-  @IsNotEmpty()
-  assignmentId: string;
+  @IsOptional() // Optional - can be retrieved from appraisal record
+  assignmentId?: string;
 
   @IsString()
-  @IsNotEmpty()
-  cycleId: string;
+  @IsOptional() // Optional - can be retrieved from appraisal record
+  cycleId?: string;
 
   @IsString()
   @IsNotEmpty()

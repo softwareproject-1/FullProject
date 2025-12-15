@@ -48,7 +48,7 @@ export enum SystemRole {
 export enum CandidateStatus {
   APPLIED = 'APPLIED',
   SCREENING = 'SCREENING',
-  INTERVIEW = 'INTERVIEW',
+  INTERVIEW  = 'INTERVIEW',
   OFFER_SENT = 'OFFER_SENT',
   OFFER_ACCEPTED = 'OFFER_ACCEPTED',
   HIRED = 'HIRED',

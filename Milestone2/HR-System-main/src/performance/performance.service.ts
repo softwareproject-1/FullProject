@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import {
@@ -243,6 +243,26 @@ export class PerformanceService {
     return deleted;
   }
 
+  async updateAssignmentStatus(id: string, status: AppraisalAssignmentStatus) {
+    const update: Partial<AppraisalAssignment> = { status };
+    
+    // Update related timestamps based on status
+    if (status === AppraisalAssignmentStatus.SUBMITTED) {
+      update.submittedAt = new Date();
+    } else if (status === AppraisalAssignmentStatus.PUBLISHED) {
+      update.publishedAt = new Date();
+    }
+    
+    const updated = await this.assignmentModel
+      .findByIdAndUpdate(new Types.ObjectId(id), update, { new: true })
+      .lean()
+      .exec();
+    if (!updated) {
+      throw new NotFoundException('Appraisal assignment not found');
+    }
+    return updated;
+  }
+
   async createOrUpdateRecord(
     assignmentId: string,
     dto: CreateAppraisalRecordDto,
@@ -306,58 +326,6 @@ export class PerformanceService {
       throw new NotFoundException('Appraisal record not found');
     }
     return record;
-  }
-
-  async getEmployeeRecords(
-    employeeId: string,
-    filters?: { cycleId?: string; startDate?: string; endDate?: string },
-  ) {
-    const query: any = {
-      employeeProfileId: new Types.ObjectId(employeeId),
-      // Only return completed records (HR_PUBLISHED or ARCHIVED)
-      status: {
-        $in: [
-          AppraisalRecordStatus.HR_PUBLISHED,
-          AppraisalRecordStatus.ARCHIVED,
-        ],
-      },
-    };
-
-    if (filters?.cycleId) {
-      query.cycleId = new Types.ObjectId(filters.cycleId);
-    }
-
-    if (filters?.startDate || filters?.endDate) {
-      query.hrPublishedAt = {};
-      if (filters.startDate) {
-        query.hrPublishedAt.$gte = new Date(filters.startDate);
-      }
-      if (filters.endDate) {
-        query.hrPublishedAt.$lte = new Date(filters.endDate);
-      }
-    }
-
-    const records = await this.recordModel
-      .find(query)
-      .select(
-        '_id overallRatingLabel status managerSummary totalScore hrPublishedAt cycleId templateId createdAt updatedAt',
-      )
-      .sort({ hrPublishedAt: -1 })
-      .lean()
-      .exec();
-
-    return records.map((record) => ({
-      id: record._id,
-      overallRating: record.overallRatingLabel,
-      status: record.status,
-      managerComments: record.managerSummary,
-      totalScore: record.totalScore,
-      publishedAt: record.hrPublishedAt,
-      cycleId: record.cycleId,
-      templateId: record.templateId,
-      createdAt: (record as any).createdAt || undefined,
-      updatedAt: (record as any).updatedAt || undefined,
-    }));
   }
 
   // NOTE: typically HR Manager or System Admin
@@ -438,10 +406,84 @@ export class PerformanceService {
   // PHASE 4: DISPUTE & RESOLUTION
 
   async createDispute(dto: CreateAppraisalDisputeDto) {
+    // Validate required IDs are valid ObjectIds
+    const invalidIds: string[] = [];
+    
+    if (!Types.ObjectId.isValid(dto.appraisalId)) {
+      invalidIds.push(`appraisalId: "${dto.appraisalId}"`);
+    }
+    if (dto.assignmentId && !Types.ObjectId.isValid(dto.assignmentId)) {
+      invalidIds.push(`assignmentId: "${dto.assignmentId}"`);
+    }
+    if (dto.cycleId && !Types.ObjectId.isValid(dto.cycleId)) {
+      invalidIds.push(`cycleId: "${dto.cycleId}"`);
+    }
+    if (!Types.ObjectId.isValid(dto.raisedByEmployeeId)) {
+      invalidIds.push(`raisedByEmployeeId: "${dto.raisedByEmployeeId}"`);
+    }
+    
+    if (invalidIds.length > 0) {
+      throw new BadRequestException(
+        `Invalid ObjectId format for: ${invalidIds.join(', ')}. All IDs must be valid 24-character hex strings.`
+      );
+    }
+
+    // If assignmentId is not provided or empty, try to get it from the appraisal record
+    let assignmentId = dto.assignmentId;
+    if (!assignmentId || assignmentId.trim() === '') {
+      try {
+        const appraisalRecord = await this.recordModel
+          .findById(new Types.ObjectId(dto.appraisalId))
+          .lean()
+          .exec();
+        
+        if (appraisalRecord && appraisalRecord.assignmentId) {
+          assignmentId = String(appraisalRecord.assignmentId);
+        } else {
+          throw new BadRequestException(
+            'Assignment ID is required. Could not retrieve it from the appraisal record.'
+          );
+        }
+      } catch (err: any) {
+        if (err instanceof BadRequestException) {
+          throw err;
+        }
+        throw new BadRequestException(
+          'Assignment ID is required. Could not retrieve it from the appraisal record.'
+        );
+      }
+    }
+
+    // If cycleId is not provided or empty, try to get it from the appraisal record
+    let cycleId = dto.cycleId;
+    if (!cycleId || cycleId.trim() === '') {
+      try {
+        const appraisalRecord = await this.recordModel
+          .findById(new Types.ObjectId(dto.appraisalId))
+          .lean()
+          .exec();
+        
+        if (appraisalRecord && appraisalRecord.cycleId) {
+          cycleId = String(appraisalRecord.cycleId);
+        } else {
+          throw new BadRequestException(
+            'Cycle ID is required. Could not retrieve it from the appraisal record.'
+          );
+        }
+      } catch (err: any) {
+        if (err instanceof BadRequestException) {
+          throw err;
+        }
+        throw new BadRequestException(
+          'Cycle ID is required. Could not retrieve it from the appraisal record.'
+        );
+      }
+    }
+    
     const payload: Partial<AppraisalDispute> = {
       appraisalId: new Types.ObjectId(dto.appraisalId),
-      assignmentId: new Types.ObjectId(dto.assignmentId),
-      cycleId: new Types.ObjectId(dto.cycleId),
+      assignmentId: new Types.ObjectId(assignmentId),
+      cycleId: new Types.ObjectId(cycleId),
       raisedByEmployeeId: new Types.ObjectId(dto.raisedByEmployeeId),
       reason: dto.reason,
       details: dto.details,
@@ -454,8 +496,14 @@ export class PerformanceService {
   }
 
   async listDisputesByCycle(cycleId: string) {
+    // Trim and validate the cycleId
+    const trimmedCycleId = cycleId?.trim();
+    if (!trimmedCycleId || !Types.ObjectId.isValid(trimmedCycleId)) {
+      throw new BadRequestException(`Invalid cycle ID format: "${cycleId}". Must be a valid 24-character hex string.`);
+    }
+    
     return this.disputeModel
-      .find({ cycleId: new Types.ObjectId(cycleId) })
+      .find({ cycleId: new Types.ObjectId(trimmedCycleId) })
       .lean()
       .exec();
   }

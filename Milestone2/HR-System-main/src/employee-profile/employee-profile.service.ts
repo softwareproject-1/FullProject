@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model, SortOrder } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 import {
   EmployeeProfile,
   EmployeeProfileDocument,
@@ -15,6 +16,7 @@ import { EmployeeQualification } from './models/qualification.schema';
 import { CreateEmployeeProfileDto } from './dto/create-employee-profile.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
 import { EmployeeProfileFilterDto } from './dto/employee-profile-filter.dto';
+import { CandidateFilterDto } from './dto/candidate-filter.dto';
 import { UpdateEmploymentStateDto } from './dto/update-employment-state.dto';
 import { AssignSupervisorDto } from './dto/assign-supervisor.dto';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
@@ -24,6 +26,7 @@ import { ConvertCandidateDto } from './dto/convert-candidate.dto';
 import {
   CandidateStatus,
   EmployeeStatus,
+  SystemRole,
 } from './enums/employee-profile.enums';
 import { CreateEmployeeQualificationDto } from './dto/create-employee-qualification.dto';
 import { UpdateEmployeeQualificationDto } from './dto/update-employee-qualification.dto';
@@ -69,12 +72,20 @@ export class EmployeeProfileService {
       orgLinks,
       performanceSnapshot,
       permissions, // handled by access control flows, not stored on profile document
+      password,
       ...profileData
     } = createDto;
+
+    // Hash password if provided
+    let hashedPassword: string | undefined;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
 
     const basePayload = this.normalizeDateFields(
       {
         ...profileData,
+        ...(hashedPassword && { password: hashedPassword }),
       },
       ['dateOfHire', 'contractStartDate', 'contractEndDate', 'dateOfBirth', 'statusEffectiveFrom'],
     );
@@ -236,6 +247,9 @@ export class EmployeeProfileService {
     const [data, total] = await Promise.all([
       this.employeeProfileModel
         .find(query)
+        .populate('primaryDepartmentId', 'name')
+        .populate('primaryPositionId', 'name')
+        .populate('supervisorPositionId', 'name')
         .sort(sortConfig)
         .skip(skip)
         .limit(safeLimit)
@@ -312,6 +326,83 @@ export class EmployeeProfileService {
     return updatedProfile.toObject();
   }
 
+  async listCandidates(filterDto: CandidateFilterDto) {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        status,
+        departmentIds,
+        positionIds,
+        search,
+      } = filterDto;
+
+      const query: FilterQuery<CandidateDocument> = {};
+
+      if (status) {
+        query.status = status;
+      }
+      if (departmentIds?.length) {
+        // Handle both array and single value
+        const deptIds = Array.isArray(departmentIds) ? departmentIds : [departmentIds];
+        query.departmentId = { $in: deptIds };
+      }
+      if (positionIds?.length) {
+        // Handle both array and single value
+        const posIds = Array.isArray(positionIds) ? positionIds : [positionIds];
+        query.positionId = { $in: posIds };
+      }
+      if (search) {
+        const regex = new RegExp(search, 'i');
+        query.$or = [
+          { firstName: regex },
+          { lastName: regex },
+          { candidateNumber: regex },
+          { nationalId: regex },
+          { personalEmail: regex },
+        ];
+      }
+
+      const safeLimit = Math.min(Math.max(limit, 1), 100);
+      const safePage = Math.max(page, 1);
+      const skip = (safePage - 1) * safeLimit;
+      const sortDirection: SortOrder = sortOrder === 'asc' ? 'asc' : 'desc';
+      const sortConfig: Record<string, SortOrder> = { [sortBy]: sortDirection };
+
+      const [data, total] = await Promise.all([
+        this.candidateModel
+          .find(query)
+          .populate('departmentId', 'name code')
+          .populate('positionId', 'title name code')
+          .sort(sortConfig)
+          .skip(skip)
+          .limit(safeLimit)
+          .lean()
+          .exec(),
+        this.candidateModel.countDocuments(query),
+      ]);
+
+      const totalPages = Math.ceil(total / safeLimit) || 1;
+
+      return {
+        data,
+        meta: {
+          page: safePage,
+          limit: safeLimit,
+          total,
+          totalPages,
+        },
+      };
+    } catch (error) {
+      console.error('Error in listCandidates:', error);
+      throw new BadRequestException(
+        `Failed to list candidates: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+    }
+  }
+
   async createCandidate(createDto: CreateCandidateDto) {
     await this.ensureCandidateUnique(createDto);
 
@@ -325,6 +416,148 @@ export class EmployeeProfileService {
     );
 
     return createdCandidate.toObject();
+  }
+
+  async getCandidateById(candidateId: string) {
+    const candidate = await this.candidateModel.findById(candidateId)
+      .populate('departmentId', 'name code')
+      .populate('positionId', 'title name code')
+      .lean()
+      .exec();
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found.');
+    }
+
+    return candidate;
+  }
+
+  async getCandidateByEmail(email: string) {
+    const candidate = await this.candidateModel.findOne({ personalEmail: email })
+      .populate('departmentId', 'name code')
+      .populate('positionId', 'title name code')
+      .lean()
+      .exec();
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found with this email.');
+    }
+
+    return candidate;
+  }
+
+  async getCandidateByNationalId(nationalId: string) {
+    const candidate = await this.candidateModel.findOne({ nationalId })
+      .populate('departmentId', 'name code')
+      .populate('positionId', 'title name code')
+      .lean()
+      .exec();
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found with this national ID.');
+    }
+
+    return candidate;
+  }
+
+  async getCandidateByEmployeeProfileId(employeeProfileId: string) {
+    // Get the employee profile
+    const employeeProfile = await this.employeeProfileModel.findById(employeeProfileId).lean().exec();
+    
+    if (!employeeProfile) {
+      throw new NotFoundException('Employee profile not found.');
+    }
+
+    // Try to find candidate by personalEmail first
+    let candidate: any = null;
+    if (employeeProfile.personalEmail) {
+      candidate = await this.candidateModel.findOne({ personalEmail: employeeProfile.personalEmail })
+        .populate('departmentId', 'name code')
+        .populate('positionId', 'title name code')
+        .lean()
+        .exec();
+    }
+
+    // If not found by email, try by nationalId
+    if (!candidate && employeeProfile.nationalId) {
+      candidate = await this.candidateModel.findOne({ nationalId: employeeProfile.nationalId })
+        .populate('departmentId', 'name code')
+        .populate('positionId', 'title name code')
+        .lean()
+        .exec();
+    }
+
+    // If candidate not found, check if user has Job Candidate role and auto-create candidate profile
+    if (!candidate) {
+      // Check if employee has Job Candidate role by querying EmployeeSystemRole collection
+      // Try both ObjectId and string formats
+      const employeeProfileIdObj = employeeProfileId as any;
+      const employeeProfileIdStr = String(employeeProfileId);
+      
+      const systemRole = await this.systemRoleModel.findOne({
+        $or: [
+          { employeeProfileId: employeeProfileIdObj },
+          { employeeProfileId: employeeProfileIdStr },
+        ],
+        isActive: true,
+      }).exec();
+      
+      if (systemRole && systemRole.roles && Array.isArray(systemRole.roles)) {
+        const hasJobCandidateRole = systemRole.roles.includes(SystemRole.JOB_CANDIDATE);
+        
+        if (hasJobCandidateRole) {
+          // Auto-create candidate profile from employee profile
+          // Generate unique candidate number
+          let candidateNumber = `CAND-${employeeProfile.employeeNumber || Date.now()}`;
+          let candidateExists = await this.candidateModel.findOne({ candidateNumber }).exec();
+          let counter = 1;
+          while (candidateExists) {
+            candidateNumber = `CAND-${employeeProfile.employeeNumber || Date.now()}-${counter}`;
+            candidateExists = await this.candidateModel.findOne({ candidateNumber }).exec();
+            counter++;
+          }
+          
+          const candidateData: any = {
+            candidateNumber,
+            firstName: employeeProfile.firstName,
+            middleName: employeeProfile.middleName,
+            lastName: employeeProfile.lastName,
+            fullName: employeeProfile.fullName,
+            nationalId: employeeProfile.nationalId,
+            personalEmail: employeeProfile.personalEmail,
+            mobilePhone: employeeProfile.mobilePhone,
+            homePhone: employeeProfile.homePhone,
+            profilePictureUrl: employeeProfile.profilePictureUrl,
+            address: employeeProfile.address,
+            gender: employeeProfile.gender,
+            maritalStatus: employeeProfile.maritalStatus,
+            dateOfBirth: employeeProfile.dateOfBirth,
+            status: CandidateStatus.APPLIED,
+            accessProfileId: employeeProfile.accessProfileId,
+          };
+
+          // Only include fields that are defined
+          Object.keys(candidateData).forEach(key => {
+            if (candidateData[key] === undefined) {
+              delete candidateData[key];
+            }
+          });
+
+          const newCandidate = await this.candidateModel.create(candidateData);
+          candidate = await this.candidateModel.findById(newCandidate._id)
+            .populate('departmentId', 'name code')
+            .populate('positionId', 'title name code')
+            .lean()
+            .exec();
+        }
+      }
+    }
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate profile not found for this employee profile.');
+    }
+
+    return candidate;
   }
 
   async updateCandidate(candidateId: string, updateDto: UpdateCandidateDto) {
@@ -467,25 +700,154 @@ export class EmployeeProfileService {
   async assignSystemRoles(assignDto: CreateEmployeeSystemRoleDto) {
     await this.ensureProfileExists(assignDto.employeeProfileId);
 
-    const existing = await this.systemRoleModel.findOne({
+    console.log('assignSystemRoles - Input:', {
       employeeProfileId: assignDto.employeeProfileId,
+      roles: assignDto.roles,
+      permissions: assignDto.permissions,
+      isActive: assignDto.isActive,
     });
 
-    if (existing) {
-      existing.set(
-        this.removeUndefined({
-          roles: assignDto.roles ?? existing.roles,
-          permissions: assignDto.permissions ?? existing.permissions,
-          isActive:
-            assignDto.isActive === undefined ? existing.isActive : assignDto.isActive,
-        }),
-      );
+    // First, try to find an active role
+    let existing = await this.systemRoleModel.findOne({
+      employeeProfileId: assignDto.employeeProfileId,
+      isActive: true,
+    });
 
+    // If no active role, check for any role (including inactive)
+    if (!existing) {
+      existing = await this.systemRoleModel.findOne({
+        employeeProfileId: assignDto.employeeProfileId,
+      });
+    }
+
+    // Validate and normalize roles
+    const validRoles = Object.values(SystemRole);
+    let normalizedRoles: SystemRole[] = [];
+    
+    if (assignDto.roles !== undefined && assignDto.roles !== null) {
+      if (Array.isArray(assignDto.roles)) {
+        normalizedRoles = assignDto.roles
+          .map(role => {
+            const roleStr = String(role).trim();
+            // Check exact match first
+            if (validRoles.includes(roleStr as SystemRole)) {
+              return roleStr as SystemRole;
+            }
+            // Try case-insensitive match
+            const matched = validRoles.find(
+              validRole => validRole.toLowerCase() === roleStr.toLowerCase()
+            );
+            if (matched) {
+              console.log(`assignSystemRoles - Normalized role "${roleStr}" to "${matched}"`);
+              return matched;
+            }
+            console.warn(`assignSystemRoles - Invalid role ignored: "${roleStr}"`);
+            return null;
+          })
+          .filter((role): role is SystemRole => role !== null);
+      }
+    }
+
+    if (existing) {
+      const existingObj = existing.toObject();
+      console.log('assignSystemRoles - Found existing role:', {
+        _id: existing._id,
+        currentRoles: existing.roles,
+        currentPermissions: existing.permissions,
+        currentIsActive: existing.isActive,
+        updatedAt: (existingObj as any).updatedAt,
+      });
+
+      // Check if there are other active roles for this employee (shouldn't happen, but handle it)
+      const otherActiveRoles = await this.systemRoleModel.find({
+        employeeProfileId: assignDto.employeeProfileId,
+        isActive: true,
+        _id: { $ne: existing._id }, // Exclude the current one
+      });
+
+      if (otherActiveRoles.length > 0) {
+        console.warn(`assignSystemRoles - Found ${otherActiveRoles.length} other active roles! Deactivating them...`);
+        // Deactivate all other active roles to ensure only one is active
+        await this.systemRoleModel.updateMany(
+          {
+            employeeProfileId: assignDto.employeeProfileId,
+            isActive: true,
+            _id: { $ne: existing._id },
+          },
+          { isActive: false }
+        );
+      }
+
+      // Update existing role
+      const updateData: any = {};
+      
+      // If roles are provided, replace them completely (don't merge)
+      if (assignDto.roles !== undefined && assignDto.roles !== null) {
+        updateData.roles = normalizedRoles.length > 0 ? normalizedRoles : [];
+        console.log('assignSystemRoles - Replacing roles with:', updateData.roles);
+      }
+      
+      // If permissions are provided, replace them completely (don't merge)
+      if (assignDto.permissions !== undefined && assignDto.permissions !== null) {
+        updateData.permissions = Array.isArray(assignDto.permissions) ? assignDto.permissions : [];
+      }
+      
+      // Always set isActive if provided, otherwise keep existing or default to true
+      updateData.isActive = assignDto.isActive !== undefined ? assignDto.isActive : (existing.isActive ?? true);
+
+      existing.set(this.removeUndefined(updateData));
       const updated = await existing.save();
+      
+      const updatedObj = updated.toObject();
+      console.log('assignSystemRoles - Updated existing role:', {
+        employeeProfileId: assignDto.employeeProfileId,
+        oldRoles: existing.roles,
+        newRoles: updated.roles,
+        permissions: updated.permissions,
+        isActive: updated.isActive,
+        updatedAt: (updatedObj as any).updatedAt,
+      });
+      
       return updated.toObject();
     }
 
-    const created = await this.systemRoleModel.create(assignDto);
+    // Before creating new role, ensure no other active roles exist
+    const otherActiveRoles = await this.systemRoleModel.find({
+      employeeProfileId: assignDto.employeeProfileId,
+      isActive: true,
+    });
+
+    if (otherActiveRoles.length > 0) {
+      console.warn(`assignSystemRoles - Found ${otherActiveRoles.length} active roles when creating new one! Deactivating them...`);
+      // Deactivate all existing active roles
+      await this.systemRoleModel.updateMany(
+        {
+          employeeProfileId: assignDto.employeeProfileId,
+          isActive: true,
+        },
+        { isActive: false }
+      );
+    }
+
+    // Create new role if none exists
+    const roleData = {
+      employeeProfileId: assignDto.employeeProfileId,
+      roles: normalizedRoles.length > 0 ? normalizedRoles : (assignDto.roles || []),
+      permissions: assignDto.permissions || [],
+      isActive: assignDto.isActive !== undefined ? assignDto.isActive : true,
+    };
+    
+    const created = await this.systemRoleModel.create(roleData);
+    
+    const createdObj = created.toObject();
+    console.log('assignSystemRoles - Created new role:', {
+      employeeProfileId: assignDto.employeeProfileId,
+      roles: created.roles,
+      permissions: created.permissions,
+      isActive: created.isActive,
+      createdAt: (createdObj as any).createdAt,
+    });
+    
     return created.toObject();
   }
 
@@ -615,6 +977,30 @@ export class EmployeeProfileService {
     return updatedProfile.toObject();
   }
 
+  async reactivateProfile(profileId: string, reason?: string) {
+    const profile = await this.employeeProfileModel.findById(profileId);
+    if (!profile) {
+      throw new NotFoundException('Employee profile not found.');
+    }
+
+    // Check if already active
+    if (profile.status === EmployeeStatus.ACTIVE) {
+      return profile.toObject();
+    }
+
+    profile.status = EmployeeStatus.ACTIVE;
+    profile.statusEffectiveFrom = new Date();
+
+    if (reason) {
+      profile.biography = profile.biography
+        ? `${profile.biography}\n\nReactivated Reason: ${reason}`
+        : `Reactivated Reason: ${reason}`;
+    }
+
+    const updatedProfile = await profile.save();
+    return updatedProfile.toObject();
+  }
+
   async deactivateAccess(profileId: string) {
     await this.ensureProfileExists(profileId);
 
@@ -639,6 +1025,29 @@ export class EmployeeProfileService {
       { _id: profileId },
       { $unset: { accessProfileId: 1 } },
     );
+
+    return roles.toObject();
+  }
+
+  async reactivateAccess(profileId: string) {
+    await this.ensureProfileExists(profileId);
+
+    let roles = await this.systemRoleModel.findOne({
+      employeeProfileId: profileId,
+    });
+
+    if (!roles) {
+      // Create system role configuration if it doesn't exist, then activate it
+      roles = await this.systemRoleModel.create({
+        employeeProfileId: profileId,
+        roles: [],
+        permissions: [],
+        isActive: true,
+      });
+    } else {
+      roles.isActive = true;
+      await roles.save();
+    }
 
     return roles.toObject();
   }
@@ -690,7 +1099,7 @@ export class EmployeeProfileService {
 
   async getProfileById(
     profileId: string,
-    options?: { populate?: string[] },
+    options?: { populate?: string[]; userRoles?: string[] },
   ) {
     const query = this.employeeProfileModel.findById(profileId);
 
@@ -702,7 +1111,82 @@ export class EmployeeProfileService {
       throw new NotFoundException('Employee profile not found.');
     }
 
-    return profile.toObject();
+    const profileObject = profile.toObject();
+    
+    // Filter fields based on user role
+    const userRoles = options?.userRoles || [];
+    if (userRoles.includes('Finance Staff')) {
+      return this.filterFinanceFields(profileObject);
+    }
+    if (userRoles.includes('Legal & Policy Admin')) {
+      return this.filterComplianceFields(profileObject);
+    }
+
+    return profileObject;
+  }
+
+  private filterFinanceFields(profile: any): any {
+    // Finance Staff can only see finance-related fields
+    const financeFields = [
+      '_id',
+      'employeeNumber',
+      'status',
+      'statusEffectiveFrom',
+      'dateOfHire',
+      'contractType',
+      'contractStartDate',
+      'contractEndDate',
+      'bankName',
+      'bankAccountNumber',
+      'primaryPositionId',
+      'primaryDepartmentId',
+      'payGradeId',
+      'createdAt',
+      'updatedAt',
+    ];
+    
+    const filtered: any = {};
+    financeFields.forEach((field) => {
+      if (profile[field] !== undefined) {
+        filtered[field] = profile[field];
+      }
+    });
+    
+    return filtered;
+  }
+
+  private filterComplianceFields(profile: any): any {
+    // Legal & Policy Admin can only see compliance-related fields
+    const complianceFields = [
+      '_id',
+      'employeeNumber',
+      'firstName',
+      'middleName',
+      'lastName',
+      'fullName',
+      'nationalId',
+      'status',
+      'statusEffectiveFrom',
+      'workEmail',
+      'dateOfHire',
+      'contractType',
+      'workType',
+      'contractStartDate',
+      'contractEndDate',
+      'primaryPositionId',
+      'primaryDepartmentId',
+      'createdAt',
+      'updatedAt',
+    ];
+    
+    const filtered: any = {};
+    complianceFields.forEach((field) => {
+      if (profile[field] !== undefined) {
+        filtered[field] = profile[field];
+      }
+    });
+    
+    return filtered;
   }
 
   private normalizePopulateTargets(targets?: string[]): string[] {

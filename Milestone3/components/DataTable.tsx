@@ -55,3 +55,4 @@ export function DataTable<T extends { id: string }>({ data, columns, onRowClick 
     </div>
   );
 }
+

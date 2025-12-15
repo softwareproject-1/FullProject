@@ -18,3 +18,4 @@ export function Card({ children, className = '', title, action }: CardProps) {
     </div>
   );
 }
+

@@ -118,6 +118,20 @@ export class OrganizationStructureService {
     return this.departmentModel.find({}).lean().exec();
   }
 
+  async getDepartmentById(departmentId: string) {
+    if (!Types.ObjectId.isValid(departmentId)) {
+      throw new BadRequestException(`Invalid department ID format: "${departmentId}"`);
+    }
+
+    const department = await this.departmentModel.findById(departmentId).lean().exec();
+
+    if (!department) {
+      throw new NotFoundException(`Department with ID "${departmentId}" not found`);
+    }
+
+    return department;
+  }
+
   async getDepartmentByName(departmentName: string) {
     try {
       if (!departmentName || departmentName.trim().length === 0) {
@@ -227,6 +241,33 @@ export class OrganizationStructureService {
     return department.toObject();
   }
 
+  async reactivateDepartment(departmentId: string, dto: DeactivateEntityDto) {
+    const department = await this.departmentModel.findById(departmentId);
+    if (!department) {
+      throw new NotFoundException('Department not found');
+    }
+
+    if (department.isActive) {
+      return department.toObject();
+    }
+
+    const before = department.toObject();
+    department.isActive = true;
+    await department.save();
+
+    await this.logChange({
+      action: ChangeLogAction.UPDATED,
+      entityType: 'Department',
+      entityId: department._id,
+      performedByEmployeeId: dto.performedByEmployeeId,
+      beforeSnapshot: before,
+      afterSnapshot: department.toObject(),
+      summary: dto.reason || `Department ${department.code} reactivated`,
+    });
+
+    return department.toObject();
+  }
+
   // ==================== POSITION METHODS ====================
 
   async getAllPositions(names?: string | string[]) {
@@ -276,6 +317,20 @@ export class OrganizationStructureService {
       // Re-throw other errors
       throw error;
     }
+  }
+
+  async getPositionById(positionId: string) {
+    if (!Types.ObjectId.isValid(positionId)) {
+      throw new BadRequestException(`Invalid position ID format: "${positionId}"`);
+    }
+
+    const position = await this.positionModel.findById(positionId).lean().exec();
+
+    if (!position) {
+      throw new NotFoundException(`Position with ID "${positionId}" not found`);
+    }
+
+    return position;
   }
 
   async getPositionByName(positionName: string) {
@@ -700,6 +755,78 @@ export class OrganizationStructureService {
         beforeSnapshot: before,
         afterSnapshot: updatedPosition.toObject(),
         summary: dto.reason || `Position ${updatedPosition.code} deactivated`,
+      });
+
+      return updatedPosition.toObject();
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      // Handle buffering timeout errors
+      if (error.message && error.message.includes('buffering timed out')) {
+        throw new BadRequestException(
+          'Database connection timeout. Please try again.',
+        );
+      }
+      // Re-throw other errors
+      throw error;
+    }
+  }
+
+  async reactivatePosition(positionId: string, dto: DeactivateEntityDto) {
+    try {
+      if (!Types.ObjectId.isValid(positionId)) {
+        throw new BadRequestException(`Invalid position ID format: "${positionId}"`);
+      }
+
+      const position = await this.positionModel.findById(positionId);
+      if (!position) {
+        throw new NotFoundException(`Position with ID "${positionId}" not found`);
+      }
+
+      if (position.isActive) {
+        return position.toObject();
+      }
+
+      const before = position.toObject();
+
+      // Use native MongoDB update to bypass Mongoose pre-save hook
+      const db = this.connection.db;
+      if (!db) {
+        throw new BadRequestException('Database connection not available');
+      }
+
+      const positionCollection = db.collection('positions');
+
+      // Update position to active
+      const updateResult = await positionCollection.updateOne(
+        { _id: new Types.ObjectId(positionId) },
+        { 
+          $set: { 
+            isActive: true,
+            updatedAt: new Date(),
+          } 
+        }
+      );
+
+      if (updateResult.matchedCount === 0) {
+        throw new NotFoundException(`Position with ID "${positionId}" not found`);
+      }
+
+      // Load the updated position
+      const updatedPosition = await this.positionModel.findById(positionId);
+      if (!updatedPosition) {
+        throw new BadRequestException('Position reactivated but could not be retrieved');
+      }
+
+      await this.logChange({
+        action: ChangeLogAction.UPDATED,
+        entityType: 'Position',
+        entityId: updatedPosition._id,
+        performedByEmployeeId: dto.performedByEmployeeId,
+        beforeSnapshot: before,
+        afterSnapshot: updatedPosition.toObject(),
+        summary: dto.reason || `Position ${updatedPosition.code} reactivated`,
       });
 
       return updatedPosition.toObject();

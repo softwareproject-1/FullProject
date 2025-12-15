@@ -32,8 +32,9 @@ export function StatusBadge({ status, variant }: StatusBadgeProps) {
   const finalVariant = getVariant();
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full ${variantStyles[finalVariant]}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variantStyles[finalVariant]}`}>
       {status}
     </span>
   );
 }
+

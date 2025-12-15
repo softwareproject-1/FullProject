@@ -10,6 +10,9 @@ import {
   UserPlus, 
   FileText 
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 interface MetricCardProps {
   title: string;
@@ -92,12 +95,36 @@ function TaskItem({ title, dueDate, priority }: TaskItemProps) {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/auth/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-slate-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600 mt-1">Welcome to your HR Management System</p>
+        <p className="text-slate-600 mt-1">Welcome back, {user.firstName} {user.lastName}</p>
       </div>
 
       {/* Metrics Grid */}

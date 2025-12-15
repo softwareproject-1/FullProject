@@ -5,7 +5,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
 } from '@nestjs/common';
 import { PerformanceService } from './performance.service';
 import { CreateAppraisalTemplateDto } from './dtos/create-appraisal-template.dto';
@@ -18,8 +17,7 @@ import { PublishAppraisalRecordDto } from './dtos/publish-appraisal-record.dto';
 import { AcknowledgeAppraisalRecordDto } from './dtos/acknowledge-appraisal-record.dto';
 import { CreateAppraisalDisputeDto } from './dtos/create-appraisal-dispute.dto';
 import { ResolveAppraisalDisputeDto } from './dtos/resolve-appraisal-dispute.dto';
-import { EmployeeRecordsFilterDto } from './dtos/employee-records-filter.dto';
-import { AppraisalCycleStatus } from './enums/performance.enums';
+import { AppraisalCycleStatus, AppraisalAssignmentStatus } from './enums/performance.enums';
 
 @Controller('performance')
 export class PerformanceController {
@@ -123,6 +121,15 @@ export class PerformanceController {
     return this.performanceService.deleteAssignment(id);
   }
 
+  // UPDATE assignment status (HR / Admin)
+  @Patch('assignments/:id/status/:status')
+  updateAssignmentStatus(
+    @Param('id') id: string,
+    @Param('status') status: AppraisalAssignmentStatus,
+  ) {
+    return this.performanceService.updateAssignmentStatus(id, status);
+  }
+
   // Records
 
   @Post('assignments/:assignmentId/records')
@@ -141,18 +148,6 @@ export class PerformanceController {
   @Get('records/:id')
   getRecord(@Param('id') id: string) {
     return this.performanceService.getRecord(id);
-  }
-
-  @Get('employee/:employeeId/records')
-  getEmployeeRecords(
-    @Param('employeeId') employeeId: string,
-    @Query() filterDto: EmployeeRecordsFilterDto,
-  ) {
-    return this.performanceService.getEmployeeRecords(employeeId, {
-      cycleId: filterDto.cycleId,
-      startDate: filterDto.startDate,
-      endDate: filterDto.endDate,
-    });
   }
 
   @Patch('records/:id/publish')

@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { canAccessRoute, getCombinedAccess } from '@/utils/roleAccess';
 import {
   LayoutDashboard,
   Users,
@@ -11,27 +13,50 @@ import {
   UserPlus,
   Calendar,
   DollarSign,
+  Home,
 } from 'lucide-react';
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
+  roles?: string[];
 }
 
 const navItems: NavItem[] = [
-  { name: 'Dashboard', href: '/', icon: <LayoutDashboard className="w-5 h-5" /> },
-  { name: 'Employee Profile', href: '/employee-profile', icon: <Users className="w-5 h-5" /> },
-  { name: 'Org Structure', href: '/organization-structure', icon: <Network className="w-5 h-5" /> },
+  { name: 'Home', href: '/', icon: <Home className="w-5 h-5" /> },
+  { name: 'Employee Profile', href: '/admin/employee-profile', icon: <Users className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
+  { name: 'Org Structure', href: '/admin/organization-structure', icon: <Network className="w-5 h-5" />, roles: ['System Admin', 'HR Manager'] },
   { name: 'Performance', href: '/performance', icon: <TrendingUp className="w-5 h-5" /> },
   { name: 'Time Management', href: '/time-management', icon: <Clock className="w-5 h-5" /> },
-  { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" /> },
+  { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
   { name: 'Leaves', href: '/leaves', icon: <Calendar className="w-5 h-5" /> },
-  { name: 'Payroll', href: '/payroll-tracking', icon: <DollarSign className="w-5 h-5" /> },
+  { name: 'Payroll', href: '/payroll', icon: <DollarSign className="w-5 h-5" /> },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  // Get user's default route (control dashboard) based on their roles
+  const getControlPath = () => {
+    if (!user || !user.roles) return '/';
+    const access = getCombinedAccess(user.roles);
+    return access.defaultRoute || '/';
+  };
+
+  const controlPath = getControlPath();
+
+  // Filter nav items based on user roles
+  const filteredNavItems = navItems.filter((item) => {
+    if (!item.roles || item.roles.length === 0) return true;
+    if (!user || !user.roles) return false;
+    return item.roles.some((role) => user.roles?.includes(role)) || canAccessRoute(user.roles, item.href);
+  });
+
+  // Check if control path is active
+  const isControlActive = pathname === controlPath || (controlPath !== '/' && pathname?.startsWith(controlPath));
+
   return (
     <aside className="w-64 bg-[#1e293b] text-white min-h-screen flex flex-col fixed left-0 top-0 z-20">
       <div className="p-6 border-b border-slate-700">
@@ -40,8 +65,21 @@ export function Sidebar() {
       </div>
       
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
+        {/* Dashboard option - always visible, redirects to user's dashboard */}
+        <Link
+          href={controlPath}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+            isControlActive
+              ? 'bg-slate-700 text-white shadow-sm'
+              : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-sm font-medium">Dashboard</span>
+        </Link>
+
+        {filteredNavItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
           return (
             <Link
               key={item.href}
@@ -67,3 +105,4 @@ export function Sidebar() {
     </aside>
   );
 }
+

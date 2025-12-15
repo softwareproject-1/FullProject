@@ -4,14 +4,23 @@ import { Connection } from 'mongoose';
 import { getConnectionToken } from '@nestjs/mongoose';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Enable CORS for Swagger UI
+  // Set global prefix for all routes
+  app.setGlobalPrefix('api');
+  
+  // Enable cookie parser middleware (CRITICAL for cookie-based authentication)
+  app.use(cookieParser());
+  
+  // Enable CORS with explicit frontend origin
   app.enableCors({
-    origin: true,
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
   
   // Global validation pipe
@@ -57,7 +66,7 @@ async function bootstrap() {
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
+  SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
       tagsSorter: 'alpha',
@@ -104,7 +113,7 @@ async function bootstrap() {
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
   await app.listen(port);
   console.log(` Nest backend is running on http://localhost:${port}`);
-  console.log(` Swagger documentation available at http://localhost:${port}/api`);
+  console.log(` Swagger documentation available at http://localhost:${port}/api-docs`);
   
   // Check again after a short delay in case connection completes after app starts
   setTimeout(() => {

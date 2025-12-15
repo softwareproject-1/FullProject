@@ -8,6 +8,7 @@ import { AuthenticationGuard } from './guards/authentication.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/models/employee-profile.schema';
 import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profile/models/employee-system-role.schema';
+import { Candidate, CandidateSchema } from '../employee-profile/models/candidate.schema';
 
 @Module({
   imports: [
@@ -24,11 +25,12 @@ import { EmployeeSystemRole, EmployeeSystemRoleSchema } from '../employee-profil
     MongooseModule.forFeature([
       { name: EmployeeProfile.name, schema: EmployeeProfileSchema },
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
+      { name: Candidate.name, schema: CandidateSchema },
     ]),
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthenticationGuard, RolesGuard],
-  exports: [AuthService, AuthenticationGuard, RolesGuard],
+  exports: [AuthService, AuthenticationGuard],
 })
 export class AuthModule {}
 

@@ -37,7 +37,7 @@ import { AuthModule } from './auth/auth.module';
     PayrollConfigurationModule,
     PayrollExecutionModule,
   ],
-  controllers: [],
-  providers: [],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

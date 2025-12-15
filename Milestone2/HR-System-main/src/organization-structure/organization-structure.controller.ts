@@ -63,6 +63,21 @@ export class OrganizationStructureController {
     return this.organizationStructureService.getDepartmentByName(departmentName);
   }
 
+  @Get('departments/:departmentId')
+  @ApiOperation({ summary: 'Get a department by ID' })
+  @ApiParam({ 
+    name: 'departmentId', 
+    description: 'MongoDB ObjectId of the department', 
+    example: '507f1f77bcf86cd799439011',
+    type: String
+  })
+  @ApiResponse({ status: 200, description: 'Department found successfully' })
+  @ApiResponse({ status: 404, description: 'Department not found' })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid ID format' })
+  getDepartmentById(@Param('departmentId') departmentId: string) {
+    return this.organizationStructureService.getDepartmentById(departmentId);
+  }
+
   @Post('departments')
   @ApiOperation({ summary: 'Create a new department' })
   @ApiBody({ type: CreateDepartmentDto })
@@ -100,6 +115,22 @@ export class OrganizationStructureController {
     @Body() dto: DeactivateEntityDto,
   ) {
     return this.organizationStructureService.deactivateDepartment(
+      departmentId,
+      dto,
+    );
+  }
+
+  @Patch('departments/:departmentId/reactivate')
+  @ApiOperation({ summary: 'Reactivate a department' })
+  @ApiParam({ name: 'departmentId', description: 'MongoDB ObjectId of the department', example: '507f1f77bcf86cd799439011' })
+  @ApiBody({ type: DeactivateEntityDto })
+  @ApiResponse({ status: 200, description: 'Department reactivated successfully' })
+  @ApiResponse({ status: 404, description: 'Department not found' })
+  reactivateDepartment(
+    @Param('departmentId') departmentId: string,
+    @Body() dto: DeactivateEntityDto,
+  ) {
+    return this.organizationStructureService.reactivateDepartment(
       departmentId,
       dto,
     );
@@ -146,6 +177,21 @@ export class OrganizationStructureController {
     return this.organizationStructureService.getPositionByName(positionName);
   }
 
+  @Get('positions/:positionId')
+  @ApiOperation({ summary: 'Get a position by ID' })
+  @ApiParam({ 
+    name: 'positionId', 
+    description: 'MongoDB ObjectId of the position', 
+    example: '507f1f77bcf86cd799439012',
+    type: String
+  })
+  @ApiResponse({ status: 200, description: 'Position found successfully' })
+  @ApiResponse({ status: 404, description: 'Position not found' })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid ID format' })
+  getPositionById(@Param('positionId') positionId: string) {
+    return this.organizationStructureService.getPositionById(positionId);
+  }
+
   @Post('positions')
   @ApiOperation({ 
     summary: 'Create a new position',
@@ -184,6 +230,22 @@ export class OrganizationStructureController {
     @Body() dto: DeactivateEntityDto,
   ) {
     return this.organizationStructureService.deactivatePosition(
+      positionId,
+      dto,
+    );
+  }
+
+  @Patch('positions/:positionId/reactivate')
+  @ApiOperation({ summary: 'Reactivate a position' })
+  @ApiParam({ name: 'positionId', description: 'MongoDB ObjectId of the position', example: '507f1f77bcf86cd799439012' })
+  @ApiBody({ type: DeactivateEntityDto })
+  @ApiResponse({ status: 200, description: 'Position reactivated successfully' })
+  @ApiResponse({ status: 404, description: 'Position not found' })
+  reactivatePosition(
+    @Param('positionId') positionId: string,
+    @Body() dto: DeactivateEntityDto,
+  ) {
+    return this.organizationStructureService.reactivatePosition(
       positionId,
       dto,
     );

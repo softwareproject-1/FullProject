@@ -9,6 +9,9 @@ import {
   Patch,
   HttpException,
   HttpStatus,
+  UseGuards,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,11 +19,13 @@ import {
   ApiResponse,
   ApiParam,
   ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { EmployeeProfileService } from './employee-profile.service';
 import { CreateEmployeeProfileDto } from './dto/create-employee-profile.dto';
 import { UpdateEmployeeProfileDto } from './dto/update-employee-profile.dto';
 import { EmployeeProfileFilterDto } from './dto/employee-profile-filter.dto';
+import { CandidateFilterDto } from './dto/candidate-filter.dto';
 import { UpdateEmploymentStateDto } from './dto/update-employment-state.dto';
 import { AssignSupervisorDto } from './dto/assign-supervisor.dto';
 import { CreateCandidateDto } from './dto/create-candidate.dto';
@@ -29,10 +34,11 @@ import { UpdateCandidateStatusDto } from './dto/update-candidate-status.dto';
 import { ConvertCandidateDto } from './dto/convert-candidate.dto';
 import { CreateEmployeeQualificationDto } from './dto/create-employee-qualification.dto';
 import { UpdateEmployeeQualificationDto } from './dto/update-employee-qualification.dto';
-import { CreateEmployeeSystemRoleDto } from './dto/create-employee-system-role.dto';
+import { CreateEmployeeSystemRoleDto, AssignSystemRoleDto } from './dto/create-employee-system-role.dto';
 import { UpdateEmployeeSystemRoleDto } from './dto/update-employee-system-role.dto';
 import { CreateEmployeeProfileChangeRequestDto } from './dto/create-employee-profile-change-request.dto';
 import { UpdateEmployeeProfileChangeRequestDto } from './dto/update-employee-profile-change-request.dto';
+import { AuthenticationGuard } from '../auth/guards/authentication.guard';
 
 @ApiTags('employee-profile')
 @Controller('employee-profile')
@@ -42,7 +48,13 @@ export class EmployeeProfileController {
   ) {}
 
   @Post()
-  createProfile(@Body() createDto: CreateEmployeeProfileDto) {
+  @UseGuards(AuthenticationGuard)
+  createProfile(@Body() createDto: CreateEmployeeProfileDto, @Req() req?: any) {
+    const userRoles = req?.user?.roles || [];
+    // HR Manager cannot create employee profiles
+    if (userRoles.includes('HR Manager')) {
+      throw new ForbiddenException('HR Manager cannot create employee profiles');
+    }
     return this.employeeProfileService.createProfile(createDto);
   }
 
@@ -62,24 +74,65 @@ export class EmployeeProfileController {
     });
   }
 
+  // IMPORTANT: All specific routes (like 'candidates') must come BEFORE parameterized routes (like ':profileId')
+  @Get('candidates')
+  @ApiOperation({ summary: 'List all candidates with filters' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'sortBy', required: false, type: String })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  listCandidates(@Query() filterDto: CandidateFilterDto) {
+    return this.employeeProfileService.listCandidates(filterDto);
+  }
+
   @Get(':profileId')
+  @UseGuards(AuthenticationGuard)
+  @ApiOperation({ summary: 'Get employee profile by ID' })
+  @ApiParam({ name: 'profileId', description: 'Employee profile ID' })
+  @ApiQuery({
+    name: 'populate',
+    required: false,
+    description: 'Comma-separated list of fields to populate (e.g., primaryDepartmentId,primaryPositionId)',
+    example: 'primaryDepartmentId,primaryPositionId',
+    type: String,
+  })
+  @ApiResponse({ status: 200, description: 'Employee profile found' })
+  @ApiResponse({ status: 404, description: 'Employee profile not found' })
   getProfileById(
     @Param('profileId') profileId: string,
     @Query('populate') populate?: string,
+    @Req() req?: any,
   ) {
     const populateArray = populate
       ? populate.split(',').map((item) => item.trim())
       : undefined;
+    const userRoles = req?.user?.roles || [];
     return this.employeeProfileService.getProfileById(profileId, {
       populate: populateArray,
+      userRoles,
     });
   }
 
   @Put(':profileId')
+  @UseGuards(AuthenticationGuard)
   updateProfile(
     @Param('profileId') profileId: string,
     @Body() updateDto: UpdateEmployeeProfileDto,
+    @Req() req?: any,
   ) {
+    const userRoles = req?.user?.roles || [];
+    // Finance Staff, Legal & Policy Admin, and HR Manager cannot modify data
+    if (userRoles.includes('Finance Staff')) {
+      throw new ForbiddenException('Finance Staff cannot modify employee profiles');
+    }
+    if (userRoles.includes('Legal & Policy Admin')) {
+      throw new ForbiddenException('Legal & Policy Admin cannot modify employee profiles');
+    }
+    if (userRoles.includes('HR Manager')) {
+      throw new ForbiddenException('HR Manager cannot modify employee profiles');
+    }
     return this.employeeProfileService.updateProfile(profileId, updateDto);
   }
 
@@ -108,6 +161,27 @@ export class EmployeeProfileController {
   @Post('candidates')
   createCandidate(@Body() createDto: CreateCandidateDto) {
     return this.employeeProfileService.createCandidate(createDto);
+  }
+
+  @Get('candidates/by-email/:email')
+  getCandidateByEmail(@Param('email') email: string) {
+    return this.employeeProfileService.getCandidateByEmail(email);
+  }
+
+  @Get('candidates/by-national-id/:nationalId')
+  getCandidateByNationalId(@Param('nationalId') nationalId: string) {
+    return this.employeeProfileService.getCandidateByNationalId(nationalId);
+  }
+
+  @Get('candidates/by-employee-profile/:employeeProfileId')
+  @UseGuards(AuthenticationGuard)
+  getCandidateByEmployeeProfileId(@Param('employeeProfileId') employeeProfileId: string) {
+    return this.employeeProfileService.getCandidateByEmployeeProfileId(employeeProfileId);
+  }
+
+  @Get('candidates/:candidateId')
+  getCandidateById(@Param('candidateId') candidateId: string) {
+    return this.employeeProfileService.getCandidateById(candidateId);
   }
 
   @Put('candidates/:candidateId')
@@ -313,9 +387,43 @@ export class EmployeeProfileController {
     }
   }
   @Post(':profileId/system-roles')
+  @ApiOperation({ summary: 'Assign system roles to an employee profile' })
+  @ApiParam({ 
+    name: 'profileId', 
+    description: 'The ID of the employee profile',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiBody({ 
+    type: AssignSystemRoleDto,
+    description: 'System roles and permissions to assign. All fields are optional.',
+    examples: {
+      example1: {
+        summary: 'Assign System Admin role with full permissions',
+        value: {
+          roles: ['System Admin'],
+          permissions: ['read:*', 'write:*', 'delete:*'],
+          isActive: true,
+        },
+      },
+      example2: {
+        summary: 'Assign HR Manager role',
+        value: {
+          roles: ['HR Manager'],
+          permissions: ['read:employees', 'write:employees'],
+          isActive: true,
+        },
+      },
+    },
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'System roles successfully assigned',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  @ApiResponse({ status: 404, description: 'Employee profile not found' })
   assignSystemRoles(
     @Param('profileId') profileId: string,
-    @Body() assignDto: Omit<CreateEmployeeSystemRoleDto, 'employeeProfileId'>,
+    @Body() assignDto: AssignSystemRoleDto,
   ) {
     return this.employeeProfileService.assignSystemRoles({
       ...assignDto,
@@ -411,6 +519,18 @@ export class EmployeeProfileController {
     return this.employeeProfileService.archiveProfile(profileId, reason);
   }
 
+  @Patch(':profileId/reactivate')
+  @ApiOperation({ summary: 'Reactivate an employee profile' })
+  @ApiParam({ name: 'profileId', description: 'The ID of the employee profile' })
+  @ApiResponse({ status: 200, description: 'Employee profile successfully reactivated' })
+  @ApiResponse({ status: 404, description: 'Employee profile not found' })
+  reactivateProfile(
+    @Param('profileId') profileId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.employeeProfileService.reactivateProfile(profileId, reason);
+  }
+
   @Patch(':profileId/access/deactivate')
   @ApiOperation({ summary: 'Deactivate access for an employee profile' })
   @ApiParam({ name: 'profileId', description: 'The ID of the employee profile' })
@@ -425,6 +545,31 @@ export class EmployeeProfileController {
         throw error;
       }
       console.error('Error deactivating access:', error);
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: error?.message || 'Internal server error',
+          error: 'Internal Server Error',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Patch(':profileId/access/reactivate')
+  @ApiOperation({ summary: 'Reactivate access for an employee profile' })
+  @ApiParam({ name: 'profileId', description: 'The ID of the employee profile' })
+  @ApiResponse({ status: 200, description: 'Access successfully reactivated' })
+  @ApiResponse({ status: 404, description: 'Employee profile not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  async reactivateAccess(@Param('profileId') profileId: string) {
+    try {
+      return await this.employeeProfileService.reactivateAccess(profileId);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      console.error('Error reactivating access:', error);
       throw new HttpException(
         {
           statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

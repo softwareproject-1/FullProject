@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { Sidebar } from '../components/Sidebar'
-import { Topbar } from '../components/Topbar'
+import { AuthProvider } from '@/contexts/AuthContext'
+import { LayoutContent } from '@/components/LayoutContent'
 
 export const metadata: Metadata = {
-  title: 'HR System - Milestone 3',
+  title: 'HR System - Employee Organization Performance',
   description: 'Human Resources Management System',
 }
 
@@ -16,16 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <div className="min-h-screen bg-slate-50">
-          <Sidebar />
-          <div className="lg:ml-64">
-            <Topbar />
-            <main className="pt-20 p-6">
-              {children}
-            </main>
-          </div>
-        </div>
+        <AuthProvider>
+          <LayoutContent>{children}</LayoutContent>
+        </AuthProvider>
       </body>
     </html>
   )
 }
+

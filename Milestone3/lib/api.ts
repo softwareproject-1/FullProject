@@ -604,3 +604,119 @@ export async function getPayslips(payrollRunId?: string): Promise<Payslip[]> {
 export async function createPayrollRun(run: Omit<PayrollRun, 'id'>): Promise<PayrollRun> {
   return { ...run, id: `payroll${Date.now()}` };
 }
+
+// ==================== REAL BACKEND API CALLS ====================
+// These use the actual backend API endpoints
+// Teams should use these instead of mock functions when backend is ready
+
+import axiosInstance from '../utils/ApiClient';
+
+// Time Management API
+export const timeManagementApi = {
+  // Shift Types
+  getShiftTypes: () => axiosInstance.get('/time-management/shift-types'),
+  createShiftType: (data: any) => axiosInstance.post('/time-management/shift-types', data),
+  updateShiftType: (id: string, data: any) => axiosInstance.put(`/time-management/shift-types/${id}`, data),
+  deleteShiftType: (id: string) => axiosInstance.delete(`/time-management/shift-types/${id}`),
+
+  // Shifts
+  getShifts: () => axiosInstance.get('/time-management/shifts'),
+  createShift: (data: any) => axiosInstance.post('/time-management/shifts', data),
+  updateShift: (id: string, data: any) => axiosInstance.put(`/time-management/shifts/${id}`, data),
+  deleteShift: (id: string) => axiosInstance.delete(`/time-management/shifts/${id}`),
+
+  // Schedule Rules
+  getScheduleRules: () => axiosInstance.get('/time-management/schedule-rules'),
+  createScheduleRule: (data: any) => axiosInstance.post('/time-management/schedule-rules', data),
+  updateScheduleRule: (id: string, data: any) => axiosInstance.put(`/time-management/schedule-rules/${id}`, data),
+  deleteScheduleRule: (id: string) => axiosInstance.delete(`/time-management/schedule-rules/${id}`),
+
+  // Shift Assignments
+  getShiftAssignments: () => axiosInstance.get('/time-management/shift-assignments'),
+  createShiftAssignment: (data: any) => axiosInstance.post('/time-management/shift-assignments', data),
+  createBulkShiftAssignment: (data: any) => axiosInstance.post('/time-management/shift-assignments/bulk', data),
+  updateShiftAssignment: (id: string, data: any) => axiosInstance.put(`/time-management/shift-assignments/${id}`, data),
+  deleteShiftAssignment: (id: string) => axiosInstance.delete(`/time-management/shift-assignments/${id}`),
+
+  // Attendance
+  clockInOut: (data: any) => axiosInstance.post('/time-management/attendance/clock', data),
+  getAttendanceRecords: (filters?: any) => {
+    if (filters) {
+      return axiosInstance.get('/time-management/attendance/records', { params: filters });
+    }
+    return axiosInstance.get('/time-management/attendance/records');
+  },
+  createAttendanceRecord: (data: any) => axiosInstance.post('/time-management/attendance/records', data),
+  updateAttendanceRecord: (id: string, data: any) => axiosInstance.put(`/time-management/attendance/records/${id}`, data),
+  manualAttendanceCorrection: (id: string, data: any) => axiosInstance.put(`/time-management/attendance/records/${id}/correct`, data),
+  checkMissedPunches: () => axiosInstance.post('/time-management/attendance/missed-punches/check'),
+
+  // Correction Requests
+  getCorrectionRequests: () => axiosInstance.get('/time-management/attendance/correction-requests'),
+  createCorrectionRequest: (data: any) => axiosInstance.post('/time-management/attendance/correction-requests', data),
+  updateCorrectionRequest: (id: string, data: any) => axiosInstance.put(`/time-management/attendance/correction-requests/${id}`, data),
+  approveCorrectionRequest: (id: string) => axiosInstance.patch(`/time-management/attendance/correction-requests/${id}`, { status: 'approved' }),
+  rejectCorrectionRequest: (id: string, reason: string) => axiosInstance.patch(`/time-management/attendance/correction-requests/${id}`, { status: 'rejected', rejectionReason: reason }),
+
+  // Time Exceptions
+  getTimeExceptions: () => axiosInstance.get('/time-management/time-exceptions'),
+  createTimeException: (data: any) => axiosInstance.post('/time-management/time-exceptions', data),
+  updateTimeException: (id: string, data: any) => axiosInstance.put(`/time-management/time-exceptions/${id}`, data),
+
+  // Overtime Rules
+  getOvertimeRules: () => axiosInstance.get('/time-management/overtime-rules'),
+  createOvertimeRule: (data: any) => axiosInstance.post('/time-management/overtime-rules', data),
+  updateOvertimeRule: (id: string, data: any) => axiosInstance.put(`/time-management/overtime-rules/${id}`, data),
+  deleteOvertimeRule: (id: string) => axiosInstance.delete(`/time-management/overtime-rules/${id}`),
+
+  // Lateness Rules
+  getLatenessRules: () => axiosInstance.get('/time-management/lateness-rules'),
+  createLatenessRule: (data: any) => axiosInstance.post('/time-management/lateness-rules', data),
+  updateLatenessRule: (id: string, data: any) => axiosInstance.put(`/time-management/lateness-rules/${id}`, data),
+  deleteLatenessRule: (id: string) => axiosInstance.delete(`/time-management/lateness-rules/${id}`),
+
+  // Holidays
+  getHolidays: () => axiosInstance.get('/time-management/holidays'),
+  createHoliday: (data: any) => axiosInstance.post('/time-management/holidays', data),
+  updateHoliday: (id: string, data: any) => axiosInstance.put(`/time-management/holidays/${id}`, data),
+  deleteHoliday: (id: string) => axiosInstance.delete(`/time-management/holidays/${id}`),
+
+  // Reports
+  generateAttendanceReport: (params: any) => axiosInstance.get('/time-management/reports/attendance', { params }),
+  generateOvertimeReport: (params: any) => axiosInstance.get('/time-management/reports/overtime', { params }),
+  generateExceptionReport: (params: any) => axiosInstance.get('/time-management/reports/exceptions', { params }),
+};
+
+// Employee Profile API
+export const employeeProfileApi = {
+  getAll: () => axiosInstance.get('/employee-profile'),
+  getEmployees: () => axiosInstance.get('/employee-profile'),
+  getEmployee: (id: string) => axiosInstance.get(`/employee-profile/${id}`),
+  createEmployee: (data: any) => axiosInstance.post('/employee-profile', data),
+  updateEmployee: (id: string, data: any) => axiosInstance.put(`/employee-profile/${id}`, data),
+  getCandidates: () => axiosInstance.get('/employee-profile/candidates'),
+  getCandidate: (id: string) => axiosInstance.get(`/employee-profile/candidates/${id}`),
+  // Get employees by roles (if backend supports it, otherwise filters client-side)
+  getByRoles: async (roles: string[]) => {
+    // Try to get all employees and filter by roles client-side
+    // If backend has a specific endpoint, use that instead
+    const response = await axiosInstance.get('/employee-profile');
+    if (response.data && Array.isArray(response.data)) {
+      const filtered = response.data.filter((emp: any) => 
+        emp.roles && emp.roles.some((role: string) => 
+          roles.some(r => r.toLowerCase() === role.toLowerCase())
+        )
+      );
+      return { ...response, data: filtered };
+    }
+    return response;
+  },
+};
+
+// Organization API
+export const organizationApi = {
+  getDepartments: () => axiosInstance.get('/organization-structure/departments'),
+  getDepartment: (id: string) => axiosInstance.get(`/organization-structure/departments/${id}`),
+  getPositions: () => axiosInstance.get('/organization-structure/positions'),
+  getPosition: (id: string) => axiosInstance.get(`/organization-structure/positions/${id}`),
+};
