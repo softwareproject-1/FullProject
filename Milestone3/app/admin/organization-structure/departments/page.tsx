@@ -102,7 +102,6 @@ export default function DepartmentsPage() {
   return (
     <RouteGuard 
       requiredRoute="/admin/organization-structure" 
-      requiredRoles={["System Admin"]}
     >
       {loading || authLoading ? (
         <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -128,6 +127,7 @@ export default function DepartmentsPage() {
             <Button
               onClick={() => router.push("/admin")}
               variant="outline"
+              className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
             >
               Back to Dashboard
             </Button>
@@ -202,13 +202,16 @@ export default function DepartmentsPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex gap-2">
-                          <Button
-                            onClick={() => router.push(`/admin/organization-structure/departments/${department._id}`)}
-                            variant="outline"
-                            className="text-xs px-3 py-1"
-                          >
-                            View
-                          </Button>
+                          {/* Only show View button if user can access department details (System Admin only) */}
+                          {isSystemAdmin && (
+                            <Button
+                              onClick={() => router.push(`/admin/organization-structure/departments/${department._id}`)}
+                              variant="outline"
+                              className="text-xs px-3 py-1"
+                            >
+                              View
+                            </Button>
+                          )}
                           {canManageDepartments && (
                             <>
                               <Button

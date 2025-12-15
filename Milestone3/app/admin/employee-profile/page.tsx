@@ -40,6 +40,8 @@ export default function EmployeeProfileListPage() {
 
   // Check role-based access
   const canAccess = user ? canAccessRoute(user.roles, "/admin/employee-profile") : false;
+  const canViewAllEmployees = user ? hasFeature(user.roles, "viewAllEmployees") : false;
+  const canViewOwnProfile = user ? hasFeature(user.roles, "viewOwnProfile") : false;
   const canCreateEmployee = user ? hasFeature(user.roles, "createEmployee") : false;
   const canArchiveEmployee = user ? hasFeature(user.roles, "archiveEmployees") : false;
   const canEditEmployee = user ? hasFeature(user.roles, "editEmployee") : false;
@@ -52,10 +54,19 @@ export default function EmployeeProfileListPage() {
   const canEditCandidate = user ? hasFeature(user.roles, "editCandidate") : false;
   const isLegalPolicyAdmin = user ? hasRole(user.roles, SystemRole.LEGAL_POLICY_ADMIN) : false;
   const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+
+  // Redirect department employees to their own profile
+  useEffect(() => {
+    if (!authLoading && user && canAccess && isDepartmentEmployee && !canViewAllEmployees && user._id) {
+      router.replace(`/admin/employee-profile/${user._id}`);
+      return;
+    }
+  }, [authLoading, user, canAccess, isDepartmentEmployee, canViewAllEmployees, router]);
 
   // Fetch data when filters or user changes
   useEffect(() => {
-    if (!authLoading && user && canAccess) {
+    if (!authLoading && user && canAccess && canViewAllEmployees) {
       if (isRecruiter) {
         fetchCandidates();
       } else {
@@ -77,7 +88,8 @@ export default function EmployeeProfileListPage() {
     user?._id, 
     authLoading, 
     canAccess, 
-    isRecruiter
+    isRecruiter,
+    canViewAllEmployees
   ]);
 
   const fetchCandidates = async () => {
@@ -270,9 +282,18 @@ export default function EmployeeProfileListPage() {
   return (
     <RouteGuard 
       requiredRoute="/admin/employee-profile" 
-      requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "Payroll Manager", "Payroll Specialist", "Recruiter", "Legal & Policy Admin", "Finance Staff"]}
+      requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "Payroll Manager", "Payroll Specialist", "Recruiter", "Legal & Policy Admin", "Finance Staff", "department head", "Department Head", "Department head", "department employee", "Department Employee"]}
     >
-      {!user || !canAccess ? null : (
+      {!user || !canAccess ? null : !canViewAllEmployees && isDepartmentEmployee ? (
+        // Department employees should be redirected to their own profile
+        // This is a fallback in case redirect didn't work
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-slate-600 text-lg">Redirecting to your profile...</p>
+          </div>
+        </div>
+      ) : (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
@@ -309,6 +330,7 @@ export default function EmployeeProfileListPage() {
                   <Button
                     onClick={() => router.push(isSystemAdmin ? "/admin" : "/hr-manager")}
                     variant="outline"
+                    className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                   >
                     Back to Dashboard
                   </Button>

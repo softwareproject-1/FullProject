@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RouteGuard from "@/components/RouteGuard";
 import { canAccessRoute, hasFeature } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
@@ -151,62 +153,70 @@ export default function MyPerformancePage() {
       requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "department head", "department employee"]}
     >
       {loading ? (
-        <main className="min-h-screen flex items-center justify-center bg-background">
+        <main className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-text-muted text-lg">Loading...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-slate-600 text-lg">Loading...</p>
           </div>
         </main>
       ) : (
-        <main className="min-h-screen bg-gradient-to-br from-background via-background-light to-background p-4 md:p-8">
+        <main className="min-h-screen bg-slate-50 p-4 md:p-8">
           <div className="max-w-6xl mx-auto space-y-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-text mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
+                <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
                   My Performance
                 </h1>
-                <p className="text-text-muted text-lg">
+                <p className="text-slate-600 text-lg">
                   View your performance evaluation results and appraisal history.
                 </p>
               </div>
-              <Button variant="outline" onClick={() => router.push("/performance")}>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push("/performance")}
+                className="text-slate-900 border-slate-300 hover:bg-slate-100 bg-white"
+              >
                 Back to Performance Hub
               </Button>
             </header>
 
             {error && (
-              <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400">
+              <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-700">
                 {error}
               </div>
             )}
 
             <Card title="Load Your Performance Records">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
-                  <label className="label">Cycle</label>
-                  <select
-                    className="input"
+                <div className="space-y-2">
+                  <Label htmlFor="cycleSelect">Cycle</Label>
+                  <Select value={cycleId} onValueChange={setCycleId}>
+                    <SelectTrigger id="cycleSelect" className="w-full bg-white text-slate-900 border-slate-300">
+                      <SelectValue placeholder="Select a cycle..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white text-slate-900">
+                      {cycles.map((cycle) => {
+                        const id = cycle._id || cycle.id || "";
+                        return (
+                          <SelectItem key={id} value={id} className="text-slate-900">
+                            {cycle.name || cycle.title || id}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cycleIdInput" className="text-slate-700">Or Enter Cycle ID</Label>
+                  <Input
+                    id="cycleIdInput"
                     value={cycleId}
                     onChange={(e) => setCycleId(e.target.value)}
-                  >
-                    <option value="">Select a cycle...</option>
-                    {cycles.map((cycle) => {
-                      const id = cycle._id || cycle.id || "";
-                      return (
-                        <option key={id} value={id}>
-                          {cycle.name || cycle.title || id}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    placeholder="Enter Cycle ID"
+                    className="bg-white text-slate-900 border-slate-300"
+                  />
                 </div>
-                <Input
-                  label="Or Enter Cycle ID"
-                  value={cycleId}
-                  onChange={(e) => setCycleId(e.target.value)}
-                  placeholder="Enter Cycle ID"
-                />
-                <Button onClick={loadRecords} isLoading={loadingData} className="w-full md:w-auto">
+                <Button onClick={loadRecords} isLoading={loadingData} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white">
                   Load My Records
                 </Button>
               </div>
@@ -215,19 +225,20 @@ export default function MyPerformancePage() {
             {records.length > 0 && (
               <Card title={`Your Performance Records (${records.length})`}>
                 {filterStatus && (
-                  <div className="mb-4">
-                    <label className="label">Filter by Status</label>
-                    <select
-                      className="input"
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="DRAFT">Draft</option>
-                      <option value="MANAGER_SUBMITTED">Manager Submitted</option>
-                      <option value="HR_PUBLISHED">Published</option>
-                      <option value="EMPLOYEE_ACKNOWLEDGED">Acknowledged</option>
-                    </select>
+                  <div className="mb-4 space-y-2">
+                    <Label htmlFor="statusFilter" className="text-slate-700">Filter by Status</Label>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger id="statusFilter" className="w-full md:w-64 bg-white text-slate-900 border-slate-300">
+                        <SelectValue placeholder="All Statuses" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white text-slate-900">
+                        <SelectItem value="" className="text-slate-900">All Statuses</SelectItem>
+                        <SelectItem value="DRAFT" className="text-slate-900">Draft</SelectItem>
+                        <SelectItem value="MANAGER_SUBMITTED" className="text-slate-900">Manager Submitted</SelectItem>
+                        <SelectItem value="HR_PUBLISHED" className="text-slate-900">Published</SelectItem>
+                        <SelectItem value="EMPLOYEE_ACKNOWLEDGED" className="text-slate-900">Acknowledged</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
                 <div className="space-y-4">
@@ -238,13 +249,13 @@ export default function MyPerformancePage() {
                       return (
                         <div
                           key={id}
-                          className="p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition cursor-pointer"
+                          className="p-4 bg-white rounded-lg border border-slate-300 hover:border-blue-500 transition cursor-pointer"
                           onClick={() => setSelectedRecord(record)}
                         >
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <p className="text-text font-semibold">
+                                <p className="text-slate-900 font-semibold">
                                   {record.cycleName || `Cycle ${idx + 1}`}
                                 </p>
                                 <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusBadgeClass(record.status || "")}`}>
@@ -252,28 +263,28 @@ export default function MyPerformancePage() {
                                 </span>
                               </div>
                               {record.totalScore !== undefined && (
-                                <p className="text-text-muted text-sm">
-                                  Total Score: <span className="text-text font-medium">{record.totalScore}</span>
+                                <p className="text-slate-600 text-sm">
+                                  Total Score: <span className="text-slate-900 font-medium">{record.totalScore}</span>
                                   {record.overallRatingLabel && (
                                     <span className="ml-2">({record.overallRatingLabel})</span>
                                   )}
                                 </p>
                               )}
                               {record.hrPublishedAt && (
-                                <p className="text-text-muted text-sm">
+                                <p className="text-slate-600 text-sm">
                                   Published: {new Date(record.hrPublishedAt).toLocaleDateString()}
                                 </p>
                               )}
-                              <p className="text-text-muted text-xs mt-1">
+                              <p className="text-slate-600 text-xs mt-1">
                                 <span className="font-medium">Appraisal ID:</span>{" "}
-                                <span className="font-mono">{id}</span>
+                                <span className="font-mono text-slate-900">{id}</span>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     navigator.clipboard.writeText(id);
                                     alert("Appraisal ID copied to clipboard!");
                                   }}
-                                  className="ml-2 text-primary hover:text-primary-light text-xs underline"
+                                  className="ml-2 text-blue-600 hover:text-blue-700 text-xs underline"
                                 >
                                   Copy
                                 </button>
@@ -285,6 +296,7 @@ export default function MyPerformancePage() {
                                 e.stopPropagation();
                                 setSelectedRecord(record);
                               }}
+                              className="text-slate-900 border-slate-300 hover:bg-slate-100 bg-white"
                             >
                               View Details
                             </Button>
@@ -299,18 +311,18 @@ export default function MyPerformancePage() {
             {selectedRecord && (
               <Card 
                 title={`Performance Details: ${selectedRecord.cycleName || "Appraisal"}`}
-                className="fixed inset-4 md:inset-8 z-50 overflow-y-auto bg-background border-2 border-primary"
+                className="fixed inset-4 md:inset-8 z-50 overflow-y-auto bg-white border-2 border-blue-600"
               >
                 <div className="space-y-6">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="text-text font-semibold text-lg mb-2">
+                      <h3 className="text-slate-900 font-semibold text-lg mb-2">
                         {selectedRecord.cycleName || "Performance Appraisal"}
                       </h3>
                       <div className="space-y-1 mb-3">
-                        <p className="text-text-muted text-sm">
+                        <p className="text-slate-600 text-sm">
                           <span className="font-medium">Appraisal ID:</span>{" "}
-                          <span className="text-primary font-mono text-xs bg-primary/10 px-2 py-1 rounded">
+                          <span className="text-blue-600 font-mono text-xs bg-blue-100 px-2 py-1 rounded">
                             {selectedRecord._id || selectedRecord.id || "N/A"}
                           </span>
                           <button
@@ -321,19 +333,19 @@ export default function MyPerformancePage() {
                                 alert("Appraisal ID copied to clipboard!");
                               }
                             }}
-                            className="ml-2 text-primary hover:text-primary-light text-xs underline"
+                            className="ml-2 text-blue-600 hover:text-blue-700 text-xs underline"
                           >
                             Copy
                           </button>
                         </p>
                         {selectedRecord.cycleId && (
-                          <p className="text-text-muted text-sm">
+                          <p className="text-slate-600 text-sm">
                             <span className="font-medium">Cycle ID:</span>{" "}
-                            <span className="font-mono text-xs">{selectedRecord.cycleId}</span>
+                            <span className="font-mono text-xs text-slate-900">{selectedRecord.cycleId}</span>
                           </p>
                         )}
                         {selectedRecord.status && (
-                          <p className="text-text-muted text-sm">
+                          <p className="text-slate-600 text-sm">
                             <span className="font-medium">Status:</span>{" "}
                             <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusBadgeClass(selectedRecord.status)}`}>
                               {selectedRecord.status}
@@ -345,6 +357,7 @@ export default function MyPerformancePage() {
                     <Button
                       variant="outline"
                       onClick={() => setSelectedRecord(null)}
+                      className="text-slate-900 border-slate-300 hover:bg-slate-100 bg-white"
                     >
                       Close
                     </Button>
@@ -353,20 +366,20 @@ export default function MyPerformancePage() {
                   {/* Ratings */}
                   {selectedRecord.ratings && selectedRecord.ratings.length > 0 && (
                     <div>
-                      <h4 className="text-text font-semibold mb-3">Performance Ratings</h4>
+                      <h4 className="text-slate-900 font-semibold mb-3">Performance Ratings</h4>
                       <div className="space-y-3">
                         {selectedRecord.ratings.map((rating, idx) => (
-                          <div key={idx} className="p-3 bg-background rounded border border-border">
+                          <div key={idx} className="p-3 bg-white rounded border border-slate-300">
                             <div className="flex justify-between items-start mb-2">
-                              <p className="text-text font-medium">
+                              <p className="text-slate-900 font-medium">
                                 {rating.criterionTitle || rating.criterionKey}
                               </p>
-                              <span className="text-primary font-semibold">
+                              <span className="text-blue-600 font-semibold">
                                 Score: {rating.score}
                               </span>
                             </div>
                             {rating.comments && (
-                              <p className="text-text-muted text-sm mt-2">{rating.comments}</p>
+                              <p className="text-slate-600 text-sm mt-2">{rating.comments}</p>
                             )}
                           </div>
                         ))}
@@ -377,57 +390,57 @@ export default function MyPerformancePage() {
                   {/* Summary */}
                   {selectedRecord.managerSummary && (
                     <div>
-                      <h4 className="text-text font-semibold mb-3">Manager Summary</h4>
-                      <p className="text-text-muted whitespace-pre-wrap">{selectedRecord.managerSummary}</p>
+                      <h4 className="text-slate-900 font-semibold mb-3">Manager Summary</h4>
+                      <p className="text-slate-600 whitespace-pre-wrap">{selectedRecord.managerSummary}</p>
                     </div>
                   )}
 
                   {/* Strengths */}
                   {selectedRecord.strengths && (
                     <div>
-                      <h4 className="text-text font-semibold mb-3">Strengths</h4>
-                      <p className="text-text-muted whitespace-pre-wrap">{selectedRecord.strengths}</p>
+                      <h4 className="text-slate-900 font-semibold mb-3">Strengths</h4>
+                      <p className="text-slate-600 whitespace-pre-wrap">{selectedRecord.strengths}</p>
                     </div>
                   )}
 
                   {/* Improvement Areas */}
                   {selectedRecord.improvementAreas && (
                     <div>
-                      <h4 className="text-text font-semibold mb-3">Areas for Improvement</h4>
-                      <p className="text-text-muted whitespace-pre-wrap">{selectedRecord.improvementAreas}</p>
+                      <h4 className="text-slate-900 font-semibold mb-3">Areas for Improvement</h4>
+                      <p className="text-slate-600 whitespace-pre-wrap">{selectedRecord.improvementAreas}</p>
                     </div>
                   )}
 
                   {/* Dates */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-300">
                     {selectedRecord.managerSubmittedAt && (
                       <div>
-                        <p className="text-text-muted text-sm">Manager Submitted</p>
-                        <p className="text-text">{new Date(selectedRecord.managerSubmittedAt).toLocaleDateString()}</p>
+                        <p className="text-slate-600 text-sm">Manager Submitted</p>
+                        <p className="text-slate-900">{new Date(selectedRecord.managerSubmittedAt).toLocaleDateString()}</p>
                       </div>
                     )}
                     {selectedRecord.hrPublishedAt && (
                       <div>
-                        <p className="text-text-muted text-sm">Published</p>
-                        <p className="text-text">{new Date(selectedRecord.hrPublishedAt).toLocaleDateString()}</p>
+                        <p className="text-slate-600 text-sm">Published</p>
+                        <p className="text-slate-900">{new Date(selectedRecord.hrPublishedAt).toLocaleDateString()}</p>
                       </div>
                     )}
                     {selectedRecord.employeeViewedAt && (
                       <div>
-                        <p className="text-text-muted text-sm">You Viewed</p>
-                        <p className="text-text">{new Date(selectedRecord.employeeViewedAt).toLocaleDateString()}</p>
+                        <p className="text-slate-600 text-sm">You Viewed</p>
+                        <p className="text-slate-900">{new Date(selectedRecord.employeeViewedAt).toLocaleDateString()}</p>
                       </div>
                     )}
                     {selectedRecord.employeeAcknowledgedAt && (
                       <div>
-                        <p className="text-text-muted text-sm">You Acknowledged</p>
-                        <p className="text-text">{new Date(selectedRecord.employeeAcknowledgedAt).toLocaleDateString()}</p>
+                        <p className="text-slate-600 text-sm">You Acknowledged</p>
+                        <p className="text-slate-900">{new Date(selectedRecord.employeeAcknowledgedAt).toLocaleDateString()}</p>
                       </div>
                     )}
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-4 pt-4 border-t border-border">
+                  <div className="flex gap-4 pt-4 border-t border-slate-300">
                     <Button
                       variant="primary"
                       onClick={() => {
@@ -436,12 +449,14 @@ export default function MyPerformancePage() {
                           router.push(`/performance/disputes?cycleId=${selectedRecord.cycleId || cycleId}&appraisalId=${id}`);
                         }
                       }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Submit Dispute
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setSelectedRecord(null)}
+                      className="text-slate-900 border-slate-300 hover:bg-slate-100 bg-white"
                     >
                       Close
                     </Button>

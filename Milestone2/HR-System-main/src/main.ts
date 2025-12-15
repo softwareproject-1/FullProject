@@ -111,9 +111,26 @@ async function bootstrap() {
   });
   
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-  await app.listen(port);
-  console.log(` Nest backend is running on http://localhost:${port}`);
-  console.log(` Swagger documentation available at http://localhost:${port}/api-docs`);
+  
+  try {
+    await app.listen(port);
+    console.log(` Nest backend is running on http://localhost:${port}`);
+    console.log(` Swagger documentation available at http://localhost:${port}/api-docs`);
+  } catch (error: any) {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`\n❌ Error: Port ${port} is already in use.`);
+      console.error(`\nTo fix this, you can:`);
+      console.error(`  1. Kill the process using port ${port}:`);
+      console.error(`     Windows: netstat -ano | findstr :${port}  (find PID)`);
+      console.error(`             taskkill /PID <PID> /F  (kill process)`);
+      console.error(`  2. Use a different port by setting the PORT environment variable:`);
+      console.error(`     set PORT=3002 && npm start`);
+      console.error(`  3. Or modify the default port in src/main.ts\n`);
+      process.exit(1);
+    } else {
+      throw error;
+    }
+  }
   
   // Check again after a short delay in case connection completes after app starts
   setTimeout(() => {

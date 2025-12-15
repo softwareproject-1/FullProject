@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import RouteGuard from "@/components/RouteGuard";
 import { Building2, Users, Network } from "lucide-react";
-import { canAccessRoute, hasRole, SystemRole } from "@/utils/roleAccess";
+import { canAccessRoute, hasRole, hasFeature, SystemRole } from "@/utils/roleAccess";
 
 export default function OrganizationStructurePage() {
   const { user, loading: authLoading } = useAuth();
@@ -13,6 +13,9 @@ export default function OrganizationStructurePage() {
 
   const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
   const canAccess = user ? canAccessRoute(user.roles, "/admin/organization-structure") : false;
+  const canManageDepartments = user ? hasFeature(user.roles, "createDepartments") : false;
+  const canManagePositions = user ? hasFeature(user.roles, "createPositions") : false;
+  const canViewOrganizationalCharts = user ? hasFeature(user.roles, "viewOrganizationalCharts") : false;
 
   if (authLoading) {
     return (
@@ -28,7 +31,6 @@ export default function OrganizationStructurePage() {
   return (
     <RouteGuard
       requiredRoute="/admin/organization-structure"
-      requiredRoles={["System Admin"]}
     >
       <div className="min-h-screen bg-slate-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
@@ -38,69 +40,92 @@ export default function OrganizationStructurePage() {
               Organization Structure
             </h1>
             <p className="text-slate-600 text-base md:text-lg">
-              Manage departments, positions, and organizational hierarchy
+              {canManageDepartments || canManagePositions
+                ? "Manage departments, positions, and organizational hierarchy"
+                : "View organizational structure (read-only)"}
             </p>
           </div>
 
           {/* Action Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Manage Departments Card */}
-            <Card className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/admin/organization-structure/departments")}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <Building2 className="w-6 h-6 text-blue-600" />
+            {/* View/Manage Departments Card */}
+            {canViewOrganizationalCharts && (
+              <Card className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                const canAccessDeptPage = canAccessRoute(user?.roles || [], "/admin/organization-structure/departments");
+                if (canAccessDeptPage) {
+                  router.push("/admin/organization-structure/departments");
+                } else {
+                  // Stay on current page or show read-only view
+                  router.push("/admin/organization-structure");
+                }
+              }}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-blue-100 rounded-lg">
+                        <Building2 className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <CardTitle className="text-slate-900">
+                        {canManageDepartments ? "Manage Departments" : "View Departments"}
+                      </CardTitle>
                     </div>
-                    <CardTitle className="text-slate-900">Manage Departments</CardTitle>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600 mb-4">
-                  Create, edit, and manage organizational departments. View department hierarchy and structure.
-                </p>
-                <Button
-                  variant="default"
-                  className="w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push("/admin/organization-structure/departments");
-                  }}
-                >
-                  Go to Departments
-                </Button>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-slate-600 mb-4">
+                    {canManageDepartments
+                      ? "Create, edit, and manage organizational departments. View department hierarchy and structure."
+                      : "View organizational departments and structure (read-only)."}
+                  </p>
+                  <Button
+                    variant="default"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const canAccessDeptPage = canAccessRoute(user?.roles || [], "/admin/organization-structure/departments");
+                      if (canAccessDeptPage) {
+                        router.push("/admin/organization-structure/departments");
+                      } else {
+                        router.push("/admin/organization-structure");
+                      }
+                    }}
+                  >
+                    {canManageDepartments ? "Go to Departments" : "View Departments"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Manage Positions Card */}
-            <Card className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/admin/organization-structure/positions")}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-purple-100 rounded-lg">
-                      <Users className="w-6 h-6 text-purple-600" />
+            {/* Manage Positions Card - Only show if user can manage positions */}
+            {canManagePositions && (
+              <Card className="bg-white hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push("/admin/organization-structure/positions")}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-purple-100 rounded-lg">
+                        <Users className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <CardTitle className="text-slate-900">Manage Positions</CardTitle>
                     </div>
-                    <CardTitle className="text-slate-900">Manage Positions</CardTitle>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600 mb-4">
-                  Create, edit, and manage job positions. Assign positions to departments and set reporting structures.
-                </p>
-                <Button
-                  variant="default"
-                  className="w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push("/admin/organization-structure/positions");
-                  }}
-                >
-                  Go to Positions
-                </Button>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-slate-600 mb-4">
+                    Create, edit, and manage job positions. Assign positions to departments and set reporting structures.
+                  </p>
+                  <Button
+                    variant="default"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push("/admin/organization-structure/positions");
+                    }}
+                  >
+                    Go to Positions
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Quick Actions */}

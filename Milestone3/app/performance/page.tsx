@@ -52,6 +52,35 @@ export default function PerformanceHub() {
               </p>
             </header>
 
+            {/* Quick Action for Department Heads - Evaluate Employees */}
+            {canEvaluateEmployees && !canManageCycles && (
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300">
+                <CardHeader>
+                  <CardTitle className="text-slate-900 flex items-center gap-2">
+                    <span>⚡ Quick Action</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-1">Evaluate Your Team</h3>
+                      <p className="text-slate-600 text-sm">
+                        Click below to view available appraisal cycles and evaluate your team members.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => router.push("/performance/cycles")} 
+                      variant="default" 
+                      className="w-full md:w-auto min-w-[200px]"
+                      size="lg"
+                    >
+                      Evaluate Employees →
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="bg-white">
               <CardHeader>
                 <CardTitle className="text-slate-900">Performance Modules</CardTitle>
@@ -59,27 +88,27 @@ export default function PerformanceHub() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(canCreateTemplates || canViewTemplates) && (
-                    <Button onClick={() => router.push("/performance/templates")} variant="outline" className="w-full">
+                    <Button onClick={() => router.push("/performance/templates")} variant="outline" className="w-full text-slate-900 border-slate-300 hover:bg-slate-100">
                       {canCreateTemplates ? "Templates" : "View Templates"}
                     </Button>
                   )}
                   {(canManageCycles || canAssistCycles || canEvaluateEmployees) && (
-                    <Button onClick={() => router.push("/performance/cycles")} variant="outline" className="w-full">
-                      {canManageCycles ? "Cycles & Assignments" : canAssistCycles ? "Cycles (Assist)" : "Cycles & Assignments"}
+                    <Button onClick={() => router.push("/performance/cycles")} variant="outline" className="w-full text-slate-900 border-slate-300 hover:bg-slate-100">
+                      {canManageCycles ? "Cycles & Assignments" : canAssistCycles ? "Cycles (Assist)" : canEvaluateEmployees ? "View Cycles & Evaluate" : "Cycles & Assignments"}
                     </Button>
                   )}
                   {(canResolveDisputes || canSubmitDisputes) && (
-                    <Button onClick={() => router.push("/performance/disputes")} variant="outline" className="w-full">
+                    <Button onClick={() => router.push("/performance/disputes")} variant="outline" className="w-full text-slate-900 border-slate-300 hover:bg-slate-100">
                       Disputes
                     </Button>
                   )}
                   {canViewTeamPerformance && (
-                    <Button onClick={() => router.push("/performance/team-results")} variant="outline" className="w-full">
+                    <Button onClick={() => router.push("/performance/team-results")} variant="outline" className="w-full text-slate-900 border-slate-300 hover:bg-slate-100">
                       Team Performance Results
                     </Button>
                   )}
                   {(canViewOwnPerformance || canViewPerformanceStatus) && (
-                    <Button onClick={() => router.push("/performance/my-performance")} variant="outline" className="w-full">
+                    <Button onClick={() => router.push("/performance/my-performance")} variant="outline" className="w-full text-slate-900 border-slate-300 hover:bg-slate-100">
                       {canViewOwnPerformance ? "My Performance" : "Performance Status"}
                     </Button>
                   )}

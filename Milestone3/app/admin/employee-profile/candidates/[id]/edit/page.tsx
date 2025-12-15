@@ -155,7 +155,7 @@ export default function CandidateEditPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-text-muted text-lg">Loading...</p>
+          <p className="text-slate-600 text-lg">Loading...</p>
         </div>
       </div>
     );
@@ -177,10 +177,10 @@ export default function CandidateEditPage() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background-light to-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-text mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
             Edit Candidate
           </h1>
-          <p className="text-text-muted text-base md:text-lg">
+          <p className="text-slate-600 text-base md:text-lg">
             Update candidate information
           </p>
         </div>

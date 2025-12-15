@@ -456,9 +456,10 @@ export class PerformanceService {
 
     // If cycleId is not provided or empty, try to get it from the appraisal record
     let cycleId = dto.cycleId;
+    let appraisalRecord: any = null;
     if (!cycleId || cycleId.trim() === '') {
       try {
-        const appraisalRecord = await this.recordModel
+        appraisalRecord = await this.recordModel
           .findById(new Types.ObjectId(dto.appraisalId))
           .lean()
           .exec();
@@ -478,6 +479,49 @@ export class PerformanceService {
           'Cycle ID is required. Could not retrieve it from the appraisal record.'
         );
       }
+    }
+
+    // Validate that the employee submitting the dispute is the one who was evaluated
+    // Fetch appraisal record if not already fetched
+    if (!appraisalRecord) {
+      try {
+        appraisalRecord = await this.recordModel
+          .findById(new Types.ObjectId(dto.appraisalId))
+          .lean()
+          .exec();
+      } catch (err: any) {
+        throw new BadRequestException(
+          'Could not retrieve the appraisal record. Please verify the appraisal ID is correct.'
+        );
+      }
+    }
+
+    if (!appraisalRecord) {
+      throw new BadRequestException(
+        'Appraisal record not found. Please verify the appraisal ID is correct.'
+      );
+    }
+
+    // Check if the raisedByEmployeeId matches the employeeProfileId in the appraisal record
+    const evaluatedEmployeeId = String(appraisalRecord.employeeProfileId || '');
+    const disputeRaisedByEmployeeId = String(dto.raisedByEmployeeId).trim();
+
+    if (evaluatedEmployeeId !== disputeRaisedByEmployeeId) {
+      throw new BadRequestException(
+        'You can only submit a dispute for your own appraisal. The employee submitting the dispute must be the same employee who was evaluated in this appraisal record.'
+      );
+    }
+
+    // Validate that the appraisal record is published (employees can only dispute published appraisals)
+    const recordStatus = appraisalRecord.status || '';
+    const isPublished = recordStatus === AppraisalRecordStatus.HR_PUBLISHED || 
+                        recordStatus === 'HR_PUBLISHED' || 
+                        recordStatus === 'PUBLISHED';
+    
+    if (!isPublished) {
+      throw new BadRequestException(
+        `You can only submit a dispute for published appraisals. This appraisal record has status "${recordStatus}". Please wait until the appraisal is published by HR (status: HR_PUBLISHED) before submitting a dispute.`
+      );
     }
     
     const payload: Partial<AppraisalDispute> = {

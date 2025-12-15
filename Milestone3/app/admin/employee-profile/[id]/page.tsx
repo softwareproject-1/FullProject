@@ -37,6 +37,7 @@ export default function EmployeeProfileDetailPage() {
 
   // Check role-based access
   const canAccess = user ? canAccessRoute(user.roles, "/admin/employee-profile") : false;
+  const canViewAllEmployees = user ? hasFeature(user.roles, "viewAllEmployees") : false;
   const canViewOwnProfile = user ? hasFeature(user.roles, "viewOwnProfile") : false;
   const canEditEmployee = user ? hasFeature(user.roles, "editEmployee") : false;
   const canAssignRoles = user ? hasFeature(user.roles, "assignRoles") : false;
@@ -45,15 +46,30 @@ export default function EmployeeProfileDetailPage() {
   const isHRManager = user ? hasRole(user.roles, SystemRole.HR_MANAGER) : false;
   const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
   const isLegalPolicyAdmin = user ? hasRole(user.roles, SystemRole.LEGAL_POLICY_ADMIN) : false;
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   
   // Check if user is viewing their own profile
   const isViewingOwnProfile = user && employeeId && String(user._id) === String(employeeId);
+  
+  // Department employees can only view their own profile
+  const canViewThisProfile = canViewAllEmployees || (canViewOwnProfile && isViewingOwnProfile);
+
+  // Redirect department employees if they try to view someone else's profile
+  useEffect(() => {
+    if (!authLoading && user && employeeId && isDepartmentEmployee && !canViewAllEmployees) {
+      if (!isViewingOwnProfile && user._id) {
+        // Redirect to their own profile
+        router.replace(`/admin/employee-profile/${user._id}`);
+        return;
+      }
+    }
+  }, [authLoading, user, employeeId, isDepartmentEmployee, canViewAllEmployees, isViewingOwnProfile, router]);
 
   useEffect(() => {
-    if (!authLoading && user && canAccess && employeeId) {
+    if (!authLoading && user && canAccess && employeeId && canViewThisProfile) {
       fetchEmployee();
     }
-  }, [employeeId, user, authLoading, canAccess]);
+  }, [employeeId, user, authLoading, canAccess, canViewThisProfile]);
 
   // Refresh auth context when viewing own profile to sync profile picture
   useEffect(() => {
@@ -296,10 +312,10 @@ export default function EmployeeProfileDetailPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-text-muted text-lg">Loading employee profile...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-slate-600 text-lg">Loading employee profile...</p>
         </div>
       </div>
     );
@@ -310,7 +326,21 @@ export default function EmployeeProfileDetailPage() {
       requiredRoute="/admin/employee-profile" 
       requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "Payroll Manager", "Payroll Specialist", "Recruiter", "Legal & Policy Admin", "Finance Staff", "department head", "department employee"]}
     >
-      {!user || (!canAccess && !(canViewOwnProfile && isViewingOwnProfile)) ? null : (
+      {!user || !canViewThisProfile ? (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
+          <Card className="max-w-md w-full text-center bg-white">
+            <CardHeader>
+              <CardTitle className="text-slate-900">Access Denied</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-slate-600 mb-4">You can only view your own profile.</p>
+              <Button onClick={() => router.push("/")} variant="default">
+                Go to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
         <>
           {error && (
             <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
@@ -321,10 +351,20 @@ export default function EmployeeProfileDetailPage() {
                 <CardContent>
                   <p className="text-slate-600 mb-4">{error}</p>
                   <div className="flex gap-2 justify-center">
-                    <Button onClick={() => router.push("/admin/employee-profile")} variant="outline">
-                      Back to List
+                    <Button 
+                      onClick={() => {
+                        if (isDepartmentEmployee && !canViewAllEmployees) {
+                          router.push("/");
+                        } else {
+                          router.push("/admin/employee-profile");
+                        }
+                      }} 
+                      variant="outline"
+                      className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
+                    >
+                      {isDepartmentEmployee && !canViewAllEmployees ? "Back to Dashboard" : "Back to List"}
                     </Button>
-                    <Button onClick={fetchEmployee} variant="default">
+                    <Button onClick={fetchEmployee} variant="default" className="bg-blue-600 text-white hover:bg-blue-700">
                       Retry
                     </Button>
                   </div>
@@ -341,8 +381,18 @@ export default function EmployeeProfileDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-slate-600 mb-4">Employee profile not found</p>
-                  <Button onClick={() => router.push("/admin/employee-profile")} variant="default">
-                    Back to List
+                  <Button 
+                    onClick={() => {
+                      if (isDepartmentEmployee && !canViewAllEmployees) {
+                        router.push("/");
+                      } else {
+                        router.push("/admin/employee-profile");
+                      }
+                    }} 
+                    variant="default"
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    {isDepartmentEmployee && !canViewAllEmployees ? "Back to Dashboard" : "Back to List"}
                   </Button>
                 </CardContent>
               </Card>
@@ -374,10 +424,18 @@ export default function EmployeeProfileDetailPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => router.push("/admin/employee-profile")}
+                      onClick={() => {
+                        // Department employees should go to dashboard, not employee list
+                        if (isDepartmentEmployee && !canViewAllEmployees) {
+                          router.push("/");
+                        } else {
+                          router.push("/admin/employee-profile");
+                        }
+                      }}
                       variant="outline"
+                      className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                     >
-                      Back to List
+                      {isDepartmentEmployee && !canViewAllEmployees ? "Back to Dashboard" : "Back to List"}
                     </Button>
                     {/* Edit Profile Button - System Admin and HR Admin can edit */}
                     {canEditEmployee && (isSystemAdmin || isHRAdmin) && (
@@ -409,6 +467,7 @@ export default function EmployeeProfileDetailPage() {
                           setForcePasswordChange(false);
                         }}
                         variant="outline"
+                        className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                       >
                         Reset Password
                       </Button>
@@ -470,31 +529,31 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Contract Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Date of Hire</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Date of Hire</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : "-"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Contract Type</label>
-                    <p className="text-text font-medium">{employee.contractType || "-"}</p>
+                    <label className="text-slate-600 text-sm">Contract Type</label>
+                    <p className="text-slate-900 font-medium">{employee.contractType || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Work Type</label>
-                    <p className="text-text font-medium">{employee.workType || "-"}</p>
+                    <label className="text-slate-600 text-sm">Work Type</label>
+                    <p className="text-slate-900 font-medium">{employee.workType || "-"}</p>
                   </div>
                   {employee.contractStartDate && (
                     <div>
-                      <label className="text-text-muted text-sm">Contract Start Date</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Contract Start Date</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.contractStartDate).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   {employee.contractEndDate && (
                     <div>
-                      <label className="text-text-muted text-sm">Contract End Date</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Contract End Date</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.contractEndDate).toLocaleDateString()}
                       </p>
                     </div>
@@ -506,8 +565,8 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Organizational Structure">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Primary Position</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Primary Position</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.primaryPositionId 
                         ? (typeof employee.primaryPositionId === 'object' && employee.primaryPositionId !== null
                             ? `${(employee.primaryPositionId as any).title || (employee.primaryPositionId as any).name || 'N/A'} (${String((employee.primaryPositionId as any)._id || employee.primaryPositionId)})`
@@ -516,8 +575,8 @@ export default function EmployeeProfileDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Primary Department</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Primary Department</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.primaryDepartmentId 
                         ? (typeof employee.primaryDepartmentId === 'object' && employee.primaryDepartmentId !== null
                             ? `${(employee.primaryDepartmentId as any).name || 'N/A'} (${String((employee.primaryDepartmentId as any)._id || employee.primaryDepartmentId)})`
@@ -533,16 +592,16 @@ export default function EmployeeProfileDetailPage() {
                 <div className="space-y-4">
                   {employee.createdAt && (
                     <div>
-                      <label className="text-text-muted text-sm">Created At</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Created At</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.createdAt).toLocaleString()}
                       </p>
                     </div>
                   )}
                   {employee.updatedAt && (
                     <div>
-                      <label className="text-text-muted text-sm">Last Updated</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Last Updated</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.updatedAt).toLocaleString()}
                       </p>
                     </div>
@@ -556,11 +615,11 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Finance Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Employee Number</label>
-                    <p className="text-text font-medium">{employee.employeeNumber}</p>
+                    <label className="text-slate-600 text-sm">Employee Number</label>
+                    <p className="text-slate-900 font-medium">{employee.employeeNumber}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Status</label>
+                    <label className="text-slate-600 text-sm">Status</label>
                     <div className="mt-1">
                       <span className={`px-3 py-1 rounded text-sm font-medium border ${getStatusBadgeClass(employee.status)}`}>
                         {employee.status}
@@ -569,34 +628,34 @@ export default function EmployeeProfileDetailPage() {
                   </div>
                   {employee.statusEffectiveFrom && (
                     <div>
-                      <label className="text-text-muted text-sm">Status Effective From</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Status Effective From</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.statusEffectiveFrom).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   <div>
-                    <label className="text-text-muted text-sm">Date of Hire</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Date of Hire</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : "-"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Contract Type</label>
-                    <p className="text-text font-medium">{employee.contractType || "-"}</p>
+                    <label className="text-slate-600 text-sm">Contract Type</label>
+                    <p className="text-slate-900 font-medium">{employee.contractType || "-"}</p>
                   </div>
                   {employee.contractStartDate && (
                     <div>
-                      <label className="text-text-muted text-sm">Contract Start Date</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Contract Start Date</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.contractStartDate).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   {employee.contractEndDate && (
                     <div>
-                      <label className="text-text-muted text-sm">Contract End Date</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Contract End Date</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.contractEndDate).toLocaleDateString()}
                       </p>
                     </div>
@@ -608,12 +667,12 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Banking Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Bank Name</label>
-                    <p className="text-text font-medium">{employee.bankName || "-"}</p>
+                    <label className="text-slate-600 text-sm">Bank Name</label>
+                    <p className="text-slate-900 font-medium">{employee.bankName || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Bank Account Number</label>
-                    <p className="text-text font-medium">{employee.bankAccountNumber || "-"}</p>
+                    <label className="text-slate-600 text-sm">Bank Account Number</label>
+                    <p className="text-slate-900 font-medium">{employee.bankAccountNumber || "-"}</p>
                   </div>
                 </div>
               </Card>
@@ -622,8 +681,8 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Organizational Structure">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Primary Position</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Primary Position</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.primaryPositionId 
                         ? (typeof employee.primaryPositionId === 'object' && employee.primaryPositionId !== null
                             ? `${(employee.primaryPositionId as any).title || (employee.primaryPositionId as any).name || 'N/A'} (${String((employee.primaryPositionId as any)._id || employee.primaryPositionId)})`
@@ -632,8 +691,8 @@ export default function EmployeeProfileDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Primary Department</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Primary Department</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.primaryDepartmentId 
                         ? (typeof employee.primaryDepartmentId === 'object' && employee.primaryDepartmentId !== null
                             ? `${(employee.primaryDepartmentId as any).name || 'N/A'} (${String((employee.primaryDepartmentId as any)._id || employee.primaryDepartmentId)})`
@@ -642,8 +701,8 @@ export default function EmployeeProfileDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Pay Grade ID</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Pay Grade ID</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.payGradeId 
                         ? (typeof employee.payGradeId === 'object' && employee.payGradeId !== null
                             ? String((employee.payGradeId as any)._id || employee.payGradeId)
@@ -660,21 +719,21 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Basic Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Employee Number</label>
-                    <p className="text-text font-medium">{employee.employeeNumber}</p>
+                    <label className="text-slate-600 text-sm">Employee Number</label>
+                    <p className="text-slate-900 font-medium">{employee.employeeNumber}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Full Name</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Full Name</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.firstName} {employee.middleName} {employee.lastName}
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">National ID</label>
-                    <p className="text-text font-medium">{employee.nationalId}</p>
+                    <label className="text-slate-600 text-sm">National ID</label>
+                    <p className="text-slate-900 font-medium">{employee.nationalId}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Status</label>
+                    <label className="text-slate-600 text-sm">Status</label>
                     <div className="mt-1">
                       <span className={`px-3 py-1 rounded text-sm font-medium border ${getStatusBadgeClass(employee.status)}`}>
                         {employee.status}
@@ -683,8 +742,8 @@ export default function EmployeeProfileDetailPage() {
                   </div>
                   {employee.statusEffectiveFrom && (
                     <div>
-                      <label className="text-text-muted text-sm">Status Effective From</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Status Effective From</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.statusEffectiveFrom).toLocaleDateString()}
                       </p>
                     </div>
@@ -696,25 +755,25 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Contact Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Work Email</label>
-                    <p className="text-text font-medium">{employee.workEmail || "-"}</p>
+                    <label className="text-slate-600 text-sm">Work Email</label>
+                    <p className="text-slate-900 font-medium">{employee.workEmail || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Personal Email</label>
-                    <p className="text-text font-medium">{employee.personalEmail || "-"}</p>
+                    <label className="text-slate-600 text-sm">Personal Email</label>
+                    <p className="text-slate-900 font-medium">{employee.personalEmail || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Mobile Phone</label>
-                    <p className="text-text font-medium">{employee.mobilePhone || "-"}</p>
+                    <label className="text-slate-600 text-sm">Mobile Phone</label>
+                    <p className="text-slate-900 font-medium">{employee.mobilePhone || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Home Phone</label>
-                    <p className="text-text font-medium">{employee.homePhone || "-"}</p>
+                    <label className="text-slate-600 text-sm">Home Phone</label>
+                    <p className="text-slate-900 font-medium">{employee.homePhone || "-"}</p>
                   </div>
                   {employee.address && (
                     <div>
-                      <label className="text-text-muted text-sm">Address</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Address</label>
+                      <p className="text-slate-900 font-medium">
                         {employee.address.streetAddress || ""}
                         {employee.address.city && `, ${employee.address.city}`}
                         {employee.address.country && `, ${employee.address.country}`}
@@ -728,31 +787,31 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Employment Information">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Date of Hire</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Date of Hire</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : "-"}
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Contract Type</label>
-                    <p className="text-text font-medium">{employee.contractType || "-"}</p>
+                    <label className="text-slate-600 text-sm">Contract Type</label>
+                    <p className="text-slate-900 font-medium">{employee.contractType || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Work Type</label>
-                    <p className="text-text font-medium">{employee.workType || "-"}</p>
+                    <label className="text-slate-600 text-sm">Work Type</label>
+                    <p className="text-slate-900 font-medium">{employee.workType || "-"}</p>
                   </div>
                   {employee.contractStartDate && (
                     <div>
-                      <label className="text-text-muted text-sm">Contract Start Date</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Contract Start Date</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.contractStartDate).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   {employee.contractEndDate && (
                     <div>
-                      <label className="text-text-muted text-sm">Contract End Date</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Contract End Date</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.contractEndDate).toLocaleDateString()}
                       </p>
                     </div>
@@ -765,23 +824,23 @@ export default function EmployeeProfileDetailPage() {
                 <div className="space-y-4">
                   {employee.dateOfBirth && (
                     <div>
-                      <label className="text-text-muted text-sm">Date of Birth</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Date of Birth</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.dateOfBirth).toLocaleDateString()}
                       </p>
                     </div>
                   )}
                   <div>
-                    <label className="text-text-muted text-sm">Gender</label>
-                    <p className="text-text font-medium">{employee.gender || "-"}</p>
+                    <label className="text-slate-600 text-sm">Gender</label>
+                    <p className="text-slate-900 font-medium">{employee.gender || "-"}</p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Marital Status</label>
-                    <p className="text-text font-medium">{employee.maritalStatus || "-"}</p>
+                    <label className="text-slate-600 text-sm">Marital Status</label>
+                    <p className="text-slate-900 font-medium">{employee.maritalStatus || "-"}</p>
                   </div>
                   {employee.profilePictureUrl && (
                     <div>
-                      <label className="text-text-muted text-sm">Profile Picture</label>
+                      <label className="text-slate-600 text-sm">Profile Picture</label>
                       <div className="mt-2">
                         <img
                           src={employee.profilePictureUrl}
@@ -798,8 +857,8 @@ export default function EmployeeProfileDetailPage() {
               <Card title="Organizational Structure">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-text-muted text-sm">Primary Position</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Primary Position</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.primaryPositionId 
                         ? (typeof employee.primaryPositionId === 'object' && employee.primaryPositionId !== null
                             ? `${(employee.primaryPositionId as any).title || (employee.primaryPositionId as any).name || 'N/A'} (${String((employee.primaryPositionId as any)._id || employee.primaryPositionId)})`
@@ -808,8 +867,8 @@ export default function EmployeeProfileDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Primary Department</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Primary Department</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.primaryDepartmentId 
                         ? (typeof employee.primaryDepartmentId === 'object' && employee.primaryDepartmentId !== null
                             ? `${(employee.primaryDepartmentId as any).name || 'N/A'} (${String((employee.primaryDepartmentId as any)._id || employee.primaryDepartmentId)})`
@@ -818,8 +877,8 @@ export default function EmployeeProfileDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Supervisor Position</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Supervisor Position</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.supervisorPositionId 
                         ? (typeof employee.supervisorPositionId === 'object' && employee.supervisorPositionId !== null
                             ? `${(employee.supervisorPositionId as any).title || (employee.supervisorPositionId as any).name || 'N/A'} (${String((employee.supervisorPositionId as any)._id || employee.supervisorPositionId)})`
@@ -828,8 +887,8 @@ export default function EmployeeProfileDetailPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="text-text-muted text-sm">Pay Grade ID</label>
-                    <p className="text-text font-medium">
+                    <label className="text-slate-600 text-sm">Pay Grade ID</label>
+                    <p className="text-slate-900 font-medium">
                       {employee.payGradeId 
                         ? (typeof employee.payGradeId === 'object' && employee.payGradeId !== null
                             ? String((employee.payGradeId as any)._id || employee.payGradeId)
@@ -845,7 +904,7 @@ export default function EmployeeProfileDetailPage() {
                 <div className="space-y-4">
                   {employeeRoles.length > 0 ? (
                     <div>
-                      <label className="text-text-muted text-sm">Assigned Roles</label>
+                      <label className="text-slate-600 text-sm">Assigned Roles</label>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {employeeRoles.map((role, idx) => (
                           <span
@@ -859,8 +918,8 @@ export default function EmployeeProfileDetailPage() {
                     </div>
                   ) : (
                     <div>
-                      <p className="text-text-muted text-sm">No system roles assigned</p>
-                      <p className="text-text-muted text-xs mt-1">Use the "Assign Roles" button to assign system roles to this employee.</p>
+                      <p className="text-slate-600 text-sm">No system roles assigned</p>
+                      <p className="text-slate-600 text-xs mt-1">Use the "Assign Roles" button to assign system roles to this employee.</p>
                     </div>
                   )}
                   {/* Debug info - remove in production */}
@@ -878,13 +937,13 @@ export default function EmployeeProfileDetailPage() {
                 <div className="space-y-4">
                   {employee.biography && (
                     <div>
-                      <label className="text-text-muted text-sm">Biography</label>
-                      <p className="text-text font-medium whitespace-pre-wrap">{employee.biography}</p>
+                      <label className="text-slate-600 text-sm">Biography</label>
+                      <p className="text-slate-900 font-medium whitespace-pre-wrap">{employee.biography}</p>
                     </div>
                   )}
                   {employee.permissions && employee.permissions.length > 0 && (
                     <div>
-                      <label className="text-text-muted text-sm">Permissions</label>
+                      <label className="text-slate-600 text-sm">Permissions</label>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {employee.permissions.map((permission, idx) => (
                           <span
@@ -899,16 +958,16 @@ export default function EmployeeProfileDetailPage() {
                   )}
                   {employee.createdAt && (
                     <div>
-                      <label className="text-text-muted text-sm">Created At</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Created At</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.createdAt).toLocaleString()}
                       </p>
                     </div>
                   )}
                   {employee.updatedAt && (
                     <div>
-                      <label className="text-text-muted text-sm">Last Updated</label>
-                      <p className="text-text font-medium">
+                      <label className="text-slate-600 text-sm">Last Updated</label>
+                      <p className="text-slate-900 font-medium">
                         {new Date(employee.updatedAt).toLocaleString()}
                       </p>
                     </div>
@@ -927,17 +986,17 @@ export default function EmployeeProfileDetailPage() {
       {/* Role Assignment Modal */}
       {showRoleModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background border border-border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-slate-300 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-text">Assign System Roles</h2>
+                <h2 className="text-2xl font-bold text-slate-900">Assign System Roles</h2>
                 <button
                   onClick={() => {
                     setSelectedRoles([...currentRoles]); // Reset to original roles
                     setShowRoleModal(false);
                     setRoleError(null);
                   }}
-                  className="text-text-muted hover:text-text text-2xl"
+                  className="text-slate-600 hover:text-slate-900 text-2xl"
                 >
                   ×
                 </button>
@@ -950,8 +1009,8 @@ export default function EmployeeProfileDetailPage() {
               )}
 
               <div className="mb-4">
-                <p className="text-text-muted text-sm mb-2">
-                  Select system roles to assign to <strong className="text-text">{employee?.firstName} {employee?.lastName}</strong>
+                <p className="text-slate-600 text-sm mb-2">
+                  Select system roles to assign to <strong className="text-slate-900">{employee?.firstName} {employee?.lastName}</strong>
                 </p>
                 {isHRAdmin && !isSystemAdmin && (
                   <p className="text-yellow-400 text-xs mb-2">
@@ -963,7 +1022,7 @@ export default function EmployeeProfileDetailPage() {
               {loadingRoles ? (
                 <div className="text-center py-8">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                  <p className="text-text-muted text-sm">Loading current roles...</p>
+                  <p className="text-slate-600 text-sm">Loading current roles...</p>
                 </div>
               ) : (
                 <div className="space-y-2 mb-6">
@@ -996,7 +1055,7 @@ export default function EmployeeProfileDetailPage() {
                           disabled={isDisabled}
                           className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
                         />
-                        <span className={`ml-3 text-sm ${isDisabled ? 'text-text-muted' : 'text-text'}`}>
+                        <span className={`ml-3 text-sm ${isDisabled ? 'text-slate-600' : 'text-slate-900'}`}>
                           {role}
                           {isDisabled && (
                             <span className="ml-2 text-xs text-yellow-400">(Restricted)</span>
@@ -1032,6 +1091,7 @@ export default function EmployeeProfileDetailPage() {
                     setRoleError(null);
                   }}
                   variant="outline"
+                  className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                   disabled={savingRoles}
                 >
                   Cancel
@@ -1052,10 +1112,10 @@ export default function EmployeeProfileDetailPage() {
       {/* Password Reset Modal */}
       {showPasswordResetModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background border border-border rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white border border-slate-300 rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-text">Reset Password</h2>
+                <h2 className="text-2xl font-bold text-slate-900">Reset Password</h2>
                 <button
                   onClick={() => {
                     setShowPasswordResetModal(false);
@@ -1065,7 +1125,7 @@ export default function EmployeeProfileDetailPage() {
                     setConfirmPassword("");
                     setForcePasswordChange(false);
                   }}
-                  className="text-text-muted hover:text-text text-2xl"
+                  className="text-slate-600 hover:text-slate-900 text-2xl"
                 >
                   ×
                 </button>
@@ -1084,8 +1144,8 @@ export default function EmployeeProfileDetailPage() {
               )}
 
               <div className="mb-4">
-                <p className="text-text-muted text-sm mb-4">
-                  Reset password for <strong className="text-text">{employee?.firstName} {employee?.lastName}</strong> ({employee?.employeeNumber})
+                <p className="text-slate-600 text-sm mb-4">
+                  Reset password for <strong className="text-slate-900">{employee?.firstName} {employee?.lastName}</strong> ({employee?.employeeNumber})
                 </p>
                 <p className="text-yellow-400 text-xs mb-4">
                   ⚠️ The employee will need to use this new password to login. Make sure to communicate the new password securely.
@@ -1120,7 +1180,7 @@ export default function EmployeeProfileDetailPage() {
                     disabled={resettingPassword}
                     className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
                   />
-                  <label htmlFor="forcePasswordChange" className="text-text text-sm cursor-pointer">
+                  <label htmlFor="forcePasswordChange" className="text-slate-900 text-sm cursor-pointer">
                     Force password change on next login
                   </label>
                 </div>
@@ -1137,6 +1197,7 @@ export default function EmployeeProfileDetailPage() {
                     setForcePasswordChange(false);
                   }}
                   variant="outline"
+                  className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                   disabled={resettingPassword}
                 >
                   Cancel

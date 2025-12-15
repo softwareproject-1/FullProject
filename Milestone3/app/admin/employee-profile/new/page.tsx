@@ -194,7 +194,7 @@ export default function CreateEmployeeProfilePage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-text-muted text-lg">Loading...</p>
+          <p className="text-slate-600 text-lg">Loading...</p>
         </div>
       </div>
     );
@@ -204,7 +204,7 @@ export default function CreateEmployeeProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card title="Access Denied" className="max-w-md w-full text-center">
-          <p className="text-text-muted mb-4">You do not have permission to create employee profiles.</p>
+          <p className="text-slate-600 mb-4">You do not have permission to create employee profiles.</p>
           <Button onClick={() => router.push("/admin/employee-profile")} variant="primary">
             Back to Employee List
           </Button>
@@ -220,10 +220,10 @@ export default function CreateEmployeeProfilePage() {
           {/* Header */}
           <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-text mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
                 Create Employee Profile
               </h1>
-              <p className="text-text-muted text-base md:text-lg">
+              <p className="text-slate-600 text-base md:text-lg">
                 {isSystemAdmin 
                   ? "Create new employee profile - System Administrator"
                   : "Create new employee profile - HR Admin"}
@@ -407,7 +407,7 @@ export default function CreateEmployeeProfilePage() {
                 <div className="space-y-4">
                   {loadingOrgData ? (
                     <div className="text-center py-4">
-                      <p className="text-text-muted">Loading organizational data...</p>
+                      <p className="text-slate-600">Loading organizational data...</p>
                     </div>
                   ) : (
                     <>

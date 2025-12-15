@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import RouteGuard from "@/components/RouteGuard";
-import { canAccessRoute, hasFeature } from "@/utils/roleAccess";
+import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
 import { getEmployeeProfileById } from "@/utils/employeeProfileApi";
 
@@ -21,6 +21,7 @@ type Assignment = {
   templateName?: string;
   status?: string;
   dueDate?: string;
+  employeeRoles?: string[]; // Added to track employee roles for filtering
 };
 
 type RatingEntry = {
@@ -47,6 +48,10 @@ export default function EvaluateEmployeesPage() {
   // Check role-based access
   const canAccess = user ? canAccessRoute(user.roles, "/performance/cycles") : false;
   const canEvaluateEmployees = user ? hasFeature(user.roles, "evaluateEmployees") : false;
+  const isDepartmentHead = user ? hasRole(user.roles, SystemRole.DEPARTMENT_HEAD) : false;
+  const isHRAdmin = user ? hasRole(user.roles, SystemRole.HR_ADMIN) : false;
+  const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
+  const canEvaluateDepartmentHeads = isHRAdmin || isSystemAdmin; // Only HR Admin and System Admin can evaluate department heads
   
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -56,12 +61,14 @@ export default function EvaluateEmployeesPage() {
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [submittedAppraisalId, setSubmittedAppraisalId] = useState<string | null>(null);
+  const [evaluationMode, setEvaluationMode] = useState<'team' | 'department-heads'>('team'); // For HR Admin/System Admin
 
   useEffect(() => {
     if (!loading && user && canAccess && canEvaluateEmployees && cycleId) {
       loadAssignments();
     }
-  }, [user, loading, canAccess, canEvaluateEmployees, cycleId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, loading, canAccess, canEvaluateEmployees, cycleId, evaluationMode]);
 
   // Ensure key and title are always present in ratings (safety check)
   useEffect(() => {
@@ -89,15 +96,16 @@ export default function EvaluateEmployeesPage() {
       const res = await PerformanceApi.listAssignmentsForCycle(cycleId);
       const assignmentsData = res.data || [];
       
-      // Fetch employee profiles to get names
+      // Fetch employee profiles to get names and roles
       const assignmentsWithNames = await Promise.all(
         assignmentsData.map(async (assignment: Assignment) => {
           if (assignment.employeeName) {
-            // Already has name, return as is
+            // Already has name, but we still need to fetch profile to check roles
+            // Return as is for now, we'll fetch roles separately if needed
             return assignment;
           }
           
-          // Fetch employee profile to get name
+          // Fetch employee profile to get name and roles
           if (assignment.employeeProfileId) {
             try {
               const employeeProfile = await getEmployeeProfileById(String(assignment.employeeProfileId));
@@ -111,6 +119,7 @@ export default function EvaluateEmployeesPage() {
                   ...assignment,
                   employeeName: fullName || employeeProfile.employeeNumber || `Employee ${String(assignment.employeeProfileId)}`,
                   employeeNumber: employeeProfile.employeeNumber || assignment.employeeNumber,
+                  employeeRoles: employeeProfile.roles || [], // Store roles for filtering
                 };
               }
             } catch (err) {
@@ -123,7 +132,67 @@ export default function EvaluateEmployeesPage() {
         })
       );
       
-      setAssignments(assignmentsWithNames);
+      // Fetch roles for assignments that already have names
+      const assignmentsWithRoles = await Promise.all(
+        assignmentsWithNames.map(async (assignment: Assignment) => {
+          // If we already have roles, return as is
+          if ((assignment as any).employeeRoles) {
+            return assignment;
+          }
+          
+          // Fetch employee profile to get roles
+          if (assignment.employeeProfileId) {
+            try {
+              const employeeProfile = await getEmployeeProfileById(String(assignment.employeeProfileId));
+              if (employeeProfile) {
+                return {
+                  ...assignment,
+                  employeeRoles: employeeProfile.roles || [],
+                };
+              }
+            } catch (err) {
+              console.error(`Failed to fetch employee roles for ${assignment.employeeProfileId}:`, err);
+            }
+          }
+          
+          return assignment;
+        })
+      );
+      
+      // Filter assignments based on user role and evaluation mode
+      let filteredAssignments = assignmentsWithRoles;
+      
+      if (isDepartmentHead && !canEvaluateDepartmentHeads) {
+        // Department Head: Filter out self-assignments (cannot evaluate themselves)
+        filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
+          const employeeId = String(assignment.employeeProfileId || assignment.employeeProfileId?._id || '');
+          const userId = String(user?._id || '');
+          return employeeId !== userId;
+        });
+      } else if (canEvaluateDepartmentHeads && evaluationMode === 'department-heads') {
+        // HR Admin/System Admin: Show only department heads
+        filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
+          const employeeRoles = assignment.employeeRoles || [];
+          return employeeRoles.some((role: string) => 
+            role.toLowerCase() === 'department head' || 
+            role.toLowerCase() === 'departmenthead' ||
+            role.toLowerCase() === SystemRole.DEPARTMENT_HEAD.toLowerCase()
+          );
+        });
+      } else if (canEvaluateDepartmentHeads && evaluationMode === 'team') {
+        // HR Admin/System Admin: Show all except department heads (normal team evaluation)
+        filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
+          const employeeRoles = assignment.employeeRoles || [];
+          const isDeptHead = employeeRoles.some((role: string) => 
+            role.toLowerCase() === 'department head' || 
+            role.toLowerCase() === 'departmenthead' ||
+            role.toLowerCase() === SystemRole.DEPARTMENT_HEAD.toLowerCase()
+          );
+          return !isDeptHead;
+        });
+      }
+      
+      setAssignments(filteredAssignments);
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Failed to load assignments");
       setAssignments([]);
@@ -364,15 +433,39 @@ export default function EvaluateEmployeesPage() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                  Evaluate Employees
+                  {evaluationMode === 'department-heads' ? 'Evaluate Department Heads' : 'Evaluate Employees'}
                 </h1>
                 <p className="text-slate-600 text-lg">
-                  Evaluate your team members for this appraisal cycle
+                  {evaluationMode === 'department-heads' 
+                    ? 'Evaluate department heads for this appraisal cycle'
+                    : isDepartmentHead
+                    ? 'Evaluate your team members for this appraisal cycle (excluding yourself)'
+                    : 'Evaluate your team members for this appraisal cycle'}
                 </p>
               </div>
-              <Button variant="outline" onClick={() => router.push("/performance/cycles")}>
-                Back to Cycles
-              </Button>
+              <div className="flex gap-2">
+                {canEvaluateDepartmentHeads && (
+                  <div className="flex gap-2 items-center bg-slate-100 rounded-lg p-1">
+                    <Button
+                      variant={evaluationMode === 'team' ? 'default' : 'outline'}
+                      onClick={() => setEvaluationMode('team')}
+                      className="text-xs px-3"
+                    >
+                      Team Members
+                    </Button>
+                    <Button
+                      variant={evaluationMode === 'department-heads' ? 'default' : 'outline'}
+                      onClick={() => setEvaluationMode('department-heads')}
+                      className="text-xs px-3"
+                    >
+                      Department Heads
+                    </Button>
+                  </div>
+                )}
+                <Button variant="outline" onClick={() => router.push("/performance/cycles")}>
+                  Back to Cycles
+                </Button>
+              </div>
             </header>
 
             {error && (
@@ -436,7 +529,25 @@ export default function EvaluateEmployeesPage() {
                 </CardHeader>
                 <CardContent>
                   {assignments.length === 0 ? (
-                    <p className="text-slate-600 text-sm">No assignments found for this cycle.</p>
+                    <div className="text-center py-4">
+                      <p className="text-slate-600 text-sm mb-2">
+                        {evaluationMode === 'department-heads' 
+                          ? 'No department head assignments found for this cycle.'
+                          : isDepartmentHead
+                          ? 'No team member assignments found for this cycle, or you have already evaluated all available team members.'
+                          : 'No assignments found for this cycle.'}
+                      </p>
+                      {isDepartmentHead && (
+                        <p className="text-slate-500 text-xs italic">
+                          Note: You cannot evaluate yourself. If you are in this cycle, you will not appear in the list.
+                        </p>
+                      )}
+                      {canEvaluateDepartmentHeads && evaluationMode === 'team' && (
+                        <p className="text-slate-500 text-xs italic">
+                          Note: Department heads are excluded from team evaluation. Switch to "Department Heads" mode to evaluate them.
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {assignments.map((assignment, idx) => {
