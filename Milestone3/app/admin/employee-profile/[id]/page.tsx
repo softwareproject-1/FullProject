@@ -8,7 +8,7 @@ import RouteGuard from "@/components/RouteGuard";
 import { getEmployeeProfileById, EmployeeProfile, assignEmployeeSystemRoles } from "@/utils/employeeProfileApi";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 import { authApi } from "@/utils/authApi";
-import { Input } from "@/components/ui/Input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axiosInstance from "@/utils/ApiClient";
 
@@ -49,12 +49,15 @@ export default function EmployeeProfileDetailPage() {
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const isPayrollManager = user ? hasRole(user.roles, SystemRole.PAYROLL_MANAGER) : false;
   const isPayrollSpecialist = user ? hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST) : false;
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
+  const canViewCandidates = user ? hasFeature(user.roles, "viewCandidates") : false;
   
   // Check if user is viewing their own profile
   const isViewingOwnProfile = user && employeeId && String(user._id) === String(employeeId);
   
   // Department employees can only view their own profile
-  const canViewThisProfile = canViewAllEmployees || (canViewOwnProfile && isViewingOwnProfile);
+  // Recruiters can only view candidates, not employees
+  const canViewThisProfile = (canViewAllEmployees || (canViewOwnProfile && isViewingOwnProfile)) && !isRecruiter;
 
   // Redirect non-admin employees viewing their own profile to the self-service page
   useEffect(() => {
@@ -75,6 +78,16 @@ export default function EmployeeProfileDetailPage() {
       }
     }
   }, [authLoading, user, employeeId, isDepartmentEmployee, canViewAllEmployees, isViewingOwnProfile, router]);
+
+  // Redirect Recruiters away from employee profiles - they can only access candidates
+  useEffect(() => {
+    if (!authLoading && user && employeeId && isRecruiter) {
+      // Recruiters should not be able to view employee profiles
+      // Redirect them to the candidate list page
+      router.replace(`/admin/employee-profile`);
+      return;
+    }
+  }, [authLoading, user, employeeId, isRecruiter, router]);
 
   useEffect(() => {
     if (!authLoading && user && canAccess && employeeId && canViewThisProfile) {
@@ -335,7 +348,7 @@ export default function EmployeeProfileDetailPage() {
   return (
     <RouteGuard 
       requiredRoute="/admin/employee-profile" 
-      requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "Payroll Manager", "Payroll Specialist", "Recruiter", "Legal & Policy Admin", "Finance Staff", "department head", "department employee"]}
+      requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "Payroll Manager", "Payroll Specialist", "Legal & Policy Admin", "Finance Staff", "department head", "department employee"]}
     >
       {!user || !canViewThisProfile ? (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">

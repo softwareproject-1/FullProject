@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import RouteGuard from "@/components/RouteGuard";
 import { listEmployeeProfiles, archiveEmployeeProfile, reactivateEmployeeProfile, EmployeeProfile, EmployeeProfileFilter } from "@/utils/employeeProfileApi";
@@ -66,10 +66,12 @@ export default function EmployeeProfileListPage() {
 
   // Fetch data when filters or user changes
   useEffect(() => {
-    if (!authLoading && user && canAccess && canViewAllEmployees) {
-      if (isRecruiter) {
+    if (!authLoading && user && canAccess) {
+      if (isRecruiter && canViewCandidates) {
+        // Recruiters can view candidates even without viewAllEmployees
         fetchCandidates();
-      } else {
+      } else if (canViewAllEmployees) {
+        // Other roles need viewAllEmployees to see employees
         fetchEmployees();
       }
     }
@@ -89,7 +91,8 @@ export default function EmployeeProfileListPage() {
     authLoading, 
     canAccess, 
     isRecruiter,
-    canViewAllEmployees
+    canViewAllEmployees,
+    canViewCandidates
   ]);
 
   const fetchCandidates = async () => {

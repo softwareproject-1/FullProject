@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/label";
 import RouteGuard from "@/components/RouteGuard";
 import { candidateApi, CreateCandidateData } from "@/utils/candidateApi";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
@@ -144,8 +145,10 @@ export default function CreateCandidatePage() {
     return (
       <RouteGuard requiredRoute="/admin/employee-profile" requiredRoles={["Recruiter"]}>
         <div className="min-h-screen flex items-center justify-center bg-background">
-          <Card className="max-w-md">
-            <p className="text-error">You do not have permission to create candidates.</p>
+          <Card>
+            <CardContent>
+              <p className="text-red-600">You do not have permission to create candidates.</p>
+            </CardContent>
           </Card>
         </div>
       </RouteGuard>
@@ -171,100 +174,130 @@ export default function CreateCandidatePage() {
         )}
 
         <Card>
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input
-                label="Candidate Number *"
-                name="candidateNumber"
-                value={formData.candidateNumber}
-                onChange={(e) => handleInputChange("candidateNumber", e.target.value)}
-                required
-                disabled={saving}
-              />
+          <CardHeader>
+            <CardTitle>Create New Candidate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="candidateNumber">Candidate Number *</Label>
+                  <Input
+                    id="candidateNumber"
+                    name="candidateNumber"
+                    value={formData.candidateNumber}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("candidateNumber", e.target.value)}
+                    required
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="National ID *"
-                name="nationalId"
-                value={formData.nationalId}
-                onChange={(e) => handleInputChange("nationalId", e.target.value)}
-                required
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="nationalId">National ID *</Label>
+                  <Input
+                    id="nationalId"
+                    name="nationalId"
+                    value={formData.nationalId}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("nationalId", e.target.value)}
+                    required
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="First Name *"
-                name="firstName"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange("firstName", e.target.value)}
-                required
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="firstName">First Name *</Label>
+                  <Input
+                    id="firstName"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("firstName", e.target.value)}
+                    required
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="Middle Name"
-                name="middleName"
-                value={formData.middleName || ""}
-                onChange={(e) => handleInputChange("middleName", e.target.value)}
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="middleName">Middle Name</Label>
+                  <Input
+                    id="middleName"
+                    name="middleName"
+                    value={formData.middleName || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("middleName", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="Last Name *"
-                name="lastName"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange("lastName", e.target.value)}
-                required
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("lastName", e.target.value)}
+                    required
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="Personal Email"
-                name="personalEmail"
-                type="email"
-                value={formData.personalEmail || ""}
-                onChange={(e) => handleInputChange("personalEmail", e.target.value)}
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="personalEmail">Personal Email</Label>
+                  <Input
+                    id="personalEmail"
+                    name="personalEmail"
+                    type="email"
+                    value={formData.personalEmail || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("personalEmail", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="Mobile Phone"
-                name="mobilePhone"
-                value={formData.mobilePhone || ""}
-                onChange={(e) => handleInputChange("mobilePhone", e.target.value)}
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="mobilePhone">Mobile Phone</Label>
+                  <Input
+                    id="mobilePhone"
+                    name="mobilePhone"
+                    value={formData.mobilePhone || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("mobilePhone", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="Date of Birth"
-                name="dateOfBirth"
-                type="date"
-                value={formData.dateOfBirth || ""}
-                onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("dateOfBirth", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <div className="mb-4 w-full">
-                <label className="label">Gender</label>
-                <select
-                  className="input"
-                  value={formData.gender || ""}
-                  onChange={(e) => handleInputChange("gender", e.target.value)}
-                  disabled={saving}
-                >
+                <div>
+                  <Label htmlFor="gender">Gender</Label>
+                  <select
+                    id="gender"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.gender || ""}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("gender", e.target.value)}
+                    disabled={saving}
+                  >
                   <option value="">Select Gender</option>
                   <option value="MALE">Male</option>
                   <option value="FEMALE">Female</option>
                 </select>
               </div>
 
-              <div className="mb-4 w-full">
-                <label className="label">Marital Status</label>
-                <select
-                  className="input"
-                  value={formData.maritalStatus || ""}
-                  onChange={(e) => handleInputChange("maritalStatus", e.target.value)}
-                  disabled={saving}
-                >
+                <div>
+                  <Label htmlFor="maritalStatus">Marital Status</Label>
+                  <select
+                    id="maritalStatus"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.maritalStatus || ""}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("maritalStatus", e.target.value)}
+                    disabled={saving}
+                  >
                   <option value="">Select Status</option>
                   <option value="SINGLE">Single</option>
                   <option value="MARRIED">Married</option>
@@ -273,14 +306,15 @@ export default function CreateCandidatePage() {
                 </select>
               </div>
 
-              <div className="mb-4 w-full">
-                <label className="label">Status</label>
-                <select
-                  className="input"
-                  value={formData.status || "APPLIED"}
-                  onChange={(e) => handleInputChange("status", e.target.value)}
-                  disabled={saving}
-                >
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formData.status || "APPLIED"}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("status", e.target.value)}
+                    disabled={saving}
+                  >
                   <option value="APPLIED">Applied</option>
                   <option value="SCREENING">Screening</option>
                   <option value="INTERVIEW">Interview</option>
@@ -292,24 +326,28 @@ export default function CreateCandidatePage() {
                 </select>
               </div>
 
-              <Input
-                label="Application Date"
-                name="applicationDate"
-                type="date"
-                value={formData.applicationDate || ""}
-                onChange={(e) => handleInputChange("applicationDate", e.target.value)}
-                disabled={saving}
-              />
-
-              {!loadingOrgData && departments.length > 0 && (
-                <div className="mb-4 w-full">
-                  <label className="label">Department</label>
-                  <select
-                    className="input"
-                    value={formData.departmentId || ""}
-                    onChange={(e) => handleInputChange("departmentId", e.target.value)}
+                <div>
+                  <Label htmlFor="applicationDate">Application Date</Label>
+                  <Input
+                    id="applicationDate"
+                    name="applicationDate"
+                    type="date"
+                    value={formData.applicationDate || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("applicationDate", e.target.value)}
                     disabled={saving}
-                  >
+                  />
+                </div>
+
+                {!loadingOrgData && departments.length > 0 && (
+                  <div>
+                    <Label htmlFor="departmentId">Department</Label>
+                    <select
+                      id="departmentId"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={formData.departmentId || ""}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("departmentId", e.target.value)}
+                      disabled={saving}
+                    >
                     <option value="">Select Department</option>
                     {departments.map((dept) => (
                       <option key={dept._id} value={dept._id}>
@@ -320,86 +358,98 @@ export default function CreateCandidatePage() {
                 </div>
               )}
 
-              {!loadingOrgData && positions.length > 0 && (
-                <div className="mb-4 w-full">
-                  <label className="label">Position</label>
-                  <select
-                    className="input"
-                    value={formData.positionId || ""}
-                    onChange={(e) => handleInputChange("positionId", e.target.value)}
+                {!loadingOrgData && positions.length > 0 && (
+                  <div>
+                    <Label htmlFor="positionId">Position</Label>
+                    <select
+                      id="positionId"
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={formData.positionId || ""}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("positionId", e.target.value)}
+                      disabled={saving}
+                    >
+                      <option value="">Select Position</option>
+                      {positions.map((pos) => (
+                        <option key={pos._id} value={pos._id}>
+                          {pos.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="resumeUrl">Resume URL</Label>
+                  <Input
+                    id="resumeUrl"
+                    name="resumeUrl"
+                    type="url"
+                    value={formData.resumeUrl || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("resumeUrl", e.target.value)}
                     disabled={saving}
-                  >
-                    <option value="">Select Position</option>
-                    {positions.map((pos) => (
-                      <option key={pos._id} value={pos._id}>
-                        {pos.title || pos.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
-              )}
 
-              <Input
-                label="Resume URL"
-                name="resumeUrl"
-                type="url"
-                value={formData.resumeUrl || ""}
-                onChange={(e) => handleInputChange("resumeUrl", e.target.value)}
-                disabled={saving}
-              />
+                <div className="md:col-span-2">
+                  <Label htmlFor="streetAddress">Address - Street</Label>
+                  <Input
+                    id="streetAddress"
+                    value={formData.address?.streetAddress || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("streetAddress", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <div className="mb-4 w-full md:col-span-2">
-                <label className="label">Address - Street</label>
-                <input
-                  className="input"
-                  value={formData.address?.streetAddress || ""}
-                  onChange={(e) => handleAddressChange("streetAddress", e.target.value)}
-                  disabled={saving}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    name="city"
+                    value={formData.address?.city || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("city", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="City"
-                name="city"
-                value={formData.address?.city || ""}
-                onChange={(e) => handleAddressChange("city", e.target.value)}
-                disabled={saving}
-              />
+                <div>
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    id="country"
+                    name="country"
+                    value={formData.address?.country || ""}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("country", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-              <Input
-                label="Country"
-                name="country"
-                value={formData.address?.country || ""}
-                onChange={(e) => handleAddressChange("country", e.target.value)}
-                disabled={saving}
-              />
-
-              <div className="mb-4 w-full md:col-span-2">
-                <label className="label">Notes</label>
-                <textarea
-                  className="input"
-                  rows={4}
-                  value={formData.notes || ""}
-                  onChange={(e) => handleInputChange("notes", e.target.value)}
-                  disabled={saving}
-                />
-              </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <textarea
+                    id="notes"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                    rows={4}
+                    value={formData.notes || ""}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange("notes", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
             </div>
 
-            <div className="mt-6 flex gap-4">
-              <Button type="submit" variant="primary" isLoading={saving} disabled={saving}>
-                Create Candidate
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/admin/employee-profile")}
-                disabled={saving}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
+              <div className="mt-6 flex gap-4">
+                <Button type="submit" variant="default" disabled={saving}>
+                  {saving ? "Creating..." : "Create Candidate"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/admin/employee-profile")}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
         </Card>
       </div>
     </div>

@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import RouteGuard from "@/components/RouteGuard";
 import { candidateApi, Candidate } from "@/utils/candidateApi";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
@@ -72,8 +72,10 @@ export default function CandidateDetailPage() {
     return (
       <RouteGuard requiredRoute="/admin/employee-profile" requiredRoles={["Recruiter"]}>
         <div className="min-h-screen flex items-center justify-center bg-background">
-          <Card className="max-w-md">
-            <p className="text-error">You do not have permission to view candidates.</p>
+          <Card>
+            <CardContent>
+              <p className="text-red-600">You do not have permission to view candidates.</p>
+            </CardContent>
           </Card>
         </div>
       </RouteGuard>
@@ -85,12 +87,14 @@ export default function CandidateDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-background via-background-light to-background p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
           <Card>
-            <div className="text-center">
-              <p className="text-error mb-4">{error || "Candidate not found"}</p>
-              <Button onClick={() => router.push("/admin/employee-profile")} variant="outline">
-                Back to Candidates
-              </Button>
-            </div>
+            <CardContent>
+              <div className="text-center">
+                <p className="text-red-600 mb-4">{error || "Candidate not found"}</p>
+                <Button onClick={() => router.push("/admin/employee-profile")} variant="outline">
+                  Back to Candidates
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -113,7 +117,7 @@ export default function CandidateDetailPage() {
             {canEditCandidate && (
               <Button
                 onClick={() => router.push(`/admin/employee-profile/candidates/${candidateId}/edit`)}
-                variant="primary"
+                variant="default"
               >
                 Edit Candidate
               </Button>
@@ -126,8 +130,12 @@ export default function CandidateDetailPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Basic Information */}
-          <Card title="Basic Information">
-            <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
               <div>
                 <label className="text-slate-600 text-sm">Candidate Number</label>
                 <p className="text-slate-900 font-medium">{candidate.candidateNumber || "-"}</p>
@@ -150,12 +158,17 @@ export default function CandidateDetailPage() {
                   </span>
                 </div>
               </div>
-            </div>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Contact Information */}
-          <Card title="Contact Information">
-            <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
               <div>
                 <label className="text-slate-600 text-sm">Personal Email</label>
                 <p className="text-slate-900 font-medium">{candidate.personalEmail || "-"}</p>
@@ -168,12 +181,17 @@ export default function CandidateDetailPage() {
                 <label className="text-slate-600 text-sm">Home Phone</label>
                 <p className="text-slate-900 font-medium">{candidate.homePhone || "-"}</p>
               </div>
-            </div>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Personal Information */}
-          <Card title="Personal Information">
-            <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
               <div>
                 <label className="text-slate-600 text-sm">Date of Birth</label>
                 <p className="text-slate-900 font-medium">
@@ -188,12 +206,17 @@ export default function CandidateDetailPage() {
                 <label className="text-slate-600 text-sm">Marital Status</label>
                 <p className="text-slate-900 font-medium">{candidate.maritalStatus || "-"}</p>
               </div>
-            </div>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Application Information */}
-          <Card title="Application Information">
-            <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Application Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
               <div>
                 <label className="text-slate-600 text-sm">Application Date</label>
                 <p className="text-slate-900 font-medium">
@@ -226,13 +249,18 @@ export default function CandidateDetailPage() {
                   </p>
                 </div>
               )}
-            </div>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Address */}
           {candidate.address && (
-            <Card title="Address" className="md:col-span-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Address</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-slate-600 text-sm">Street Address</label>
                   <p className="text-slate-900 font-medium">{candidate.address.streetAddress || "-"}</p>
@@ -249,14 +277,20 @@ export default function CandidateDetailPage() {
                   <label className="text-slate-600 text-sm">Country</label>
                   <p className="text-slate-900 font-medium">{candidate.address.country || "-"}</p>
                 </div>
-              </div>
+                </div>
+              </CardContent>
             </Card>
           )}
 
           {/* Notes */}
           {candidate.notes && (
-            <Card title="Notes" className="md:col-span-2">
-              <p className="text-slate-900 whitespace-pre-wrap">{candidate.notes}</p>
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Notes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-slate-900 whitespace-pre-wrap">{candidate.notes}</p>
+              </CardContent>
             </Card>
           )}
         </div>
