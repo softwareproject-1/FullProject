@@ -52,6 +52,7 @@ export const roleAccess = {
     routes: [
       '/admin',
       '/admin/employee-profile',
+      '/employee/profile',
       '/admin/employee-profile/change-requests',
       '/admin/organization-structure',
       '/admin/organization-structure/departments',
@@ -68,6 +69,8 @@ export const roleAccess = {
     ],
     features: {
       viewAllEmployees: true,
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: true,
       editEmployee: true,
       deleteEmployee: true,
@@ -98,6 +101,7 @@ export const roleAccess = {
   [SystemRole.HR_ADMIN]: {
     routes: [
       '/admin/employee-profile',
+      '/employee/profile',
       '/admin/employee-profile/change-requests',
       '/performance',
       '/performance/templates',
@@ -111,6 +115,8 @@ export const roleAccess = {
     ],
     features: {
       viewAllEmployees: true,
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: true,
       editEmployee: true,
       deleteEmployee: false,
@@ -142,6 +148,7 @@ export const roleAccess = {
     routes: [
       '/hr-manager',
       '/admin/employee-profile',
+      '/employee/profile',
       '/admin/employee-profile/change-requests',
       '/performance',
       '/performance/templates',
@@ -152,6 +159,8 @@ export const roleAccess = {
     ],
     features: {
       viewAllEmployees: true, // Read-only
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: false,
       editEmployee: false,
       deleteEmployee: false,
@@ -178,6 +187,7 @@ export const roleAccess = {
   [SystemRole.HR_EMPLOYEE]: {
     routes: [
       '/admin/employee-profile',
+      '/employee/profile',
       '/admin/employee-profile/change-requests', // Can process (data entry, not approval)
       '/performance',
       '/performance/templates', // Can view templates
@@ -188,6 +198,8 @@ export const roleAccess = {
     ],
     features: {
       viewAllEmployees: true,
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: false,
       editEmployee: false, // Cannot edit directly - must use change requests
       deleteEmployee: false,
@@ -222,6 +234,7 @@ export const roleAccess = {
   [SystemRole.DEPARTMENT_HEAD]: {
     routes: [
       '/admin/employee-profile', // View own profile and team members (non-sensitive)
+      '/employee/profile',
       '/performance',
       '/performance/cycles',
       '/performance/cycles/*/evaluate',
@@ -234,6 +247,7 @@ export const roleAccess = {
       viewAllEmployees: false,
       viewTeamEmployees: true,
       viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: false,
       editEmployee: false,
       deleteEmployee: false,
@@ -266,6 +280,7 @@ export const roleAccess = {
       '/performance/my-performance', // View own performance
       '/performance/disputes', // Can submit disputes
       '/admin/employee-profile', // Can view own profile
+      '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View basic organizational structure (own position and department)
       '/time-management',
       '/leaves',
@@ -304,13 +319,16 @@ export const roleAccess = {
   [SystemRole.PAYROLL_MANAGER]: {
     routes: [
       '/admin/employee-profile', // Payroll fields only
-      '/admin/organization-structure', // View organizational structure (for payroll calculations)
+      '/admin/employee-profile/[id]/edit', // Can edit employee payroll data
+      '/employee/profile', // Self-service profile editing
       '/payroll',
     ],
     features: {
       viewAllEmployees: true, // Payroll fields only
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: false,
-      editEmployee: false, // Payroll data only
+      editEmployee: true, // Can edit payroll data only (restricted in UI)
       deleteEmployee: false,
       assignRoles: false,
       manageChangeRequests: false,
@@ -321,14 +339,14 @@ export const roleAccess = {
       createPositions: false,
       editPositions: false,
       deletePositions: false,
-      viewOrganizationalCharts: true, // Read-only for payroll calculations
+      viewOrganizationalCharts: false, // Cannot manage organizational structure
       createAppraisalTemplates: false,
       manageAppraisalCycles: false,
       viewAllPerformance: false,
       resolveDisputes: false,
       archiveEmployees: false,
       viewPayroll: true,
-      editPayroll: true,
+      editPayroll: true, // Can edit payroll data
       manageRecruitment: false,
     },
     defaultRoute: '/',
@@ -338,11 +356,13 @@ export const roleAccess = {
   [SystemRole.PAYROLL_SPECIALIST]: {
     routes: [
       '/admin/employee-profile', // Read-only payroll fields
-      '/admin/organization-structure', // View organizational structure (for payroll context)
-      '/payroll',
+      '/employee/profile', // Self-service profile editing
+      '/payroll', // View-only payroll access
     ],
     features: {
       viewAllEmployees: true, // Payroll fields only
+      viewOwnProfile: true, // Can view own profile
+      editOwnProfile: true, // Can edit own profile (limited fields)
       createEmployee: false,
       editEmployee: false,
       deleteEmployee: false,
@@ -355,7 +375,7 @@ export const roleAccess = {
       createPositions: false,
       editPositions: false,
       deletePositions: false,
-      viewOrganizationalCharts: true, // Read-only for payroll context
+      viewOrganizationalCharts: false,
       createAppraisalTemplates: false,
       manageAppraisalCycles: false,
       viewAllPerformance: false,
@@ -365,19 +385,22 @@ export const roleAccess = {
       editPayroll: false, // Read-only
       manageRecruitment: false,
     },
-    defaultRoute: '/',
+    defaultRoute: '/admin/employee-profile',
   },
 
   // Recruiter - Medium recruitment access
   [SystemRole.RECRUITER]: {
     routes: [
       '/admin/employee-profile', // Candidates only
+      '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View organizational structure (to understand open positions)
       '/recruiter', // Recruiter dashboard
       '/recruitment',
     ],
     features: {
       viewAllEmployees: false,
+      viewOwnProfile: true,
+      editOwnProfile: true,
       viewCandidates: true,
       createCandidate: true,
       editCandidate: true,
@@ -407,10 +430,13 @@ export const roleAccess = {
   [SystemRole.LEGAL_POLICY_ADMIN]: {
     routes: [
       '/admin/employee-profile', // Read-only for compliance
+      '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View organizational structure (for compliance)
     ],
     features: {
       viewAllEmployees: true, // Compliance data only
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: false,
       editEmployee: false,
       deleteEmployee: false,
@@ -439,11 +465,14 @@ export const roleAccess = {
   [SystemRole.FINANCE_STAFF]: {
     routes: [
       '/admin/employee-profile', // Read-only finance fields
+      '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View organizational structure (for budget planning)
       '/payroll', // Read-only payroll view
     ],
     features: {
       viewAllEmployees: true, // Finance fields only
+      viewOwnProfile: true,
+      editOwnProfile: true,
       createEmployee: false,
       editEmployee: false,
       deleteEmployee: false,

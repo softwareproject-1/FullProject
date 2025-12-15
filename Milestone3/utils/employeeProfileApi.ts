@@ -217,3 +217,15 @@ export const updateEmployeeSystemRoles = async (
   return response.data;
 };
 
+// Update own employee profile (limited fields)
+export const updateMyEmployeeProfile = async (data: {
+  personalEmail?: string;
+  mobilePhone?: string;
+  homePhone?: string;
+  gender?: 'MALE' | 'FEMALE';
+  maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED';
+}) => {
+  const response = await axiosInstance.patch(`/employee-profile/me`, data);
+  return response.data;
+};
+

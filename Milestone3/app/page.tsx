@@ -19,7 +19,7 @@ interface MetricCardProps {
   icon: React.ReactNode;
   iconBgColor: string;
   iconColor: string;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
   clickable?: boolean;
 }
 
@@ -105,6 +105,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && !user) {
       router.replace("/auth/login");
+    }
+    // Redirect Job Candidates to their portal
+    if (!loading && user && hasRole(user.roles, SystemRole.JOB_CANDIDATE)) {
+      router.replace("/candidate");
     }
   }, [user, loading, router]);
 
@@ -348,10 +352,12 @@ export default function Dashboard() {
     e.stopPropagation();
     console.log('Employees clicked, canAccess:', canAccessEmployees, 'User roles:', user.roles);
     if (canAccessEmployees) {
-      if (isDepartmentEmployee && user?._id) {
-        // Department employees should go to their own profile page
-        console.log('Navigating to own profile:', `/admin/employee-profile/${user._id}`);
-        router.push(`/admin/employee-profile/${user._id}`);
+      // Check if user can view all employees (admin) or just their own
+      const canViewAll = hasFeature(user.roles, "viewAllEmployees");
+      if (!canViewAll && user?._id) {
+        // Non-admin employees should go to self-service profile page
+        console.log('Navigating to self-service profile:', `/employee/profile`);
+        router.push(`/employee/profile`);
       } else {
         console.log('Navigating to /admin/employee-profile');
         router.push('/admin/employee-profile');

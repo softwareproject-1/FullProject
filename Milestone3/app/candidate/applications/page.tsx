@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import RouteGuard from "@/components/RouteGuard";
 import { candidateApi, Candidate } from "@/utils/candidateApi";
 import { canAccessRoute, hasRole, SystemRole } from "@/utils/roleAccess";
@@ -138,18 +138,24 @@ export default function CandidateApplicationsPage() {
 
             {error && (
               <Card>
-                <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400">
-                  <p className="font-semibold mb-2">⚠️ {error}</p>
-                  <p className="text-sm">
-                    To access your application information, please contact HR or use the link provided in your application email.
-                  </p>
-                </div>
+                <CardContent>
+                  <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400">
+                    <p className="font-semibold mb-2">⚠️ {error}</p>
+                    <p className="text-sm">
+                      To access your application information, please contact HR or use the link provided in your application email.
+                    </p>
+                  </div>
+                </CardContent>
               </Card>
             )}
 
             {!error && candidate && (
-              <Card title="Application Details">
-                <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Application Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
                   <div className="p-4 bg-background rounded-lg border border-border">
                     <div className="flex items-center justify-between mb-4">
                       <div>
@@ -221,13 +227,15 @@ export default function CandidateApplicationsPage() {
                       <p><span className="font-medium">HIRED:</span> You've been hired and converted to an employee</p>
                     </div>
                   </div>
-                </div>
+                  </div>
+                </CardContent>
               </Card>
             )}
 
             {!error && !candidate && (
               <Card>
-                <div className="text-center py-8">
+                <CardContent>
+                  <div className="text-center py-8">
                   <p className="text-text-muted mb-4">
                     No application information found. Please contact HR to set up your candidate profile.
                   </p>
@@ -237,7 +245,8 @@ export default function CandidateApplicationsPage() {
                   >
                     Back to Dashboard
                   </Button>
-                </div>
+                  </div>
+                </CardContent>
               </Card>
             )}
           </div>

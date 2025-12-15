@@ -29,6 +29,7 @@ export default function EmployeeProfileEditPage() {
   const canEditEmployee = user ? hasFeature(user.roles, "editEmployee") : false;
   const canAccess = user ? canAccessRoute(user.roles, "/admin/employee-profile") : false;
   const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
+  const isPayrollManager = user ? hasRole(user.roles, SystemRole.PAYROLL_MANAGER) : false;
   
   // Password reset state
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
@@ -40,11 +41,14 @@ export default function EmployeeProfileEditPage() {
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user && canEditEmployee && canAccess && employeeId) {
+    if (!authLoading && user && (canEditEmployee || isPayrollManager) && canAccess && employeeId) {
       fetchEmployee();
-      loadOrganizationalData();
+      // Only load organizational data if not a Payroll Manager
+      if (!isPayrollManager) {
+        loadOrganizationalData();
+      }
     }
-  }, [employeeId, user, authLoading, canEditEmployee, canAccess]);
+  }, [employeeId, user, authLoading, canEditEmployee, canAccess, isPayrollManager]);
 
   const loadOrganizationalData = async () => {
     try {
@@ -173,6 +177,50 @@ export default function EmployeeProfileEditPage() {
       setSaving(true);
       setError(null);
       
+      // For Payroll Managers, only allow payroll-related fields
+      if (isPayrollManager) {
+        // Filter out MongoDB internal fields
+        const { _id, __v, createdAt, updatedAt, ...allData } = formData as any;
+        
+        // Only allow payroll-related fields (Contract Type, Work Type, Contract Dates are view-only)
+        const allowedPayrollFields = [
+          'bankName',
+          'bankAccountNumber',
+          'payGradeId'
+        ];
+        
+        const updateData: any = {};
+        for (const field of allowedPayrollFields) {
+          if (allData[field] !== undefined) {
+            updateData[field] = allData[field];
+          }
+        }
+        
+        // Handle payGradeId if it's an object
+        if (updateData.payGradeId && typeof updateData.payGradeId === 'object' && '_id' in updateData.payGradeId) {
+          updateData.payGradeId = String((updateData.payGradeId as any)._id || updateData.payGradeId);
+        }
+        
+        // Only send payGradeId in orgLinks if it exists
+        let orgLinks: any = undefined;
+        if (updateData.payGradeId) {
+          const payId = String(updateData.payGradeId).trim();
+          if (payId && payId !== '') {
+            orgLinks = { payGradeId: payId };
+            delete updateData.payGradeId; // Remove from updateData since it goes in orgLinks
+          }
+        }
+        
+        const finalUpdateData = orgLinks ? { ...updateData, orgLinks } : updateData;
+        
+        console.log("Payroll Manager - Sending update data:", finalUpdateData);
+        
+        await updateEmployeeProfile(employeeId, finalUpdateData);
+        router.push(`/admin/employee-profile/${employeeId}`);
+        return;
+      }
+      
+      // For System Admin and HR Admin - full edit access
       // Extract organizational IDs before filtering
       const primaryPositionId = formData.primaryPositionId;
       const primaryDepartmentId = formData.primaryDepartmentId;
@@ -201,13 +249,17 @@ export default function EmployeeProfileEditPage() {
       
       // Build orgLinks object - primaryDepartmentId and primaryPositionId are mandatory
       // Ensure we convert to strings and handle empty strings properly
-      const deptId = typeof primaryDepartmentId === 'object' 
-        ? String(primaryDepartmentId._id || primaryDepartmentId)
-        : String(primaryDepartmentId).trim();
+      const deptId = primaryDepartmentId && typeof primaryDepartmentId === 'object' && '_id' in primaryDepartmentId
+        ? String((primaryDepartmentId as any)._id || primaryDepartmentId)
+        : primaryDepartmentId
+        ? String(primaryDepartmentId).trim()
+        : '';
       
-      const posId = typeof primaryPositionId === 'object' 
-        ? String(primaryPositionId._id || primaryPositionId)
-        : String(primaryPositionId).trim();
+      const posId = primaryPositionId && typeof primaryPositionId === 'object' && '_id' in primaryPositionId
+        ? String((primaryPositionId as any)._id || primaryPositionId)
+        : primaryPositionId
+        ? String(primaryPositionId).trim()
+        : '';
       
       if (!deptId || deptId === '') {
         setError("Primary Department is required");
@@ -227,16 +279,16 @@ export default function EmployeeProfileEditPage() {
       
       // Optional fields - only include if they have values
       if (supervisorPositionId) {
-        const supId = typeof supervisorPositionId === 'object' 
-          ? String(supervisorPositionId._id || supervisorPositionId)
+        const supId = typeof supervisorPositionId === 'object' && supervisorPositionId && '_id' in supervisorPositionId
+          ? String((supervisorPositionId as any)._id || supervisorPositionId)
           : String(supervisorPositionId).trim();
         if (supId && supId !== '') {
           orgLinks.supervisorPositionId = supId;
         }
       }
       if (payGradeId) {
-        const payId = typeof payGradeId === 'object' 
-          ? String(payGradeId._id || payGradeId)
+        const payId = typeof payGradeId === 'object' && payGradeId && '_id' in payGradeId
+          ? String((payGradeId as any)._id || payGradeId)
           : String(payGradeId).trim();
         if (payId && payId !== '') {
           orgLinks.payGradeId = payId;
@@ -277,9 +329,9 @@ export default function EmployeeProfileEditPage() {
     );
   }
 
-  if (!user || !canEditEmployee || !canAccess) {
+  if (!user || (!canEditEmployee && !isPayrollManager) || !canAccess) {
     return (
-      <RouteGuard requiredRoute="/admin/employee-profile" requiredRoles={["System Admin", "HR Admin"]}>
+      <RouteGuard requiredRoute="/admin/employee-profile" requiredRoles={["System Admin", "HR Admin", "Payroll Manager"]}>
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8">
           <Card className="max-w-md w-full text-center bg-white">
             <CardHeader>
@@ -300,7 +352,7 @@ export default function EmployeeProfileEditPage() {
   }
 
   return (
-    <RouteGuard requiredRoute="/admin/employee-profile" requiredRoles={["System Admin", "HR Admin"]}>
+    <RouteGuard requiredRoute="/admin/employee-profile" requiredRoles={["System Admin", "HR Admin", "Payroll Manager"]}>
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -312,6 +364,8 @@ export default function EmployeeProfileEditPage() {
             <p className="text-slate-600 text-base md:text-lg">
               {user && hasRole(user.roles, SystemRole.SYSTEM_ADMIN) 
                 ? "Update/override profile data - System Administrator"
+                : isPayrollManager
+                ? "Update employee payroll data - Payroll Manager"
                 : "Update employee profile data - HR Admin"}
             </p>
           </div>
@@ -351,8 +405,104 @@ export default function EmployeeProfileEditPage() {
         {/* Edit Form */}
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Basic Information */}
-            <Card className="bg-white">
+            {/* Payroll Fields for Payroll Manager */}
+            {isPayrollManager ? (
+              <>
+                {/* Banking Information */}
+                <Card className="bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-slate-900">Banking Information</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="bankName">Bank Name</Label>
+                        <Input
+                          id="bankName"
+                          value={formData.bankName || ""}
+                          onChange={(e) => handleInputChange("bankName", e.target.value)}
+                          placeholder="Enter bank name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
+                        <Input
+                          id="bankAccountNumber"
+                          value={formData.bankAccountNumber || ""}
+                          onChange={(e) => handleInputChange("bankAccountNumber", e.target.value)}
+                          placeholder="Enter bank account number"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Employment Information - Payroll Fields Only */}
+                <Card className="bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-slate-900">Employment & Payroll Information</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* View-only fields */}
+                      <div className="space-y-2">
+                        <Label htmlFor="contractType">Contract Type (View Only)</Label>
+                        <Input
+                          id="contractType"
+                          value={formData.contractType || "-"}
+                          disabled
+                          className="bg-slate-100 cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="workType">Work Type (View Only)</Label>
+                        <Input
+                          id="workType"
+                          value={formData.workType || "-"}
+                          disabled
+                          className="bg-slate-100 cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contractStartDate">Contract Start Date (View Only)</Label>
+                        <Input
+                          id="contractStartDate"
+                          type="date"
+                          value={formData.contractStartDate ? new Date(formData.contractStartDate).toISOString().split('T')[0] : ""}
+                          disabled
+                          className="bg-slate-100 cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contractEndDate">Contract End Date (View Only)</Label>
+                        <Input
+                          id="contractEndDate"
+                          type="date"
+                          value={formData.contractEndDate ? new Date(formData.contractEndDate).toISOString().split('T')[0] : ""}
+                          disabled
+                          className="bg-slate-100 cursor-not-allowed"
+                        />
+                      </div>
+                      {/* Editable field */}
+                      <div className="space-y-2">
+                        <Label htmlFor="payGradeId">Pay Grade ID</Label>
+                        <Input
+                          id="payGradeId"
+                          value={formData.payGradeId && typeof formData.payGradeId === 'object' && '_id' in formData.payGradeId
+                            ? String((formData.payGradeId as any)._id || formData.payGradeId)
+                            : String(formData.payGradeId || "")}
+                          onChange={(e) => handleInputChange("payGradeId", e.target.value || undefined)}
+                          placeholder="Enter Pay Grade ID"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <>
+                {/* Basic Information */}
+                <Card className="bg-white">
               <CardHeader>
                 <CardTitle className="text-slate-900">Basic Information</CardTitle>
               </CardHeader>
@@ -671,8 +821,8 @@ export default function EmployeeProfileEditPage() {
                         <select
                           id="primaryDepartmentId"
                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={typeof formData.primaryDepartmentId === 'object' 
-                            ? String(formData.primaryDepartmentId._id || formData.primaryDepartmentId)
+                          value={formData.primaryDepartmentId && typeof formData.primaryDepartmentId === 'object' && '_id' in formData.primaryDepartmentId
+                            ? String((formData.primaryDepartmentId as any)._id || formData.primaryDepartmentId)
                             : String(formData.primaryDepartmentId || "")}
                           onChange={(e) => handleInputChange("primaryDepartmentId", e.target.value || undefined)}
                           required
@@ -703,8 +853,8 @@ export default function EmployeeProfileEditPage() {
                         <select
                           id="primaryPositionId"
                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={typeof formData.primaryPositionId === 'object' 
-                            ? String(formData.primaryPositionId._id || formData.primaryPositionId)
+                          value={formData.primaryPositionId && typeof formData.primaryPositionId === 'object' && '_id' in formData.primaryPositionId
+                            ? String((formData.primaryPositionId as any)._id || formData.primaryPositionId)
                             : String(formData.primaryPositionId || "")}
                           onChange={(e) => handleInputChange("primaryPositionId", e.target.value || undefined)}
                           required
@@ -733,8 +883,8 @@ export default function EmployeeProfileEditPage() {
                         <select
                           id="supervisorPositionId"
                           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={typeof formData.supervisorPositionId === 'object' 
-                            ? String(formData.supervisorPositionId._id || formData.supervisorPositionId)
+                          value={formData.supervisorPositionId && typeof formData.supervisorPositionId === 'object' && '_id' in formData.supervisorPositionId
+                            ? String((formData.supervisorPositionId as any)._id || formData.supervisorPositionId)
                             : String(formData.supervisorPositionId || "")}
                           onChange={(e) => handleInputChange("supervisorPositionId", e.target.value || undefined)}
                           disabled={loadingOrgData}
@@ -758,8 +908,8 @@ export default function EmployeeProfileEditPage() {
                         <Label htmlFor="payGradeId">Pay Grade ID</Label>
                         <Input
                           id="payGradeId"
-                          value={typeof formData.payGradeId === 'object' 
-                            ? String(formData.payGradeId._id || formData.payGradeId)
+                          value={formData.payGradeId && typeof formData.payGradeId === 'object' && '_id' in formData.payGradeId
+                            ? String((formData.payGradeId as any)._id || formData.payGradeId)
                             : String(formData.payGradeId || "")}
                           onChange={(e) => handleInputChange("payGradeId", e.target.value || undefined)}
                           placeholder="Enter Pay Grade ID"
@@ -770,6 +920,8 @@ export default function EmployeeProfileEditPage() {
                 </div>
               </CardContent>
             </Card>
+              </>
+            )}
           </div>
 
           {/* Submit Button */}

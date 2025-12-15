@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '../../components/Card';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -8,11 +8,29 @@ import { Modal } from '../../components/Modal';
 import { DollarSign, Settings, PlayCircle, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { mockPayGrades, mockTaxRules, mockPayrollRuns, mockPayslips } from '../../lib/api';
 import type { Payslip, PayrollRun } from '../../lib/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole, hasFeature } from '@/utils/roleAccess';
+import RouteGuard from '@/components/RouteGuard';
 
 export default function Payroll() {
+  const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState<'config' | 'run' | 'payslips'>('config');
   const [wizardStep, setWizardStep] = useState<'draft' | 'validate' | 'approve'>('draft');
   const [selectedPayroll, setSelectedPayroll] = useState<PayrollRun | null>(mockPayrollRuns[1]); // Draft payroll
+  
+  // Check if user is Payroll Specialist or Finance Staff (view-only)
+  const isPayrollSpecialist = user ? hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST) : false;
+  const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
+  const isViewOnly = isPayrollSpecialist || isFinanceStaff;
+  const canEditPayroll = user ? hasFeature(user.roles, "editPayroll") : false;
+  
+  // Restrict view-only users (Payroll Specialists and Finance Staff) to view-only views
+  useEffect(() => {
+    if (isViewOnly && currentView === 'run') {
+      // Redirect to config view if they somehow get to run view
+      setCurrentView('config');
+    }
+  }, [isViewOnly, currentView]);
 
   const payslipsForRun = selectedPayroll 
     ? mockPayslips.filter((slip) => slip.payrollRunId === selectedPayroll.id)
@@ -83,49 +101,56 @@ export default function Payroll() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-slate-900 mb-2">Payroll Management</h1>
-          <p className="text-slate-600">Configure, process, and manage payroll</p>
+    <RouteGuard requiredRoute="/payroll" requiredRoles={["Payroll Manager", "Payroll Specialist", "Finance Staff"]}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-slate-900 mb-2">Payroll Management</h1>
+            <p className="text-slate-600">
+              {isViewOnly 
+                ? "View payroll information (Read-only)" 
+                : "Configure, process, and manage payroll"}
+            </p>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentView('config')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                currentView === 'config'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Settings className="w-4 h-4 inline mr-2" />
+              Configuration
+            </button>
+            {!isViewOnly && (
+              <button
+                onClick={() => setCurrentView('run')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'run'
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <PlayCircle className="w-4 h-4 inline mr-2" />
+                Run Payroll
+              </button>
+            )}
+            <button
+              onClick={() => setCurrentView('payslips')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                currentView === 'payslips'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Download className="w-4 h-4 inline mr-2" />
+              My Payslips
+            </button>
+          </div>
         </div>
-        
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCurrentView('config')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentView === 'config'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            <Settings className="w-4 h-4 inline mr-2" />
-            Configuration
-          </button>
-          <button
-            onClick={() => setCurrentView('run')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentView === 'run'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            <PlayCircle className="w-4 h-4 inline mr-2" />
-            Run Payroll
-          </button>
-          <button
-            onClick={() => setCurrentView('payslips')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentView === 'payslips'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            <Download className="w-4 h-4 inline mr-2" />
-            My Payslips
-          </button>
-        </div>
-      </div>
 
       {currentView === 'config' && (
         <div className="space-y-6">
@@ -229,12 +254,14 @@ export default function Payroll() {
             <Card
               title={`Draft Payroll - ${selectedPayroll?.month} ${selectedPayroll?.year}`}
               action={
-                <button
-                  onClick={() => setWizardStep('validate')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Proceed to Validation
-                </button>
+                !isViewOnly && (
+                  <button
+                    onClick={() => setWizardStep('validate')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Proceed to Validation
+                  </button>
+                )
               }
             >
               <div className="grid grid-cols-4 gap-4 mb-6">
@@ -300,25 +327,27 @@ export default function Payroll() {
                 <DataTable data={payslipsForRun} columns={payslipColumns} />
               </Card>
 
-              <div className="flex justify-between">
-                <button
-                  onClick={() => setWizardStep('draft')}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Back to Draft
-                </button>
-                <button
-                  onClick={() => setWizardStep('approve')}
-                  disabled={payslipsWithErrors.length > 0}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    payslipsWithErrors.length > 0
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  Proceed to Approval
-                </button>
-              </div>
+              {!isViewOnly && (
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => setWizardStep('draft')}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    Back to Draft
+                  </button>
+                  <button
+                    onClick={() => setWizardStep('approve')}
+                    disabled={payslipsWithErrors.length > 0}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      payslipsWithErrors.length > 0
+                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    Proceed to Approval
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -357,21 +386,23 @@ export default function Payroll() {
                 <DataTable data={payslipsForRun} columns={payslipColumns} />
               </Card>
 
-              <div className="flex justify-between">
-                <button
-                  onClick={() => setWizardStep('validate')}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                >
-                  Back to Validation
-                </button>
-                <button
-                  onClick={handleApprovePayroll}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                >
-                  <CheckCircle2 className="w-5 h-5" />
-                  Freeze & Pay
-                </button>
-              </div>
+              {!isViewOnly && (
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => setWizardStep('validate')}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    Back to Validation
+                  </button>
+                  <button
+                    onClick={handleApprovePayroll}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    Freeze & Pay
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -393,6 +424,7 @@ export default function Payroll() {
           />
         </Card>
       )}
-    </div>
+      </div>
+    </RouteGuard>
   );
 }

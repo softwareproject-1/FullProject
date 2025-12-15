@@ -47,6 +47,8 @@ export default function EmployeeProfileDetailPage() {
   const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
   const isLegalPolicyAdmin = user ? hasRole(user.roles, SystemRole.LEGAL_POLICY_ADMIN) : false;
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isPayrollManager = user ? hasRole(user.roles, SystemRole.PAYROLL_MANAGER) : false;
+  const isPayrollSpecialist = user ? hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST) : false;
   
   // Check if user is viewing their own profile
   const isViewingOwnProfile = user && employeeId && String(user._id) === String(employeeId);
@@ -54,12 +56,21 @@ export default function EmployeeProfileDetailPage() {
   // Department employees can only view their own profile
   const canViewThisProfile = canViewAllEmployees || (canViewOwnProfile && isViewingOwnProfile);
 
+  // Redirect non-admin employees viewing their own profile to the self-service page
+  useEffect(() => {
+    if (!authLoading && user && employeeId && isViewingOwnProfile && !canViewAllEmployees) {
+      // Redirect to self-service profile page (better UX, no "admin" in URL)
+      router.replace(`/employee/profile`);
+      return;
+    }
+  }, [authLoading, user, employeeId, isViewingOwnProfile, canViewAllEmployees, router]);
+
   // Redirect department employees if they try to view someone else's profile
   useEffect(() => {
     if (!authLoading && user && employeeId && isDepartmentEmployee && !canViewAllEmployees) {
       if (!isViewingOwnProfile && user._id) {
-        // Redirect to their own profile
-        router.replace(`/admin/employee-profile/${user._id}`);
+        // Redirect to their own profile (self-service page)
+        router.replace(`/employee/profile`);
         return;
       }
     }
@@ -419,6 +430,10 @@ export default function EmployeeProfileDetailPage() {
                         ? "Finance view - Read-only finance fields"
                         : isLegalPolicyAdmin
                         ? "Compliance view - Read-only for compliance"
+                        : isPayrollManager
+                        ? "Payroll view - Payroll Manager (can edit payroll data)"
+                        : isPayrollSpecialist
+                        ? "Payroll view - Read-only payroll fields"
                         : "Employee Profile View"}
                     </p>
                   </div>
@@ -437,6 +452,24 @@ export default function EmployeeProfileDetailPage() {
                     >
                       {isDepartmentEmployee && !canViewAllEmployees ? "Back to Dashboard" : "Back to List"}
                     </Button>
+                    {/* Edit My Profile Button - For all employees viewing their own profile */}
+                    {isViewingOwnProfile && (
+                      <Button
+                        onClick={() => router.push("/employee/profile")}
+                        variant="default"
+                      >
+                        Edit My Profile
+                      </Button>
+                    )}
+                    {/* Edit Payroll Data Button - Payroll Manager can edit payroll data */}
+                    {isPayrollManager && (
+                      <Button
+                        onClick={() => router.push(`/admin/employee-profile/${employeeId}/edit`)}
+                        variant="default"
+                      >
+                        Edit Payroll Data
+                      </Button>
+                    )}
                     {/* Edit Profile Button - System Admin and HR Admin can edit */}
                     {canEditEmployee && (isSystemAdmin || isHRAdmin) && (
                       <Button
@@ -477,8 +510,230 @@ export default function EmployeeProfileDetailPage() {
 
         {/* Employee Information */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Legal & Policy Admin sees only compliance-related fields */}
-          {isLegalPolicyAdmin ? (
+          {/* Payroll Manager sees only payroll-related fields (can edit) */}
+          {isPayrollManager ? (
+            <>
+              {/* Payroll Information */}
+              <Card className="bg-white">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Payroll Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-600 text-sm">Employee Number</label>
+                      <p className="text-slate-900 font-medium">{employee.employeeNumber}</p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Status</label>
+                      <div className="mt-1">
+                        <span className={`px-3 py-1 rounded text-sm font-medium border ${getStatusBadgeClass(employee.status)}`}>
+                          {employee.status}
+                        </span>
+                      </div>
+                    </div>
+                    {employee.statusEffectiveFrom && (
+                      <div>
+                        <label className="text-slate-600 text-sm">Status Effective From</label>
+                        <p className="text-slate-900 font-medium">
+                          {new Date(employee.statusEffectiveFrom).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-slate-600 text-sm">Date of Hire</label>
+                      <p className="text-slate-900 font-medium">
+                        {employee.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Contract Type</label>
+                      <p className="text-slate-900 font-medium">{employee.contractType || "-"}</p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Work Type</label>
+                      <p className="text-slate-900 font-medium">{employee.workType || "-"}</p>
+                    </div>
+                    {employee.contractStartDate && (
+                      <div>
+                        <label className="text-slate-600 text-sm">Contract Start Date</label>
+                        <p className="text-slate-900 font-medium">
+                          {new Date(employee.contractStartDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    {employee.contractEndDate && (
+                      <div>
+                        <label className="text-slate-600 text-sm">Contract End Date</label>
+                        <p className="text-slate-900 font-medium">
+                          {new Date(employee.contractEndDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Banking Information */}
+              <Card className="bg-white">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Banking Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-600 text-sm">Bank Name</label>
+                      <p className="text-slate-900 font-medium">{employee.bankName || "-"}</p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Bank Account Number</label>
+                      <p className="text-slate-900 font-medium">{employee.bankAccountNumber || "-"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Pay Grade Information */}
+              <Card className="bg-white">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Pay Grade Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-600 text-sm">Pay Grade ID</label>
+                      <p className="text-slate-900 font-medium">
+                        {employee.payGradeId 
+                          ? (typeof employee.payGradeId === 'object' && employee.payGradeId !== null
+                              ? String((employee.payGradeId as any)._id || employee.payGradeId)
+                              : String(employee.payGradeId))
+                          : "-"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : isPayrollSpecialist ? (
+            <>
+              {/* Payroll Information */}
+              <Card className="bg-white">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Payroll Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-600 text-sm">Employee Number</label>
+                      <p className="text-slate-900 font-medium">{employee.employeeNumber}</p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Status</label>
+                      <div className="mt-1">
+                        <span className={`px-3 py-1 rounded text-sm font-medium border ${getStatusBadgeClass(employee.status)}`}>
+                          {employee.status}
+                        </span>
+                      </div>
+                    </div>
+                    {employee.statusEffectiveFrom && (
+                      <div>
+                        <label className="text-slate-600 text-sm">Status Effective From</label>
+                        <p className="text-slate-900 font-medium">
+                          {new Date(employee.statusEffectiveFrom).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-slate-600 text-sm">Date of Hire</label>
+                      <p className="text-slate-900 font-medium">
+                        {employee.dateOfHire ? new Date(employee.dateOfHire).toLocaleDateString() : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Contract Type</label>
+                      <p className="text-slate-900 font-medium">{employee.contractType || "-"}</p>
+                    </div>
+                    {employee.contractStartDate && (
+                      <div>
+                        <label className="text-slate-600 text-sm">Contract Start Date</label>
+                        <p className="text-slate-900 font-medium">
+                          {new Date(employee.contractStartDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                    {employee.contractEndDate && (
+                      <div>
+                        <label className="text-slate-600 text-sm">Contract End Date</label>
+                        <p className="text-slate-900 font-medium">
+                          {new Date(employee.contractEndDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Banking Information */}
+              <Card className="bg-white">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Banking Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-600 text-sm">Bank Name</label>
+                      <p className="text-slate-900 font-medium">{employee.bankName || "-"}</p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Bank Account Number</label>
+                      <p className="text-slate-900 font-medium">{employee.bankAccountNumber || "-"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Organizational Structure (for payroll context) */}
+              <Card className="bg-white">
+                <CardHeader>
+                  <CardTitle className="text-slate-900">Organizational Structure</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-slate-600 text-sm">Primary Position</label>
+                      <p className="text-slate-900 font-medium">
+                        {employee.primaryPositionId 
+                          ? (typeof employee.primaryPositionId === 'object' && employee.primaryPositionId !== null
+                              ? `${(employee.primaryPositionId as any).title || (employee.primaryPositionId as any).name || 'N/A'} (${String((employee.primaryPositionId as any)._id || employee.primaryPositionId)})`
+                              : String(employee.primaryPositionId))
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Primary Department</label>
+                      <p className="text-slate-900 font-medium">
+                        {employee.primaryDepartmentId 
+                          ? (typeof employee.primaryDepartmentId === 'object' && employee.primaryDepartmentId !== null
+                              ? `${(employee.primaryDepartmentId as any).name || 'N/A'} (${String((employee.primaryDepartmentId as any)._id || employee.primaryDepartmentId)})`
+                              : String(employee.primaryDepartmentId))
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 text-sm">Pay Grade ID</label>
+                      <p className="text-slate-900 font-medium">
+                        {employee.payGradeId 
+                          ? (typeof employee.payGradeId === 'object' && employee.payGradeId !== null
+                              ? String((employee.payGradeId as any)._id || employee.payGradeId)
+                              : String(employee.payGradeId))
+                          : "-"}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : isLegalPolicyAdmin ? (
             <>
               {/* Compliance Information */}
               <Card className="bg-white">
@@ -1153,24 +1408,30 @@ export default function EmployeeProfileDetailPage() {
               </div>
 
               <div className="space-y-4">
-                <Input
-                  label="New Password"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password (min 8 characters)"
-                  required
-                  disabled={resettingPassword}
-                />
-                <Input
-                  label="Confirm Password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  required
-                  disabled={resettingPassword}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password (min 8 characters)"
+                    required
+                    disabled={resettingPassword}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    required
+                    disabled={resettingPassword}
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -1206,7 +1467,6 @@ export default function EmployeeProfileDetailPage() {
                   onClick={handleResetPassword}
                   variant="default"
                   disabled={resettingPassword || !newPassword || !confirmPassword}
-                  isLoading={resettingPassword}
                 >
                   {resettingPassword ? "Resetting..." : "Reset Password"}
                 </Button>

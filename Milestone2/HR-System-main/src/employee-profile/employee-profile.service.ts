@@ -150,6 +150,42 @@ export class EmployeeProfileService {
     return updatedProfile.toObject();
   }
 
+  async updateMyProfile(
+    profileId: string,
+    updateDto: {
+      personalEmail?: string;
+      mobilePhone?: string;
+      homePhone?: string;
+      gender?: string;
+      maritalStatus?: string;
+    },
+  ) {
+    const profile = await this.employeeProfileModel.findById(profileId);
+    if (!profile) {
+      throw new NotFoundException('Employee profile not found.');
+    }
+
+    // Only allow updating specific fields
+    const allowedFields = {
+      personalEmail: updateDto.personalEmail,
+      mobilePhone: updateDto.mobilePhone,
+      homePhone: updateDto.homePhone,
+      gender: updateDto.gender,
+      maritalStatus: updateDto.maritalStatus,
+    };
+
+    // Remove undefined fields
+    const fieldsToUpdate = this.removeUndefined(allowedFields);
+
+    if (Object.keys(fieldsToUpdate).length === 0) {
+      throw new BadRequestException('No valid fields to update.');
+    }
+
+    profile.set(fieldsToUpdate);
+    const updatedProfile = await profile.save();
+    return updatedProfile.toObject();
+  }
+
   private async ensureUniqueIdentifiers(
     createDto: CreateEmployeeProfileDto,
   ): Promise<void> {

@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import RouteGuard from "@/components/RouteGuard";
 import { candidateApi, Candidate } from "@/utils/candidateApi";
 import { canAccessRoute, hasRole, SystemRole } from "@/utils/roleAccess";
@@ -111,19 +111,25 @@ export default function CandidateDashboard() {
 
             {error && (
               <Card>
-                <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400">
-                  <p className="font-semibold mb-2">⚠️ {error}</p>
-                  <p className="text-sm">
-                    To access your candidate profile, please contact HR or use the link provided in your application email.
-                  </p>
-                </div>
+                <CardContent>
+                  <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400">
+                    <p className="font-semibold mb-2">⚠️ {error}</p>
+                    <p className="text-sm">
+                      To access your candidate profile, please contact HR or use the link provided in your application email.
+                    </p>
+                  </div>
+                </CardContent>
               </Card>
             )}
 
             {!error && candidate && (
               <>
-                <Card title="Application Status">
-                  <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Application Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
                     <div>
                       <label className="text-text-muted text-sm">Current Status</label>
                       <p className="text-text font-semibold text-lg">
@@ -158,15 +164,20 @@ export default function CandidateDashboard() {
                         </p>
                       </div>
                     )}
-                  </div>
+                    </div>
+                  </CardContent>
                 </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card title="Quick Actions">
-                    <div className="space-y-3">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
                       <Button
                         onClick={() => router.push("/candidate/profile")}
-                        variant="primary"
+                        variant="default"
                         className="w-full"
                       >
                         View/Edit Profile
@@ -178,11 +189,16 @@ export default function CandidateDashboard() {
                       >
                         View Applications
                       </Button>
-                    </div>
+                      </div>
+                    </CardContent>
                   </Card>
 
-                  <Card title="Profile Information">
-                    <div className="space-y-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Profile Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
                       <p className="text-text font-semibold">
                         {candidate.firstName} {candidate.middleName} {candidate.lastName}
                       </p>
@@ -199,7 +215,8 @@ export default function CandidateDashboard() {
                           Phone: {candidate.mobilePhone}
                         </p>
                       )}
-                    </div>
+                      </div>
+                    </CardContent>
                   </Card>
                 </div>
               </>
@@ -207,7 +224,8 @@ export default function CandidateDashboard() {
 
             {!error && !candidate && (
               <Card>
-                <div className="text-center py-8">
+                <CardContent>
+                  <div className="text-center py-8">
                   <p className="text-text-muted mb-4">
                     No candidate profile found. Please contact HR to set up your candidate profile.
                   </p>
@@ -217,7 +235,8 @@ export default function CandidateDashboard() {
                   >
                     Go to Home
                   </Button>
-                </div>
+                  </div>
+                </CardContent>
               </Card>
             )}
           </div>

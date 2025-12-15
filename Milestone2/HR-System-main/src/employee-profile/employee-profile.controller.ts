@@ -38,6 +38,7 @@ import { CreateEmployeeSystemRoleDto, AssignSystemRoleDto } from './dto/create-e
 import { UpdateEmployeeSystemRoleDto } from './dto/update-employee-system-role.dto';
 import { CreateEmployeeProfileChangeRequestDto } from './dto/create-employee-profile-change-request.dto';
 import { UpdateEmployeeProfileChangeRequestDto } from './dto/update-employee-profile-change-request.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { AuthenticationGuard } from '../auth/guards/authentication.guard';
 
 @ApiTags('employee-profile')
@@ -85,6 +86,33 @@ export class EmployeeProfileController {
   @ApiQuery({ name: 'search', required: false, type: String })
   listCandidates(@Query() filterDto: CandidateFilterDto) {
     return this.employeeProfileService.listCandidates(filterDto);
+  }
+
+  @Patch('me')
+  @UseGuards(AuthenticationGuard)
+  @ApiOperation({ summary: 'Update own employee profile (limited fields)' })
+  @ApiBody({ 
+    type: UpdateMyProfileDto,
+    description: 'Update only personal contact information and demographics',
+  })
+  @ApiResponse({ status: 200, description: 'Profile successfully updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Employee profile not found' })
+  async updateMyProfile(
+    @Body() updateDto: UpdateMyProfileDto,
+    @Req() req?: any,
+  ) {
+    const userId = req?.user?.sub;
+    if (!userId) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          message: 'User not authenticated',
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    return this.employeeProfileService.updateMyProfile(userId, updateDto);
   }
 
   @Get(':profileId')
