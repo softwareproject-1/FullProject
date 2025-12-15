@@ -14,22 +14,26 @@ import {
   Calendar,
   DollarSign,
   Home,
+  FileText,
+  AlertCircle,
 } from 'lucide-react';
 
 interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
-  roles?: string[];
+  // Optional: specific route to check (if different from href)
+  checkRoute?: string;
 }
 
+// Define all navigation items - access will be checked dynamically
 const navItems: NavItem[] = [
   { name: 'Home', href: '/', icon: <Home className="w-5 h-5" /> },
-  { name: 'Employee Profile', href: '/admin/employee-profile', icon: <Users className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
-  { name: 'Org Structure', href: '/admin/organization-structure', icon: <Network className="w-5 h-5" />, roles: ['System Admin', 'HR Manager'] },
+  { name: 'Employee Profile', href: '/admin/employee-profile', icon: <Users className="w-5 h-5" /> },
+  { name: 'Org Structure', href: '/admin/organization-structure', icon: <Network className="w-5 h-5" /> },
   { name: 'Performance', href: '/performance', icon: <TrendingUp className="w-5 h-5" /> },
   { name: 'Time Management', href: '/time-management', icon: <Clock className="w-5 h-5" /> },
-  { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
+  { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" /> },
   { name: 'Leaves', href: '/leaves', icon: <Calendar className="w-5 h-5" /> },
   { name: 'Payroll', href: '/payroll', icon: <DollarSign className="w-5 h-5" /> },
 ];
@@ -47,11 +51,18 @@ export function Sidebar() {
 
   const controlPath = getControlPath();
 
-  // Filter nav items based on user roles
+  // Filter nav items based on route access control
   const filteredNavItems = navItems.filter((item) => {
-    if (!item.roles || item.roles.length === 0) return true;
     if (!user || !user.roles) return false;
-    return item.roles.some((role) => user.roles?.includes(role)) || canAccessRoute(user.roles, item.href);
+    
+    // Home route is accessible to all authenticated users
+    if (item.href === '/') {
+      return true;
+    }
+    
+    // Check route access using canAccessRoute
+    const routeToCheck = item.checkRoute || item.href;
+    return canAccessRoute(user.roles, routeToCheck);
   });
 
   // Check if control path is active

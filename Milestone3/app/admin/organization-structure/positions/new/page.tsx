@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/label";
 import { createPosition, getAllDepartments } from "@/utils/organizationStructureApi";
 import { isSystemAdmin } from "@/utils/roleUtils";
 import { Department } from "@/utils/organizationStructureApi";
@@ -147,23 +148,30 @@ export default function CreatePositionPage() {
         <Card>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
-              <Input
-                label="Position Code"
-                placeholder="e.g., POS-ENG-001"
-                value={formData.code}
-                onChange={(e) => handleInputChange("code", e.target.value)}
-                required
-              />
-              <Input
-                label="Position Title"
-                placeholder="e.g., Senior Software Engineer"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                required
-              />
-              <div className="mb-4 w-full">
-                <label className="label">Description</label>
+              <div className="space-y-2">
+                <Label htmlFor="code">Position Code</Label>
+                <Input
+                  id="code"
+                  placeholder="e.g., POS-ENG-001"
+                  value={formData.code}
+                  onChange={(e) => handleInputChange("code", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="title">Position Title</Label>
+                <Input
+                  id="title"
+                  placeholder="e.g., Senior Software Engineer"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
                 <textarea
+                  id="description"
                   className="input min-h-[100px]"
                   placeholder="Enter position description..."
                   value={formData.description}
@@ -171,9 +179,10 @@ export default function CreatePositionPage() {
                 />
               </div>
               
-              <div className="mb-4 w-full">
-                <label className="label">Department (Select or Enter Name)</label>
+              <div className="space-y-2">
+                <Label htmlFor="departmentId">Department (Select or Enter Name)</Label>
                 <select
+                  id="departmentId"
                   className="input"
                   value={formData.departmentId}
                   onChange={(e) => handleInputChange("departmentId", e.target.value)}
@@ -186,21 +195,26 @@ export default function CreatePositionPage() {
                   ))}
                 </select>
                 <p className="text-text-muted text-xs mt-1">OR</p>
-                <Input
-                  label="Department Name"
-                  placeholder="Enter department name if not in list"
-                  value={formData.departmentName}
-                  onChange={(e) => handleInputChange("departmentName", e.target.value)}
-                  className="mt-2"
-                />
+                <div className="space-y-2 mt-2">
+                  <Label htmlFor="departmentName">Department Name</Label>
+                  <Input
+                    id="departmentName"
+                    placeholder="Enter department name if not in list"
+                    value={formData.departmentName}
+                    onChange={(e) => handleInputChange("departmentName", e.target.value)}
+                  />
+                </div>
               </div>
               
-              <Input
-                label="Reports To Position ID (Optional)"
-                placeholder="MongoDB ObjectId of the reporting position"
-                value={formData.reportsToPositionId}
-                onChange={(e) => handleInputChange("reportsToPositionId", e.target.value)}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="reportsToPositionId">Reports To Position ID (Optional)</Label>
+                <Input
+                  id="reportsToPositionId"
+                  placeholder="MongoDB ObjectId of the reporting position"
+                  value={formData.reportsToPositionId}
+                  onChange={(e) => handleInputChange("reportsToPositionId", e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-4">
@@ -213,10 +227,10 @@ export default function CreatePositionPage() {
               </Button>
               <Button
                 type="submit"
-                variant="primary"
-                isLoading={loading}
+                variant="default"
+                disabled={loading}
               >
-                Create Position
+                {loading ? "Creating..." : "Create Position"}
               </Button>
             </div>
           </form>

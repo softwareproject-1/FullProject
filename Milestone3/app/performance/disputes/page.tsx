@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RouteGuard from "@/components/RouteGuard";
 import { canAccessRoute, hasFeature } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
@@ -28,6 +29,15 @@ type Dispute = {
   resolvedByEmployeeId?: string;
 };
 
+type Cycle = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  name?: string;
+  status?: string;
+  description?: string;
+};
+
 function DisputesPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -39,6 +49,8 @@ function DisputesPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [resolvePayload, setResolvePayload] = useState<{ [key: string]: string }>({});
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [loadingCycles, setLoadingCycles] = useState(false);
   
   // Submit dispute form state
   const [showSubmitForm, setShowSubmitForm] = useState(false);
@@ -50,6 +62,18 @@ function DisputesPageContent() {
     reason: "",
     details: "",
   });
+
+  // Check role-based access
+  const canAccess = user ? canAccessRoute(user.roles, "/performance/disputes") : false;
+  const canResolveDisputes = user ? hasFeature(user.roles, "resolveDisputes") : false;
+  const canSubmitDisputes = user ? hasFeature(user.roles, "submitDisputes") : false;
+
+  // Load cycles on mount
+  useEffect(() => {
+    if (!loading && user && canAccess) {
+      loadCycles();
+    }
+  }, [user, loading, canAccess]);
 
   // Load URL parameters on mount
   useEffect(() => {
@@ -73,21 +97,45 @@ function DisputesPageContent() {
     }
   }, [searchParams]);
 
-  // Check role-based access
-  const canAccess = user ? canAccessRoute(user.roles, "/performance/disputes") : false;
-  const canResolveDisputes = user ? hasFeature(user.roles, "resolveDisputes") : false;
-  const canSubmitDisputes = user ? hasFeature(user.roles, "submitDisputes") : false;
+  const loadCycles = async () => {
+    try {
+      setLoadingCycles(true);
+      const res = await PerformanceApi.listCycles();
+      
+      // Handle different response structures
+      let allCycles: Cycle[] = [];
+      if (Array.isArray(res.data)) {
+        allCycles = res.data;
+      } else if (Array.isArray(res)) {
+        allCycles = res;
+      } else if (res.data?.data && Array.isArray(res.data.data)) {
+        allCycles = res.data.data;
+      }
+      
+      // Filter out archived cycles
+      const availableCycles = allCycles.filter(
+        cycle => cycle.status !== "ARCHIVED" && cycle.status !== "DELETED"
+      );
+      
+      setCycles(availableCycles);
+    } catch (err: any) {
+      console.error("Error loading cycles:", err);
+      setCycles([]);
+    } finally {
+      setLoadingCycles(false);
+    }
+  };
 
   const loadDisputes = async () => {
     if (!cycleId) {
-      setError("Enter a Cycle ID to load disputes");
+      setError("Please select a cycle to load disputes");
       return;
     }
     
     // Trim the cycleId to remove any whitespace
     const trimmedCycleId = cycleId.trim();
     if (!trimmedCycleId) {
-      setError("Cycle ID cannot be empty");
+      setError("Please select a valid cycle");
       return;
     }
     
@@ -433,16 +481,39 @@ function DisputesPageContent() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
               <div className="space-y-2">
-                <Label htmlFor="cycleIdInput">Cycle ID</Label>
-                <Input
-                  id="cycleIdInput"
-                  name="cycleId"
+                <Label htmlFor="cycleSelect">Cycle</Label>
+                <Select
                   value={cycleId}
-                  onChange={(e) => setCycleId(e.target.value.trim())}
-                  placeholder="Enter Cycle ID"
-                />
+                  onValueChange={(value) => setCycleId(value)}
+                  disabled={loadingCycles}
+                >
+                  <SelectTrigger id="cycleSelect" className="w-full">
+                    <SelectValue placeholder={loadingCycles ? "Loading cycles..." : "Select a cycle"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cycles.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        {loadingCycles ? "Loading..." : "No cycles available"}
+                      </div>
+                    ) : (
+                      cycles.map((cycle) => {
+                        const id = (cycle._id || cycle.id || "").toString();
+                        // Skip cycles with empty or invalid IDs
+                        if (!id || id.trim() === "") {
+                          return null;
+                        }
+                        const name = cycle.name || cycle.title || "Untitled Cycle";
+                        return (
+                          <SelectItem key={id} value={id}>
+                            {name} {cycle.status ? `(${cycle.status})` : ""}
+                          </SelectItem>
+                        );
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
-              <Button onClick={loadDisputes} disabled={loadingData} className="w-full md:w-auto md:col-span-1">
+              <Button onClick={loadDisputes} disabled={loadingData || !cycleId} className="w-full md:w-auto md:col-span-1">
                 {loadingData ? "Loading..." : "Load Disputes"}
               </Button>
             </div>
@@ -463,8 +534,8 @@ function DisputesPageContent() {
               <div className="text-center py-4">
                 <p className="text-slate-600 text-sm">
                   {cycleId 
-                    ? `No disputes found for cycle ID: ${cycleId}. Submit a dispute to see it here.`
-                    : "No disputes loaded. Enter a Cycle ID and click 'Load Disputes'."}
+                    ? `No disputes found for the selected cycle. Submit a dispute to see it here.`
+                    : "No disputes loaded. Select a cycle and click 'Load Disputes'."}
                 </p>
               </div>
             ) : (

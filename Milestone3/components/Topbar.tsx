@@ -75,34 +75,55 @@ export function Topbar() {
           
           {user ? (
             <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-              {user.profilePictureUrl && user.profilePictureUrl.trim() !== '' && !imageError ? (
-                <img
-                  src={user.profilePictureUrl}
-                  alt={getUserDisplayName()}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-slate-200"
-                  onError={(e) => {
-                    console.error('Topbar - Image failed to load:', user.profilePictureUrl);
-                    setImageError(true);
-                  }}
-                  onLoad={() => {
-                    console.log('Topbar - Image loaded successfully:', user.profilePictureUrl);
-                  }}
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                  {getUserInitials()}
+              <button
+                onClick={() => {
+                  if (user?._id) {
+                    router.push(`/admin/employee-profile/${user._id}`);
+                  }
+                }}
+                className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer group"
+              >
+                {user.profilePictureUrl && user.profilePictureUrl.trim() !== '' && !imageError ? (
+                  <img
+                    src={user.profilePictureUrl}
+                    alt={getUserDisplayName()}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-slate-200 group-hover:border-blue-500 transition-colors"
+                    onError={(e) => {
+                      console.error('Topbar - Image failed to load:', user.profilePictureUrl);
+                      setImageError(true);
+                    }}
+                    onLoad={() => {
+                      console.log('Topbar - Image loaded successfully:', user.profilePictureUrl);
+                    }}
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold group-hover:ring-2 group-hover:ring-blue-500 transition-all">
+                    {getUserInitials()}
+                  </div>
+                )}
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                    {getUserDisplayName()}
+                  </p>
+                  <p className="text-xs text-slate-500">{getUserRole()}</p>
                 </div>
-              )}
-              <div className="text-left">
-                <p className="text-sm font-semibold text-slate-900">{getUserDisplayName()}</p>
-                <p className="text-xs text-slate-500">{getUserRole()}</p>
-              </div>
+              </button>
               <div className="relative group">
                 <button className="p-1 hover:bg-slate-100 rounded-full transition-colors">
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                   <div className="py-1">
+                    <button
+                      onClick={() => {
+                        if (user?._id) {
+                          router.push(`/admin/employee-profile/${user._id}`);
+                        }
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      View Profile
+                    </button>
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"

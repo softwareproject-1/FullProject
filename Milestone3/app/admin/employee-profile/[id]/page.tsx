@@ -933,6 +933,7 @@ export default function EmployeeProfileDetailPage() {
                 <h2 className="text-2xl font-bold text-text">Assign System Roles</h2>
                 <button
                   onClick={() => {
+                    setSelectedRoles([...currentRoles]); // Reset to original roles
                     setShowRoleModal(false);
                     setRoleError(null);
                   }}
@@ -1026,6 +1027,7 @@ export default function EmployeeProfileDetailPage() {
               <div className="flex gap-2 justify-end">
                 <Button
                   onClick={() => {
+                    setSelectedRoles([...currentRoles]); // Reset to original roles
                     setShowRoleModal(false);
                     setRoleError(null);
                   }}

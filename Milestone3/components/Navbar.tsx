@@ -66,9 +66,16 @@ export default function Navbar() {
             ) : user ? (
               <>
                 {/* User Info - Desktop */}
-                <div className="hidden md:flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    if (user?._id) {
+                      router.push(`/admin/employee-profile/${user._id}`);
+                    }
+                  }}
+                  className="hidden md:flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer group"
+                >
                   <div className="text-right">
-                    <p className="text-sm font-medium text-text">
+                    <p className="text-sm font-medium text-text group-hover:text-primary transition-colors">
                       {user.firstName} {user.lastName}
                     </p>
                     <p className="text-xs text-text-muted">
@@ -92,16 +99,26 @@ export default function Navbar() {
                       )}
                     </div>
                   )}
-                </div>
+                </button>
 
                 {/* User Info - Mobile */}
-                <div className="md:hidden flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (user?._id) {
+                      router.push(`/admin/employee-profile/${user._id}`);
+                    }
+                  }}
+                  className="md:hidden flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+                >
                   {user.roles && user.roles.length > 0 && (
                     <span className="px-2 py-1 bg-primary/20 text-primary rounded text-xs font-medium border border-primary/30">
                       {user.roles[0]}
                     </span>
                   )}
-                </div>
+                  <p className="text-sm font-medium text-text">
+                    {user.firstName} {user.lastName}
+                  </p>
+                </button>
 
                 {/* Navigation Links - Desktop */}
                 <div className="hidden sm:flex items-center gap-2">

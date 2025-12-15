@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import RouteGuard from "@/components/RouteGuard";
 import { hasFeature } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
@@ -237,7 +237,11 @@ export default function TeamResultsPage() {
               </div>
             )}
 
-            <Card title="Load Performance Records by Cycle">
+            <Card>
+              <CardHeader>
+                <CardTitle>Load Performance Records by Cycle</CardTitle>
+              </CardHeader>
+              <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <div>
                   <label className="label">Select Cycle</label>
@@ -280,11 +284,10 @@ export default function TeamResultsPage() {
                 </div>
                 <Button 
                   onClick={loadRecords} 
-                  isLoading={loadingData} 
-                  disabled={!cycleId}
+                  disabled={!cycleId || loadingData}
                   className="w-full md:w-auto"
                 >
-                  Load Records
+                  {loadingData ? "Loading..." : "Load Records"}
                 </Button>
               </div>
               {cycleId && (
@@ -292,27 +295,36 @@ export default function TeamResultsPage() {
                   <strong>Selected Cycle ID:</strong> {cycleId}
                 </div>
               )}
+              </CardContent>
             </Card>
 
             {loadingData && (
               <Card>
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-                  <p className="text-text-muted">Loading records...</p>
-                </div>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                    <p className="text-text-muted">Loading records...</p>
+                  </div>
+                </CardContent>
               </Card>
             )}
 
             {!loadingData && records.length === 0 && !error && (
               <Card>
-                <div className="text-center py-8">
-                  <p className="text-text-muted">No records loaded. Select a Cycle from the dropdown above and click "Load Records" to view performance data.</p>
-                </div>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <p className="text-text-muted">No records loaded. Select a Cycle from the dropdown above and click "Load Records" to view performance data.</p>
+                  </div>
+                </CardContent>
               </Card>
             )}
 
             {!loadingData && records.length > 0 && (
-              <Card title={`Performance Records (${records.filter(r => !filterStatus || r.status === filterStatus).length} of ${records.length} shown)`}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Performance Records ({records.filter(r => !filterStatus || r.status === filterStatus).length} of {records.length} shown)</CardTitle>
+                </CardHeader>
+                <CardContent>
                 {/* Debug info - remove in production */}
                 {process.env.NODE_ENV === 'development' && (
                   <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-400 mb-4">
@@ -393,14 +405,18 @@ export default function TeamResultsPage() {
                       );
                     })}
                 </div>
+                </CardContent>
               </Card>
             )}
 
             {selectedRecord && (
               <Card 
-                title={`Performance Details: ${selectedRecord.employeeName || "Employee"}`}
                 className="fixed inset-4 md:inset-8 z-50 overflow-y-auto bg-background border-2 border-primary"
               >
+                <CardHeader>
+                  <CardTitle>Performance Details: {selectedRecord.employeeName || "Employee"}</CardTitle>
+                </CardHeader>
+                <CardContent>
                 <div className="space-y-6">
                   <div className="flex justify-between items-start">
                     <div>
@@ -533,6 +549,7 @@ export default function TeamResultsPage() {
                     )}
                   </div>
                 </div>
+                </CardContent>
               </Card>
             )}
           </div>

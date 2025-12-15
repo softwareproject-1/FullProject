@@ -61,6 +61,10 @@ export const roleAccess = {
       '/performance/cycles',
       '/performance/disputes',
       '/hr-manager',
+      '/time-management',
+      '/leaves',
+      '/payroll',
+      '/recruitment',
     ],
     features: {
       viewAllEmployees: true,
@@ -100,6 +104,10 @@ export const roleAccess = {
       '/performance/cycles',
       '/performance/disputes',
       '/hr-manager',
+      '/time-management',
+      '/leaves',
+      '/payroll',
+      '/recruitment',
     ],
     features: {
       viewAllEmployees: true,
@@ -139,6 +147,8 @@ export const roleAccess = {
       '/performance/templates',
       '/performance/cycles',
       '/performance/disputes',
+      '/time-management',
+      '/leaves',
     ],
     features: {
       viewAllEmployees: true, // Read-only
@@ -173,6 +183,8 @@ export const roleAccess = {
       '/performance/templates', // Can view templates
       '/performance/cycles', // Can assist in setup
       '/admin/organization-structure', // Can view organizational charts (read-only)
+      '/time-management',
+      '/leaves',
     ],
     features: {
       viewAllEmployees: true,
@@ -215,6 +227,8 @@ export const roleAccess = {
       '/performance/cycles/*/evaluate',
       '/performance/team-results',
       '/admin/organization-structure', // View organizational structure (read-only)
+      '/time-management',
+      '/leaves',
     ],
     features: {
       viewAllEmployees: false,
@@ -253,6 +267,8 @@ export const roleAccess = {
       '/performance/disputes', // Can submit disputes
       '/admin/employee-profile', // Can view own profile
       '/admin/organization-structure', // View basic organizational structure (own position and department)
+      '/time-management',
+      '/leaves',
     ],
     features: {
       viewAllEmployees: false,
@@ -289,6 +305,7 @@ export const roleAccess = {
     routes: [
       '/admin/employee-profile', // Payroll fields only
       '/admin/organization-structure', // View organizational structure (for payroll calculations)
+      '/payroll',
     ],
     features: {
       viewAllEmployees: true, // Payroll fields only
@@ -322,6 +339,7 @@ export const roleAccess = {
     routes: [
       '/admin/employee-profile', // Read-only payroll fields
       '/admin/organization-structure', // View organizational structure (for payroll context)
+      '/payroll',
     ],
     features: {
       viewAllEmployees: true, // Payroll fields only
@@ -356,6 +374,7 @@ export const roleAccess = {
       '/admin/employee-profile', // Candidates only
       '/admin/organization-structure', // View organizational structure (to understand open positions)
       '/recruiter', // Recruiter dashboard
+      '/recruitment',
     ],
     features: {
       viewAllEmployees: false,
@@ -421,6 +440,7 @@ export const roleAccess = {
     routes: [
       '/admin/employee-profile', // Read-only finance fields
       '/admin/organization-structure', // View organizational structure (for budget planning)
+      '/payroll', // Read-only payroll view
     ],
     features: {
       viewAllEmployees: true, // Finance fields only
@@ -592,8 +612,25 @@ export const getCombinedAccess = (userRoles: string[] | undefined): RoleAccessCo
 
 // Check if user can access a route
 export const canAccessRoute = (userRoles: string[] | undefined, route: string): boolean => {
+  if (!userRoles || userRoles.length === 0) return false;
+  
   const access = getCombinedAccess(userRoles);
-  return access.routes.includes(route);
+  
+  // Check exact match first
+  if (access.routes.includes(route)) {
+    return true;
+  }
+  
+  // Check if route is a sub-route of any allowed route
+  // e.g., if user has access to /admin/organization-structure,
+  // they should have access to /admin/organization-structure/departments
+  for (const allowedRoute of access.routes) {
+    if (route.startsWith(allowedRoute + '/') || route === allowedRoute) {
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 // Check if user has a specific feature

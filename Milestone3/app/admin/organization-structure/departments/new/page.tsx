@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/label";
 import { createDepartment } from "@/utils/organizationStructureApi";
 import { isSystemAdmin } from "@/utils/roleUtils";
 import { useEffect } from "react";
@@ -111,35 +112,45 @@ export default function CreateDepartmentPage() {
         <Card>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
-              <Input
-                label="Department Code"
-                placeholder="e.g., DEPT-ENG"
-                value={formData.code}
-                onChange={(e) => handleInputChange("code", e.target.value)}
-                required
-              />
-              <Input
-                label="Department Name"
-                placeholder="e.g., Engineering"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                required
-              />
-              <div className="mb-4 w-full">
-                <label className="label">Description</label>
+              <div className="space-y-2">
+                <Label htmlFor="code">Department Code</Label>
+                <Input
+                  id="code"
+                  placeholder="e.g., DEPT-ENG"
+                  value={formData.code}
+                  onChange={(e) => handleInputChange("code", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Department Name</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., Engineering"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
                 <textarea
+                  id="description"
                   className="input min-h-[100px]"
                   placeholder="Enter department description..."
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
                 />
               </div>
-              <Input
-                label="Head Position ID (Optional)"
-                placeholder="MongoDB ObjectId of the head position"
-                value={formData.headPositionId}
-                onChange={(e) => handleInputChange("headPositionId", e.target.value)}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="headPositionId">Head Position ID (Optional)</Label>
+                <Input
+                  id="headPositionId"
+                  placeholder="MongoDB ObjectId of the head position"
+                  value={formData.headPositionId}
+                  onChange={(e) => handleInputChange("headPositionId", e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="mt-6 flex justify-end gap-4">
@@ -152,10 +163,10 @@ export default function CreateDepartmentPage() {
               </Button>
               <Button
                 type="submit"
-                variant="primary"
-                isLoading={loading}
+                variant="default"
+                disabled={loading}
               >
-                Create Department
+                {loading ? "Creating..." : "Create Department"}
               </Button>
             </div>
           </form>
