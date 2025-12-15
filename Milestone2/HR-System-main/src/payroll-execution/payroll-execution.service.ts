@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Logger,
   Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -58,6 +59,8 @@ import {
 import { TaxRulesService } from '../payroll-configuration/services/tax-rules.service';
 import { InsuranceBracketsService } from '../payroll-configuration/services/insurance-brackets.service';
 import { ConfigStatus } from '../payroll-configuration/enums/payroll-configuration-enums';
+import { TimeManagementService } from '../time-management/time-management.service';
+import { LeavesService } from '../leaves/leaves.service';
 
 @Injectable()
 export class PayrollExecutionService {
@@ -82,6 +85,10 @@ export class PayrollExecutionService {
     private taxRulesService: TaxRulesService,
     @Inject(InsuranceBracketsService)
     private insuranceBracketsService: InsuranceBracketsService,
+    @Inject(TimeManagementService)
+    private timeManagementService: TimeManagementService,
+    @Inject(forwardRef(() => LeavesService))
+    private leavesService: LeavesService,
   ) { }
 
   // GANNAH
@@ -100,12 +107,28 @@ export class PayrollExecutionService {
   // private mockEmployeeDetails: any[] = [];
 
   async getPendingBenefits() {
-    // REAL API CALL - Using database
+    // REAL API CALL - Using database with employee population
     const bonuses = await this.signingBonusModel
       .find({ status: BonusStatus.PENDING })
+      .populate({
+        path: 'employeeId',
+        select: 'name workEmail primaryDepartmentId',
+        populate: {
+          path: 'primaryDepartmentId',
+          select: 'name'
+        }
+      })
       .exec();
     const terminations = await this.terminationModel
       .find({ status: BenefitStatus.PENDING })
+      .populate({
+        path: 'employeeId',
+        select: 'name workEmail primaryDepartmentId',
+        populate: {
+          path: 'primaryDepartmentId',
+          select: 'name'
+        }
+      })
       .exec();
     return { bonuses, terminations };
 
@@ -119,7 +142,7 @@ export class PayrollExecutionService {
     // REAL API CALL - Using database
     if (dto.type === BenefitType.SIGNING_BONUS) {
       const record = await this.signingBonusModel.findOne({
-        employeeId: dto.employeeId,
+        employeeId: new Types.ObjectId(dto.employeeId),
       });
       if (!record)
         throw new NotFoundException('Signing bonus record not found');
@@ -143,6 +166,23 @@ export class PayrollExecutionService {
         );
       }
 
+      // REQ-PY-29: Edit givenAmount if provided (BR 25: Manual override requires authorization)
+      const originalAmount = record.givenAmount;
+      if (dto.amount !== undefined && dto.amount !== originalAmount) {
+        if (!dto.reviewerId) {
+          throw new BadRequestException(
+            'BR 25: Manual override of signing bonus amount requires reviewer authorization'
+          );
+        }
+
+        // BR 25: Log manual override for audit trail
+        this.logger.warn(
+          `AUDIT: Signing bonus amount manually adjusted from ${originalAmount} to ${dto.amount} by reviewer ${dto.reviewerId} for employee ${dto.employeeId}. Reason: ${dto.reason || 'Not provided'}`
+        );
+
+        record.givenAmount = dto.amount;
+      }
+
       record.status =
         dto.action === BenefitAction.APPROVE
           ? BonusStatus.APPROVED
@@ -154,16 +194,20 @@ export class PayrollExecutionService {
         success: true,
         message: `Signing bonus ${dto.action === BenefitAction.APPROVE ? 'APPROVED' : 'REJECTED'} successfully`,
         benefit: {
-          employeeId: saved.employeeId,
+          employeeId: saved.employeeId.toString(),
           amount: saved.givenAmount,
+          originalAmount: originalAmount,
+          amountAdjusted: dto.amount !== undefined && dto.amount !== originalAmount,
           previousStatus: BonusStatus.PENDING,
           newStatus: saved.status,
           reviewedAt: new Date(),
+          reviewedBy: dto.reviewerId,
+          adjustmentReason: dto.reason,
         }
       };
     } else if (dto.type === BenefitType.TERMINATION) {
       const record = await this.terminationModel.findOne({
-        employeeId: dto.employeeId,
+        employeeId: new Types.ObjectId(dto.employeeId),
       });
       if (!record)
         throw new NotFoundException('Termination benefit record not found');
@@ -187,6 +231,34 @@ export class PayrollExecutionService {
         );
       }
 
+      // BR 26: Termination benefits require HR clearance before approval
+      if (dto.action === BenefitAction.APPROVE) {
+        // NOTE: In full implementation, this would check TerminationRequest.hrClearanceStatus
+        // For now, we require the reason field to contain HR clearance confirmation
+        if (!dto.reason || !dto.reason.toLowerCase().includes('hr clearance')) {
+          throw new BadRequestException(
+            'BR 26: Termination benefits cannot be approved without HR clearance confirmation. Include "HR clearance" in the reason field.'
+          );
+        }
+      }
+
+      // REQ-PY-32: Edit givenAmount if provided (BR 27: Manual adjustment requires logging)
+      const originalAmount = record.givenAmount;
+      if (dto.amount !== undefined && dto.amount !== originalAmount) {
+        if (!dto.reviewerId) {
+          throw new BadRequestException(
+            'BR 27: Manual adjustment of termination benefits requires Payroll Specialist approval'
+          );
+        }
+
+        // BR 27: Full system logging for termination benefit adjustments
+        this.logger.warn(
+          `AUDIT: Termination benefit amount manually adjusted from ${originalAmount} to ${dto.amount} by reviewer ${dto.reviewerId} for employee ${dto.employeeId}. Reason: ${dto.reason || 'Not provided'}`
+        );
+
+        record.givenAmount = dto.amount;
+      }
+
       record.status =
         dto.action === BenefitAction.APPROVE
           ? BenefitStatus.APPROVED
@@ -200,9 +272,13 @@ export class PayrollExecutionService {
         benefit: {
           employeeId: saved.employeeId,
           amount: saved.givenAmount,
+          originalAmount: originalAmount,
+          amountAdjusted: dto.amount !== undefined && dto.amount !== originalAmount,
           previousStatus: BenefitStatus.PENDING,
           newStatus: saved.status,
           reviewedAt: new Date(),
+          reviewedBy: dto.reviewerId,
+          adjustmentReason: dto.reason,
         }
       };
     }
@@ -211,12 +287,18 @@ export class PayrollExecutionService {
   }
 
   async checkHrEvent(dto: HrEventCheckDto) {
+    // Trim and validate ObjectId format
+    const employeeId = dto.employeeId.trim();
+    if (!Types.ObjectId.isValid(employeeId)) {
+      throw new BadRequestException(`Invalid employee ID format: ${employeeId}. Must be a 24-character hex string.`);
+    }
+
     // REAL API CALL - Using database
     const bonus = await this.signingBonusModel
-      .findOne({ employeeId: dto.employeeId })
+      .findOne({ employeeId: new Types.ObjectId(employeeId) })
       .exec();
     const termination = await this.terminationModel
-      .findOne({ employeeId: dto.employeeId })
+      .findOne({ employeeId: new Types.ObjectId(employeeId) })
       .exec();
 
     const events: Array<{ type: string; status: BonusStatus | BenefitStatus }> =
@@ -226,7 +308,7 @@ export class PayrollExecutionService {
       events.push({ type: 'TERMINATION', status: termination.status });
 
     return {
-      employeeId: dto.employeeId,
+      employeeId: employeeId,
       events,
       message: `Found ${events.length} pending HR events for employee`,
     };
@@ -351,21 +433,41 @@ export class PayrollExecutionService {
       })
       .exec();
 
+    // Fetch employee profile details from employees collection
+    const db = this.payrollRunModel.db;
+    const employeesCollection = db.collection('employees');
+    const employeeIds = employeeDetails.map(detail => detail.employeeId);
+    const employeeProfiles = await employeesCollection.find({
+      _id: { $in: employeeIds }
+    }).toArray();
+
+    // Create a map of employee profiles for quick lookup
+    const profileMap = new Map();
+    employeeProfiles.forEach((profile: any) => {
+      profileMap.set(profile._id.toString(), profile);
+    });
+
     return {
       runId: run.runId,
       status: run.status,
       totalEmployees: run.employees,
       totalExceptions: run.exceptions,
       totalNetPay: run.totalnetpay,
-      employees: employeeDetails.map((detail) => ({
-        employeeId: detail.employeeId,
-        baseSalary: detail.baseSalary,
-        bankStatus: detail.bankStatus,
-        exceptions: detail.exceptions,
-        netPay: detail.netPay,
-        allowances: detail.allowances,
-        deductions: detail.deductions,
-      })),
+      employees: employeeDetails.map((detail) => {
+        const profile = profileMap.get(detail.employeeId.toString());
+        return {
+          employeeId: detail.employeeId,
+          employeeName: profile?.name || 'Unknown Employee',
+          department: profile?.department || 'Unknown',
+          baseSalary: detail.baseSalary,
+          bankStatus: detail.bankStatus,
+          bankAccountNumber: profile?.bankDetails?.accountNumber,
+          exceptions: detail.exceptions,
+          netPay: detail.netPay,
+          allowances: detail.allowances,
+          deductions: detail.deductions,
+        };
+      }),
       payslips: payslips.length,
     };
   }
@@ -1070,12 +1172,53 @@ export class PayrollExecutionService {
     const proratedInfo = await this.calculateProratedSalary(employee, grossSalary, runId);
     grossSalary = proratedInfo.proratedSalary;
 
-    // Integration Point: Time Management & Leaves Services
-    // For now using employee data fields, ready for service integration when available
-    // Expected fields from Time Management: overtimeHours, attendance data
-    // Expected fields from Leaves Module: unpaidLeaveDays, leave encashment for exits
-    const overtimeHours = employee.overtimeHours || 0;
-    const unpaidLeaveDays = employee.unpaidLeaveDays || 0;
+    // Fetch run to get period details
+    const run = await this.payrollRunModel.findOne({ runId });
+    let overtimeHours = 0;
+    let unpaidLeaveDays = 0;
+
+    if (run && run.payrollPeriod) {
+        const periodDate = new Date(run.payrollPeriod);
+        const year = periodDate.getFullYear();
+        const month = periodDate.getMonth(); // 0-indexed
+        
+        const startDate = new Date(year, month, 1);
+        const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+        try {
+            // Integration: Time Management (Overtime) - Local Calculation
+            // Fetch raw records and calculate overtime here since we cannot modify TimeManagementService
+            const records = await this.timeManagementService.findAllAttendanceRecords({
+                employeeId: employee._id.toString(),
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString()
+            });
+
+            const STANDARD_WORK_MINUTES = 480; // 8 hours
+            let totalOvertimeMinutes = 0;
+
+            records.forEach(record => {
+               if (record.totalWorkMinutes > STANDARD_WORK_MINUTES) {
+                  totalOvertimeMinutes += (record.totalWorkMinutes - STANDARD_WORK_MINUTES);
+               }
+            });
+
+            overtimeHours = Math.round((totalOvertimeMinutes / 60) * 100) / 100;
+
+        } catch (error) {
+            this.logger.warn(`Failed to fetch attendance for ${employee._id}: ${error.message}`);
+        }
+
+        // Integration: Leaves (Unpaid Leave)
+        // Reverted to placeholder as valid public method is not available in LeavesService
+        // and we cannot modify the service.
+        unpaidLeaveDays = employee.unpaidLeaveDays || 0; 
+        
+    } else {
+        // Fallback
+        overtimeHours = employee.overtimeHours || 0;
+        unpaidLeaveDays = employee.unpaidLeaveDays || 0;
+    }
 
     // Calculate penalty deduction
     let penaltyDeduction = 0;
@@ -1969,9 +2112,12 @@ export class PayrollExecutionService {
     const run = await this.payrollRunModel.findOne({ runId });
     if (!run) throw new NotFoundException('Payroll Run not found');
 
-    if (run.status !== PayRollStatus.UNDER_REVIEW) {
+    // Allow manager to review payrolls in CALCULATED, UNDER_REVIEW or UNLOCKED status
+    if (run.status !== PayRollStatus.CALCULATED &&
+      run.status !== PayRollStatus.UNDER_REVIEW &&
+      run.status !== PayRollStatus.UNLOCKED) {
       throw new BadRequestException(
-        `Run ${runId} is not awaiting manager approval`,
+        `Run ${runId} is not awaiting manager approval. Current status: ${run.status}`,
       );
     }
 
@@ -2087,7 +2233,7 @@ export class PayrollExecutionService {
     // Calculate totals
     const totalGrossSalary = employeeDetails.reduce((sum, emp) => sum + emp.baseSalary, 0);
     const totalTaxes = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
-    const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.deductions * 0.3), 0);    const totalNetPayout = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
+    const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.deductions * 0.3), 0); const totalNetPayout = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
     const totalDeductions = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
     const totalBonuses = employeeDetails.reduce((sum, emp) => sum + (emp.bonus || 0), 0);
 
@@ -2191,6 +2337,71 @@ export class PayrollExecutionService {
     }
 
     return recommendations;
+  }
+
+  /**
+   * Get all payroll runs for history dashboard
+   * Returns: Cycle Name, Period, Total Amount, Current Status
+   */
+  async getAllPayrollRuns() {
+    this.logger.log('Fetching all payroll runs for history dashboard');
+
+    const runs = await this.payrollRunModel
+      .find()
+      .sort({ createdAt: -1 }) // Most recent first
+      .exec();
+
+    // For each run, calculate total amount from employee details
+    const runsWithTotals = await Promise.all(
+      runs.map(async (run) => {
+        const employeeDetails = await this.empDetailsModel
+          .find({ payrollRunId: run._id })
+          .exec();
+
+        const totalAmount = employeeDetails.reduce(
+          (sum, emp) => sum + emp.netPay,
+          0
+        );
+
+        // Calculate total anomalies from employee exceptions
+        // Count employees that have any exception/anomaly flag
+        const totalAnomalies = employeeDetails.filter(
+          emp => emp.exceptions && emp.exceptions.trim() !== ''
+        ).length;
+
+        // Extract month and year from payrollPeriod Date
+        const periodDate = new Date(run.payrollPeriod);
+        const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+          'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+        const month = monthNames[periodDate.getMonth()];
+        const year = periodDate.getFullYear();
+
+        // Calculate period start and end (assuming full month)
+        const startDate = new Date(year, periodDate.getMonth(), 1);
+        const endDate = new Date(year, periodDate.getMonth() + 1, 0); // Last day of month
+
+        return {
+          runId: run.runId,
+          cycleName: `${month} ${year}`,
+          period: {
+            month: month,
+            year: year,
+            startDate: startDate,
+            endDate: endDate,
+          },
+          totalAmount: Math.round(totalAmount * 100) / 100,
+          currentStatus: run.status,
+          paymentStatus: run.paymentStatus,
+          employeeCount: employeeDetails.length,
+          totalAnomalies: totalAnomalies,
+          createdAt: (run as any).createdAt || new Date(), // Mongoose timestamp field
+          createdBy: run.payrollSpecialistId, // Use the correct field name from schema
+        };
+      })
+    );
+
+    this.logger.log(`Retrieved ${runsWithTotals.length} payroll runs`);
+    return runsWithTotals;
   }
 
   // PHASE 5: PAYMENT EXECUTION

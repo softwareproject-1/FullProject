@@ -25,5 +25,13 @@ export class ReviewBenefitDto {
 
     @IsNumber()
     @IsOptional()
-    amount?: number;
+    amount?: number; // REQ-PY-29, REQ-PY-32: Manual edit of givenAmount (BR 25, BR 27)
+
+    @IsString()
+    @IsOptional()
+    reason?: string; // Rejection reason or adjustment justification
+
+    @IsString()
+    @IsOptional()
+    reviewerId?: string; // Track who authorized the review (BR 25, BR 27)
 }
