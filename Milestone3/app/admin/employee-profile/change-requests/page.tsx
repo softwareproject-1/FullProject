@@ -25,9 +25,11 @@ export default function ChangeRequestsPage() {
   // Check role-based access
   const canAccess = user ? canAccessRoute(user.roles, "/admin/employee-profile/change-requests") : false;
   const canApproveChangeRequests = user ? hasFeature(user.roles, "approveChangeRequests") : false;
+  const canManageChangeRequests = user ? hasFeature(user.roles, "manageChangeRequests") : false;
   const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
   const isHRAdmin = user ? hasRole(user.roles, SystemRole.HR_ADMIN) : false;
   const isHRManager = user ? hasRole(user.roles, SystemRole.HR_MANAGER) : false;
+  const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
 
   useEffect(() => {
     if (!authLoading && user && canAccess) {
@@ -132,13 +134,14 @@ export default function ChangeRequestsPage() {
                   Governance Change Requests
                 </h1>
                 <p className="text-slate-600 text-base md:text-lg">
-                  {canApproveChangeRequests ? "Approve or reject employee profile change requests" : "View employee profile change requests"}
+                  {canApproveChangeRequests ? "Approve or reject employee profile change requests" : canManageChangeRequests ? "View and process employee profile change requests (data entry)" : "View employee profile change requests"}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button
                   onClick={() => router.push("/admin/employee-profile")}
                   variant="outline"
+                  className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                 >
                   Back to Employee List
                 </Button>

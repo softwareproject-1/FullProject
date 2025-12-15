@@ -210,7 +210,11 @@ export default function TemplatesPage() {
                   {canCreateTemplates ? "Create and manage appraisal templates." : "View appraisal templates."}
                 </p>
               </div>
-              <Button variant="outline" onClick={() => router.push("/performance")}>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push("/performance")}
+                className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
+              >
                 Back to Performance Hub
               </Button>
             </header>

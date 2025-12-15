@@ -512,7 +512,7 @@ export default function EmployeeProfileListPage() {
                             <Button
                               onClick={() => router.push(`/admin/employee-profile/${employee._id}`)}
                               variant="outline"
-                              className="text-xs px-3 py-1"
+                              className="text-xs px-3 py-1 bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                             >
                               {isFinanceStaff ? "View Employee Finance Data" : isLegalPolicyAdmin ? "View Compliance Data" : "View"}
                             </Button>

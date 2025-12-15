@@ -44,6 +44,11 @@ export default function MyPerformancePage() {
   const router = useRouter();
   
   const canViewOwnPerformance = user ? hasFeature(user.roles, "viewOwnPerformance") : false;
+  const canViewPerformanceStatus = user ? hasFeature(user.roles, "viewPerformanceStatus") : false;
+  const canViewAllPerformance = user ? hasFeature(user.roles, "viewAllPerformance") : false;
+  
+  // HR Employee can only view status, not detailed results
+  const isViewingStatusOnly = canViewPerformanceStatus && !canViewOwnPerformance && !canViewAllPerformance;
   
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -105,9 +110,8 @@ export default function MyPerformancePage() {
         return String(recordEmployeeId) === String(userId);
       });
       
-      // For department employees, only show published records
-      const canViewAllPerformance = user ? hasFeature(user.roles, "viewAllPerformance") : false;
-      const filteredRecords = !canViewAllPerformance
+      // For HR Employee (status only) and department employees, only show published records
+      const filteredRecords = (!canViewAllPerformance && !canViewOwnPerformance)
         ? myRecords.filter((r: PerformanceRecord) => r.status === "HR_PUBLISHED")
         : myRecords;
       
@@ -165,10 +169,12 @@ export default function MyPerformancePage() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                  My Performance
+                  {isViewingStatusOnly ? "Performance Status" : "My Performance"}
                 </h1>
                 <p className="text-slate-600 text-lg">
-                  View your performance evaluation results and appraisal history.
+                  {isViewingStatusOnly 
+                    ? "View performance evaluation status and cycle information (status only)." 
+                    : "View your performance evaluation results and appraisal history."}
                 </p>
               </div>
               <Button 
@@ -262,7 +268,7 @@ export default function MyPerformancePage() {
                                   {record.status || "N/A"}
                                 </span>
                               </div>
-                              {record.totalScore !== undefined && (
+                              {!isViewingStatusOnly && record.totalScore !== undefined && (
                                 <p className="text-slate-600 text-sm">
                                   Total Score: <span className="text-slate-900 font-medium">{record.totalScore}</span>
                                   {record.overallRatingLabel && (
@@ -298,7 +304,7 @@ export default function MyPerformancePage() {
                               }}
                               className="text-slate-900 border-slate-300 hover:bg-slate-100 bg-white"
                             >
-                              View Details
+                              {isViewingStatusOnly ? "View Status" : "View Details"}
                             </Button>
                           </div>
                         </div>
@@ -363,8 +369,8 @@ export default function MyPerformancePage() {
                     </Button>
                   </div>
 
-                  {/* Ratings */}
-                  {selectedRecord.ratings && selectedRecord.ratings.length > 0 && (
+                  {/* Ratings - Hidden for status-only viewers */}
+                  {!isViewingStatusOnly && selectedRecord.ratings && selectedRecord.ratings.length > 0 && (
                     <div>
                       <h4 className="text-slate-900 font-semibold mb-3">Performance Ratings</h4>
                       <div className="space-y-3">
@@ -387,27 +393,36 @@ export default function MyPerformancePage() {
                     </div>
                   )}
 
-                  {/* Summary */}
-                  {selectedRecord.managerSummary && (
+                  {/* Summary - Hidden for status-only viewers */}
+                  {!isViewingStatusOnly && selectedRecord.managerSummary && (
                     <div>
                       <h4 className="text-slate-900 font-semibold mb-3">Manager Summary</h4>
                       <p className="text-slate-600 whitespace-pre-wrap">{selectedRecord.managerSummary}</p>
                     </div>
                   )}
 
-                  {/* Strengths */}
-                  {selectedRecord.strengths && (
+                  {/* Strengths - Hidden for status-only viewers */}
+                  {!isViewingStatusOnly && selectedRecord.strengths && (
                     <div>
                       <h4 className="text-slate-900 font-semibold mb-3">Strengths</h4>
                       <p className="text-slate-600 whitespace-pre-wrap">{selectedRecord.strengths}</p>
                     </div>
                   )}
 
-                  {/* Improvement Areas */}
-                  {selectedRecord.improvementAreas && (
+                  {/* Improvement Areas - Hidden for status-only viewers */}
+                  {!isViewingStatusOnly && selectedRecord.improvementAreas && (
                     <div>
                       <h4 className="text-slate-900 font-semibold mb-3">Areas for Improvement</h4>
                       <p className="text-slate-600 whitespace-pre-wrap">{selectedRecord.improvementAreas}</p>
+                    </div>
+                  )}
+
+                  {/* Status-only message for HR Employee */}
+                  {isViewingStatusOnly && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-blue-800 text-sm">
+                        <strong>Status View Only:</strong> As an HR Employee, you can view performance evaluation status and cycle information, but detailed results (ratings, scores, manager comments) are not available. Contact HR Manager or HR Admin for detailed performance information.
+                      </p>
                     </div>
                   )}
 
@@ -441,18 +456,20 @@ export default function MyPerformancePage() {
 
                   {/* Action Buttons */}
                   <div className="flex gap-4 pt-4 border-t border-slate-300">
-                    <Button
-                      variant="primary"
-                      onClick={() => {
-                        const id = selectedRecord._id || selectedRecord.id || "";
-                        if (id) {
-                          router.push(`/performance/disputes?cycleId=${selectedRecord.cycleId || cycleId}&appraisalId=${id}`);
-                        }
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      Submit Dispute
-                    </Button>
+                    {!isViewingStatusOnly && (
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          const id = selectedRecord._id || selectedRecord.id || "";
+                          if (id) {
+                            router.push(`/performance/disputes?cycleId=${selectedRecord.cycleId || cycleId}&appraisalId=${id}`);
+                          }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Submit Dispute
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       onClick={() => setSelectedRecord(null)}

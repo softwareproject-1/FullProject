@@ -167,21 +167,21 @@ export default function CyclesPage() {
       requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "department head"]}
     >
       {loading || loadingData ? (
-        <main className="min-h-screen flex items-center justify-center bg-background">
+        <main className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-            <p className="text-text-muted text-lg">Loading cycles...</p>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-slate-600 text-lg">Loading cycles...</p>
           </div>
         </main>
       ) : !user || !canAccess ? null : (
-        <main className="min-h-screen bg-gradient-to-br from-background via-background-light to-background p-4 md:p-8">
+        <main className="min-h-screen bg-slate-50 p-4 md:p-8">
           <div className="max-w-6xl mx-auto space-y-8">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-text mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
+                <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
                   Appraisal Cycles
                 </h1>
-                <p className="text-text-muted text-lg">
+                <p className="text-slate-600 text-lg">
                   {canManageCycles 
                     ? "Create and manage appraisal cycles." 
                     : canAssistCycles 
@@ -191,7 +191,11 @@ export default function CyclesPage() {
                     : "View appraisal cycles."}
                 </p>
               </div>
-              <Button variant="outline" onClick={() => router.push("/performance")}>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push("/performance")}
+                className="bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
+              >
                 Back to Performance Hub
               </Button>
             </header>
@@ -199,7 +203,7 @@ export default function CyclesPage() {
             {canManageCycles && (
               <Card className="bg-white">
                 <CardHeader>
-                  <CardTitle>Create Cycle</CardTitle>
+                  <CardTitle className="text-slate-900">Create Cycle</CardTitle>
                 </CardHeader>
                 <CardContent>
           <div className="space-y-4">
@@ -215,10 +219,11 @@ export default function CyclesPage() {
                   required
                 />
               </div>
-              <div>
-                <label className="label">Cycle Type</label>
+              <div className="space-y-2">
+                <Label htmlFor="cycleType">Cycle Type</Label>
                 <select
-                  className="input"
+                  id="cycleType"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900"
                   value={form.cycleType}
                   onChange={(e) => setForm((f) => ({ ...f, cycleType: e.target.value }))}
                   required
@@ -230,10 +235,11 @@ export default function CyclesPage() {
                   <option value="AD_HOC">Ad Hoc</option>
                 </select>
               </div>
-              <div className="mb-4 w-full">
-                <label className="label">Description</label>
+              <div className="mb-4 w-full space-y-2">
+                <Label htmlFor="description">Description</Label>
                 <textarea
-                  className="input min-h-[100px]"
+                  id="description"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] bg-white text-slate-900"
                   name="description"
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -295,7 +301,7 @@ export default function CyclesPage() {
 
         <Card className="bg-white">
           <CardHeader>
-            <CardTitle>Existing Cycles</CardTitle>
+            <CardTitle className="text-slate-900">Existing Cycles</CardTitle>
           </CardHeader>
           <CardContent>
           {error && items.length === 0 && (
@@ -318,13 +324,13 @@ export default function CyclesPage() {
                 return (
                   <div
                     key={id || idx}
-                    className="p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition"
+                    className="p-4 bg-white rounded-lg border border-slate-300 hover:border-blue-500 transition"
                   >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div>
-                        <p className="text-text font-semibold">{cycle.title || cycle.name || "Untitled"}</p>
-                        <p className="text-text-muted text-sm mb-1">Status: {cycle.status || "N/A"}</p>
-                        <p className="text-text-muted text-sm">{cycle.description || "No description"}</p>
+                        <p className="text-slate-900 font-semibold">{cycle.title || cycle.name || "Untitled"}</p>
+                        <p className="text-slate-600 text-sm mb-1">Status: {cycle.status || "N/A"}</p>
+                        <p className="text-slate-600 text-sm">{cycle.description || "No description"}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {canManageCycles && (
@@ -350,21 +356,21 @@ export default function CyclesPage() {
                             <Button
                               variant="outline"
                               onClick={() => updateStatus(id, "ACTIVE")}
-                              className="text-xs px-3"
+                              className="text-xs px-3 bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                             >
                               Set ACTIVE
                             </Button>
                             <Button
                               variant="outline"
                               onClick={() => updateStatus(id, "ARCHIVED")}
-                              className="text-xs px-3"
+                              className="text-xs px-3 bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                             >
                               Archive
                             </Button>
                             <Button
                               variant="outline"
                               onClick={() => updateStatus(id, "DELETED")}
-                              className="text-xs px-3"
+                              className="text-xs px-3 bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
                             >
                               Delete
                             </Button>
