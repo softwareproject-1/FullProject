@@ -16,6 +16,7 @@ import {
   Home,
   FileText,
   AlertCircle,
+  Wallet,
 } from 'lucide-react';
 
 interface NavItem {
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
   { name: 'Time Management', href: '/time-management', icon: <Clock className="w-5 h-5" /> },
   { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" /> },
   { name: 'Leaves', href: '/leaves', icon: <Calendar className="w-5 h-5" /> },
+  { name: 'My Payroll', href: '/payroll/payroll-tracking/employee', icon: <Wallet className="w-5 h-5" /> },
   { name: 'Payroll', href: '/payroll', icon: <DollarSign className="w-5 h-5" /> },
 ];
 
@@ -54,12 +56,12 @@ export function Sidebar() {
   // Filter nav items based on route access control
   const filteredNavItems = navItems.filter((item) => {
     if (!user || !user.roles) return false;
-    
+
     // Home route is accessible to all authenticated users
     if (item.href === '/') {
       return true;
     }
-    
+
     // Check route access using canAccessRoute
     const routeToCheck = item.checkRoute || item.href;
     return canAccessRoute(user.roles, routeToCheck);
@@ -74,16 +76,15 @@ export function Sidebar() {
         <h1 className="text-2xl font-bold text-white">HR</h1>
         <h1 className="text-2xl font-bold text-white">Management</h1>
       </div>
-      
+
       <nav className="flex-1 p-4 space-y-1">
         {/* Dashboard option - always visible, redirects to user's dashboard */}
         <Link
           href={controlPath}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-            isControlActive
-              ? 'bg-slate-700 text-white shadow-sm'
-              : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-          }`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isControlActive
+            ? 'bg-slate-700 text-white shadow-sm'
+            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+            }`}
         >
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-sm font-medium">Dashboard</span>
@@ -95,11 +96,10 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                isActive
-                  ? 'bg-slate-700 text-white shadow-sm'
-                  : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-              }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isActive
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                }`}
             >
               {item.icon}
               <span className="text-sm font-medium">{item.name}</span>
@@ -107,7 +107,7 @@ export function Sidebar() {
           );
         })}
       </nav>
-      
+
       <div className="p-4 border-t border-slate-700">
         <p className="text-slate-400 text-xs text-center">
           © 2025 HR System v1.0
