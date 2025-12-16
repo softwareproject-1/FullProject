@@ -1,0 +1,512 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "Payroll Execution Tests",
+    "collectionId": "payroll-execution",
+    "dateExported": "2025-12-01",
+    "version": "1.0",
+    "folders": [
+        {
+            "id": "phase-0",
+            "name": "Phase 0 - Pre-Run Reviews",
+            "requests": []
+        },
+        {
+            "id": "phase-1",
+            "name": "Phase 1 - Period Management",
+            "requests": []
+        },
+        {
+            "id": "phase-2",
+            "name": "Phase 2 - Calculations",
+            "requests": []
+        },
+        {
+            "id": "phase-3",
+            "name": "Phase 3 - Approvals",
+            "requests": []
+        },
+        {
+            "id": "phase-4",
+            "name": "Phase 4 - Execution",
+            "requests": []
+        },
+        {
+            "id": "debug",
+            "name": "Debug & Testing",
+            "requests": []
+        }
+    ],
+    "requests": [
+        {
+            "id": "seed-benefits",
+            "folderId": "debug",
+            "name": "Seed Test Benefits",
+            "url": "http://localhost:3000/payroll-execution/seed/benefits",
+            "method": "POST",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "clear-data",
+            "folderId": "debug",
+            "name": "Clear All Test Data",
+            "url": "http://localhost:3000/payroll-execution/seed/clear",
+            "method": "POST",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "db-status",
+            "folderId": "debug",
+            "name": "Check Database Status",
+            "url": "http://localhost:3000/payroll-execution/test/db-status",
+            "method": "GET",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{MANAGER_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "debug-employees",
+            "folderId": "debug",
+            "name": "Debug Employees Collection",
+            "url": "http://localhost:3000/payroll-execution/debug/employees-data",
+            "method": "GET",
+            "tests": []
+        },
+        {
+            "id": "pending-benefits",
+            "folderId": "phase-0",
+            "name": "Get Pending Benefits",
+            "url": "http://localhost:3000/payroll-execution/benefits/pending",
+            "method": "GET",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "review-benefit-approve",
+            "folderId": "phase-0",
+            "name": "Review Benefit - APPROVE",
+            "url": "http://localhost:3000/payroll-execution/benefits/review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"benefitId\": \"{{BENEFIT_ID}}\",\n  \"type\": \"SIGNING_BONUS\",\n  \"action\": \"APPROVE\",\n  \"comment\": \"Approved - employee qualifies\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "review-benefit-reject",
+            "folderId": "phase-0",
+            "name": "Review Benefit - REJECT",
+            "url": "http://localhost:3000/payroll-execution/benefits/review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"benefitId\": \"{{BENEFIT_ID}}\",\n  \"type\": \"TERMINATION\",\n  \"action\": \"REJECT\",\n  \"comment\": \"Not eligible - voluntary resignation\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "check-hr-event",
+            "folderId": "phase-0",
+            "name": "Check HR Event",
+            "url": "http://localhost:3000/payroll-execution/events/check",
+            "method": "POST",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"employeeId\": \"{{EMPLOYEE_ID}}\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "initiate-period",
+            "folderId": "phase-1",
+            "name": "Initiate Period",
+            "url": "http://localhost:3000/payroll-execution/period",
+            "method": "POST",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"month\": \"DEC\",\n  \"year\": 2025,\n  \"entity\": \"Tech Corp\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "review-period-approve",
+            "folderId": "phase-1",
+            "name": "Review Period - APPROVE",
+            "url": "http://localhost:3000/payroll-execution/period/review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"runId\": \"PR-2025-DEC\",\n  \"action\": \"APPROVE\",\n  \"comment\": \"Period approved\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "review-period-reject",
+            "folderId": "phase-1",
+            "name": "Review Period - REJECT",
+            "url": "http://localhost:3000/payroll-execution/period/review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"runId\": \"PR-2025-DEC\",\n  \"action\": \"REJECT\",\n  \"comment\": \"Invalid period\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "get-eligible-employees",
+            "folderId": "phase-1",
+            "name": "Get Eligible Employees",
+            "url": "http://localhost:3000/payroll-execution/drafts/PR-2025-DEC/employees",
+            "method": "GET",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "calculate-payroll",
+            "folderId": "phase-2",
+            "name": "Calculate Payroll",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/calculate",
+            "method": "POST",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "get-payslips",
+            "folderId": "phase-2",
+            "name": "Get Run Payslips",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/payslips",
+            "method": "GET",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "manual-adjustment-bonus",
+            "folderId": "phase-2",
+            "name": "Manual Adjustment - BONUS",
+            "url": "http://localhost:3000/payroll-execution/payslips/{{PAYSLIP_ID}}/adjust",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"type\": \"BONUS\",\n  \"amount\": 500,\n  \"reason\": \"Performance bonus\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "manual-adjustment-deduction",
+            "folderId": "phase-2",
+            "name": "Manual Adjustment - DEDUCTION",
+            "url": "http://localhost:3000/payroll-execution/payslips/{{PAYSLIP_ID}}/adjust",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"type\": \"DEDUCTION\",\n  \"amount\": 200,\n  \"reason\": \"Late arrival - 3 days\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "submit-for-approval",
+            "folderId": "phase-3",
+            "name": "Submit for Approval",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/submit",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{SPECIALIST_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "manager-review-approve",
+            "folderId": "phase-3",
+            "name": "Manager Review - APPROVE",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/manager-review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{MANAGER_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"status\": \"APPROVED\",\n  \"comment\": \"Reviewed and approved by manager\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "manager-review-reject",
+            "folderId": "phase-3",
+            "name": "Manager Review - REJECT",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/manager-review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{MANAGER_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"status\": \"REJECTED\",\n  \"comment\": \"Found errors - needs review\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "preview-dashboard",
+            "folderId": "phase-3",
+            "name": "Preview Dashboard",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/preview",
+            "method": "GET",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{FINANCE_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "finance-review-approve",
+            "folderId": "phase-3",
+            "name": "Finance Review - APPROVE",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/finance-review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{FINANCE_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"status\": \"APPROVED\",\n  \"comment\": \"Final approval - ready for execution\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "finance-review-reject",
+            "folderId": "phase-3",
+            "name": "Finance Review - REJECT",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/finance-review",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{FINANCE_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"status\": \"REJECTED\",\n  \"comment\": \"Budget constraints - defer to next period\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "execute-and-distribute",
+            "folderId": "phase-4",
+            "name": "Execute & Distribute Payslips",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/execute-and-distribute",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{FINANCE_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "lock-payroll",
+            "folderId": "phase-4",
+            "name": "Lock Payroll",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/lock",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{MANAGER_TOKEN}}"
+                }
+            ],
+            "tests": []
+        },
+        {
+            "id": "unfreeze-payroll",
+            "folderId": "phase-4",
+            "name": "Unfreeze Payroll",
+            "url": "http://localhost:3000/payroll-execution/runs/PR-2025-DEC/unfreeze",
+            "method": "PATCH",
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{MANAGER_TOKEN}}"
+                }
+            ],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"justification\": \"Critical error found - urgent correction needed\"\n}"
+            },
+            "tests": []
+        },
+        {
+            "id": "get-payslip-details",
+            "folderId": "phase-4",
+            "name": "Get Payslip Details",
+            "url": "http://localhost:3000/payroll-execution/payslips/{{EMPLOYEE_ID}}/run/PR-2025-DEC",
+            "method": "GET",
+            "headers": [
+                {
+                    "name": "Authorization",
+                    "value": "Bearer {{EMPLOYEE_TOKEN}}"
+                }
+            ],
+            "tests": []
+        }
+    ],
+    "env": {
+        "SPECIALIST_TOKEN": "your_specialist_jwt_token_here",
+        "MANAGER_TOKEN": "your_manager_jwt_token_here",
+        "FINANCE_TOKEN": "your_finance_jwt_token_here",
+        "EMPLOYEE_TOKEN": "your_employee_jwt_token_here",
+        "BENEFIT_ID": "",
+        "EMPLOYEE_ID": "",
+        "PAYSLIP_ID": ""
+    }
+}
