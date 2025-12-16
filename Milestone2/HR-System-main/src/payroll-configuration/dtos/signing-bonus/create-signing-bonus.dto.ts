@@ -11,8 +11,8 @@ export class CreateSigningBonusDto {
   @Min(0)
   amount: number;
 
-  @IsOptional()
-  @IsEnum(ConfigStatus)
-  status?: ConfigStatus;
+  // @IsOptional()
+  // @IsEnum(ConfigStatus)
+  // status?: ConfigStatus;
 }
 

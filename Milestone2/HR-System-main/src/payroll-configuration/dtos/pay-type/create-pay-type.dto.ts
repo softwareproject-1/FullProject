@@ -11,7 +11,7 @@ export class CreatePayTypeDto {
   @Min(6000)
   amount: number;
 
-  @IsOptional()
-  @IsEnum(ConfigStatus)
-  status?: ConfigStatus;
+  // @IsOptional()
+  // @IsEnum(ConfigStatus)
+  // status?: ConfigStatus;
 }

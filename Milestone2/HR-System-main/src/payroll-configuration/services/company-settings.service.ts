@@ -40,7 +40,7 @@
 //     return { deleted: true, id };
 //   }
 // }
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CompanyWideSettings } from '../models/CompanyWideSettings.schema';
@@ -105,4 +105,5 @@ async create(dto: CreateCompanySettingsDto) {
       data: removed,
     };
   }
+  
 }

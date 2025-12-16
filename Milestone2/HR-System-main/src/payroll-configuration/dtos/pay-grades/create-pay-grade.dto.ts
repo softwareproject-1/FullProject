@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsNumber, Min, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  Min,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsMongoId,
+} from 'class-validator';
 
 export class CreatePayGradeDto {
   @IsNotEmpty()
@@ -14,4 +22,8 @@ export class CreatePayGradeDto {
   @IsNumber()
   @Min(6000)
   grossSalary: number;
+  // allowances removed: gross salary will be validated against allowance service
+  // @IsOptional()
+  //   @IsString()
+  //   status?: string;
 }

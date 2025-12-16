@@ -44,7 +44,7 @@ import { TerminationAndResignationBenefitsController } from './controllers/termi
 import { TaxRulesController } from './controllers/tax-rules.controller';
 import { InsuranceBracketsController } from './controllers/insurance-brackets.controller';
 import { PayrollPoliciesController } from './controllers/payroll-policies.controller';
-
+import { BackupController } from './controllers/backup.controller';
 // Services
 import { CompanySettingsService } from './services/company-settings.service';
 import { PayGradesService } from './services/pay-grades.service';
@@ -55,7 +55,7 @@ import { TerminationAndResignationBenefitsService } from './services/termination
 import { TaxRulesService } from './services/tax-rules.service';
 import { InsuranceBracketsService } from './services/insurance-brackets.service';
 import { PayrollPoliciesService } from './services/payroll-policies.service';
-
+import { BackupService } from './services/backup.service';
 // Schemas
 import {
   CompanyWideSettings,
@@ -106,6 +106,7 @@ import { payGrade, payGradeSchema } from './models/payGrades.schema';
     TaxRulesController,
     InsuranceBracketsController,
     PayrollPoliciesController,
+    BackupController,
   ],
   providers: [
     CompanySettingsService,
@@ -117,6 +118,7 @@ import { payGrade, payGradeSchema } from './models/payGrades.schema';
     TaxRulesService,
     InsuranceBracketsService,
     PayrollPoliciesService,
+    BackupService,
   ],
   exports: [
     CompanySettingsService,
@@ -128,6 +130,7 @@ import { payGrade, payGradeSchema } from './models/payGrades.schema';
     TaxRulesService,
     InsuranceBracketsService,
     PayrollPoliciesService,
+    BackupService,
   ],
 })
-export class PayrollConfigurationModule { }
+export class PayrollConfigurationModule {}
