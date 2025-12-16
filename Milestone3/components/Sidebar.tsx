@@ -22,6 +22,16 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ReactNode;
+  roles?: string[];
+}
+
+const navItems: NavItem[] = [
+  { name: 'Home', href: '/', icon: <Home className="w-5 h-5" /> },
+  { name: 'Employee Profile', href: '/admin/employee-profile', icon: <Users className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
+  { name: 'Org Structure', href: '/admin/organization-structure', icon: <Network className="w-5 h-5" />, roles: ['System Admin', 'HR Manager'] },
+  { name: 'Performance', href: '/performance', icon: <TrendingUp className="w-5 h-5" /> },
+  { name: 'Time Management', href: '/time-management', icon: <Clock className="w-5 h-5" /> },
+  { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
   // Optional: specific route to check (if different from href)
   checkRoute?: string;
 }

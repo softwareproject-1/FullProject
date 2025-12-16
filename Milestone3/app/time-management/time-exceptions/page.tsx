@@ -5,11 +5,19 @@ import { Card } from '../../../components/Card';
 import { Modal } from '../../../components/Modal';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { timeManagementApi, employeeProfileApi } from '../../../lib/api';
+import axiosInstance from '../../../utils/ApiClient';
 import { handleTimeManagementError, extractArrayData } from '../../../lib/time-management-utils';
 import { formatDate } from '../../../lib/date-utils';
 import { Plus, Edit2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole } from '@/utils/roleAccess';
 
 export default function TimeExceptionsPage() {
+  const { user } = useAuth();
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
   const [loading, setLoading] = useState(false);
   const [timeExceptions, setTimeExceptions] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
@@ -23,7 +31,23 @@ export default function TimeExceptionsPage() {
     loadTimeExceptions();
     loadEmployees();
     loadAttendanceRecords();
-  }, []);
+  }, [isSystemAdmin]);
+
+  // Auto-populate employeeId for Department Employees and HR Employees when modal opens
+  useEffect(() => {
+    if (isModalOpen && canOnlyViewOwn && user?._id && !selectedItem) {
+      setFormData({ 
+        employeeId: user._id, 
+        type: '', 
+        attendanceRecordId: undefined, 
+        assignedTo: undefined, 
+        status: 'OPEN',
+        reason: '' 
+      });
+      // Load attendance records for the logged-in employee
+      loadAttendanceRecords(user._id);
+    }
+  }, [isModalOpen, canOnlyViewOwn, user?._id, selectedItem]);
 
   // Reload attendance records when employee is selected
   useEffect(() => {
@@ -55,47 +79,116 @@ export default function TimeExceptionsPage() {
       const response = await employeeProfileApi.getAll();
       const allEmps = extractArrayData(response);
       
-      // Get all attendance records to find which employees have records
-      const attendanceResponse = await timeManagementApi.getAttendanceRecords();
-      const allRecords = extractArrayData(attendanceResponse);
+      // System Admin can see all employees, others only see employees with attendance records
+      if (isSystemAdmin) {
+        setAllEmployees(allEmps);
+      } else {
+        // Get all attendance records to find which employees have records
+        const attendanceResponse = await timeManagementApi.getAttendanceRecords();
+        const allRecords = extractArrayData(attendanceResponse);
+        
+        // Get unique employee IDs from attendance records
+        const employeeIdsWithRecords = new Set(
+          allRecords.map((record: any) => {
+            const empId = record.employeeId;
+            if (typeof empId === 'object' && empId?._id) {
+              return empId._id.toString();
+            }
+            return empId?.toString();
+          })
+        );
+        
+        // Filter employees to only those with attendance records
+        const employeesWithRecords = allEmps.filter((emp: any) => 
+          employeeIdsWithRecords.has((emp._id || emp.id).toString())
+        );
+        setAllEmployees(employeesWithRecords);
+      }
       
-      // Get unique employee IDs from attendance records
-      const employeeIdsWithRecords = new Set(
-        allRecords.map((record: any) => {
-          const empId = record.employeeId;
-          if (typeof empId === 'object' && empId?._id) {
-            return empId._id.toString();
-          }
-          return empId?.toString();
-        })
-      );
-      
-      // Filter employees to only those with attendance records
-      const employeesWithRecords = allEmps.filter((emp: any) => 
-        employeeIdsWithRecords.has((emp._id || emp.id).toString())
-      );
-      setAllEmployees(employeesWithRecords);
-      
-      // Load managers with specific roles using backend endpoint
-      // Roles: 'department head', 'HR Manager', 'Payroll Manager', 'System Admin', 'Legal & Policy Admin', 'HR Admin'
+      // Load managers with specific roles - using exact enum values
+      // These must match SystemRole enum values exactly
       const managerRoles = [
-        'department head',
-        'HR Manager',
-        'Payroll Manager',
-        'System Admin',
-        'Legal & Policy Admin',
-        'HR Admin'
+        'HR Manager',           // SystemRole.HR_MANAGER
+        'Payroll Specialist',  // SystemRole.PAYROLL_SPECIALIST
+        'Payroll Manager',      // SystemRole.PAYROLL_MANAGER
+        'System Admin',         // SystemRole.SYSTEM_ADMIN
+        'Legal & Policy Admin', // SystemRole.LEGAL_POLICY_ADMIN
+        'HR Admin'              // SystemRole.HR_ADMIN
       ];
       
       try {
-        // Fetch employees with the specified roles from backend
-        const managersResponse = await employeeProfileApi.getByRoles(managerRoles);
-        const managers = extractArrayData(managersResponse);
-        setAllManagers(managers);
+        // First, check if roles are in the initial employee data
+        let managersWithRoles = allEmps.filter((emp: any) => {
+          let empRoles: string[] = [];
+          
+          // Try multiple ways to get roles from the employee object
+          if (emp.roles && Array.isArray(emp.roles)) {
+            empRoles = emp.roles;
+          } else if (emp.systemRoles) {
+            if (Array.isArray(emp.systemRoles)) {
+              empRoles = emp.systemRoles.flatMap((sr: any) => sr.roles || []);
+            } else if (emp.systemRoles.roles && Array.isArray(emp.systemRoles.roles)) {
+              empRoles = emp.systemRoles.roles;
+            }
+          }
+          
+          if (empRoles.length === 0) {
+            return false;
+          }
+          
+          // Use exact string matching (case-sensitive) as per enum values
+          return empRoles.some((empRole: string) => 
+            managerRoles.includes(empRole)
+          );
+        });
+        
+        // If no managers found in initial data, fetch roles for each employee
+        if (managersWithRoles.length === 0 && allEmps.length > 0) {
+          console.log('Roles not in initial data, fetching roles for employees...');
+          
+          // Fetch roles for employees in parallel (limit to first 50 to avoid too many requests)
+          const employeesToCheck = allEmps.slice(0, 50);
+          const rolePromises = employeesToCheck.map(async (emp: any) => {
+            const empId = emp._id || emp.id;
+            if (!empId) return { emp, roles: [] };
+            
+            try {
+              // Try to get system roles via the system-roles endpoint
+              const rolesResponse = await axiosInstance.get(`/employee-profile/${empId}/system-roles`).catch(() => null);
+              if (rolesResponse?.data?.roles) {
+                return { emp, roles: rolesResponse.data.roles };
+              }
+              
+              // Fallback: try PATCH to get existing roles (some endpoints return on PATCH)
+              const patchResponse = await axiosInstance.patch(`/employee-profile/${empId}/system-roles`, {}).catch(() => null);
+              if (patchResponse?.data?.roles) {
+                return { emp, roles: patchResponse.data.roles };
+              }
+              
+              return { emp, roles: [] };
+            } catch (err) {
+              return { emp, roles: [] };
+            }
+          });
+          
+          const employeesWithRolesData = await Promise.all(rolePromises);
+          
+          // Filter employees that have the required roles
+          managersWithRoles = employeesWithRolesData
+            .filter(({ roles }) => {
+              if (!Array.isArray(roles) || roles.length === 0) return false;
+              // Use exact string matching (case-sensitive)
+              return roles.some((role: string) => managerRoles.includes(role));
+            })
+            .map(({ emp }) => emp);
+          
+          console.log('Found managers after fetching roles:', managersWithRoles.length);
+        }
+        
+        setAllManagers(managersWithRoles);
       } catch (error) {
         console.error('Error loading managers by roles:', error);
-        // Fallback: show all employees if endpoint fails
-        setAllManagers(allEmps);
+        setAllManagers([]);
       }
     } catch (error) {
       console.error('Error loading employees:', error);
@@ -137,7 +230,7 @@ export default function TimeExceptionsPage() {
       
       // Validate required fields
       if (!cleanedData.employeeId || !cleanedData.type || !cleanedData.attendanceRecordId || !cleanedData.assignedTo) {
-        alert('Please fill in all required fields: Employee, Exception Type, Attendance Record, and Assigned To');
+        alert('Please fill in all required fields: Employee, Exception Type, Attendance Record, and Escalated To');
         return;
       }
       
@@ -188,7 +281,9 @@ export default function TimeExceptionsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 mb-2">Time Exceptions</h1>
-          <p className="text-slate-600">Handle time-related exceptions and issues</p>
+          <p className="text-slate-600">
+            {canOnlyViewOwn ? 'View and create time exceptions for your records' : 'Handle time-related exceptions and issues'}
+          </p>
         </div>
         <button
           onClick={() => openModal()}
@@ -209,10 +304,12 @@ export default function TimeExceptionsPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-slate-700">Employee</th>
                   <th className="px-6 py-3 text-left text-slate-700">Type</th>
-                  <th className="px-6 py-3 text-left text-slate-700">Assigned To</th>
+                  <th className="px-6 py-3 text-left text-slate-700">Escalated To</th>
                   <th className="px-6 py-3 text-left text-slate-700">Date</th>
                   <th className="px-6 py-3 text-left text-slate-700">Status</th>
-                  <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  {!canOnlyViewOwn && (
+                    <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -299,7 +396,7 @@ export default function TimeExceptionsPage() {
                   
                   const formattedDate = formatDate(dateToFormat);
                   
-                  // Get assigned to (manager) name from populated assignedTo
+                  // Get escalated to (manager) name from populated assignedTo
                   const assignedTo = exception.assignedTo;
                   const assignedToName = assignedTo?.fullName || 
                     (assignedTo?.firstName && assignedTo?.lastName 
@@ -315,14 +412,16 @@ export default function TimeExceptionsPage() {
                       <td className="px-6 py-4">
                         <StatusBadge status={exception.status || 'OPEN'} />
                       </td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => openModal(exception)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </td>
+                      {!canOnlyViewOwn && (
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => openModal(exception)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -345,36 +444,53 @@ export default function TimeExceptionsPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-slate-700 mb-2">Employee <span className="text-red-500">*</span></label>
-            <select
-              value={formData.employeeId || ''}
-              onChange={(e) => {
-                const newEmployeeId = e.target.value || undefined;
-                setFormData({ 
-                  ...formData, 
-                  employeeId: newEmployeeId,
-                  attendanceRecordId: undefined // Clear attendance record when employee changes
-                });
-              }}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50"
-              disabled={!!selectedItem}
-            >
-              <option value="">Select Employee</option>
-              {allEmployees.length === 0 ? (
-                <option value="" disabled>Loading employees...</option>
-              ) : (
-                allEmployees.map((emp) => {
-                  const displayName = emp.fullName || 
-                    (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : 
-                    emp.firstName || emp.lastName || emp.employeeNumber || 'Unknown Employee');
-                  return (
-                    <option key={emp._id || emp.id} value={emp._id || emp.id}>
-                      {displayName} {emp.employeeNumber ? `(${emp.employeeNumber})` : ''}
-                    </option>
-                  );
-                })
-              )}
-            </select>
-            <p className="text-sm text-slate-500 mt-1">Only employees with attendance records are shown</p>
+            {(isDepartmentEmployee || isHREmployee) ? (
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50">
+                <p className="text-slate-700">
+                  {user?.firstName && user?.lastName 
+                    ? `${user.firstName} ${user.lastName}`
+                    : user?.firstName || user?.lastName || user?.employeeNumber || 'Current User'}
+                  {user?.employeeNumber && ` (${user.employeeNumber})`}
+                </p>
+              </div>
+            ) : (
+              <select
+                value={formData.employeeId || ''}
+                onChange={(e) => {
+                  const newEmployeeId = e.target.value || undefined;
+                  setFormData({ 
+                    ...formData, 
+                    employeeId: newEmployeeId,
+                    attendanceRecordId: undefined // Clear attendance record when employee changes
+                  });
+                }}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50"
+                disabled={!!selectedItem}
+              >
+                <option value="">Select Employee</option>
+                {allEmployees.length === 0 ? (
+                  <option value="" disabled>Loading employees...</option>
+                ) : (
+                  allEmployees.map((emp) => {
+                    const displayName = emp.fullName || 
+                      (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : 
+                      emp.firstName || emp.lastName || emp.employeeNumber || 'Unknown Employee');
+                    return (
+                      <option key={emp._id || emp.id} value={emp._id || emp.id}>
+                        {displayName} {emp.employeeNumber ? `(${emp.employeeNumber})` : ''}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+            )}
+            <p className="text-sm text-slate-500 mt-1">
+              {(isDepartmentEmployee || isHREmployee) 
+                ? 'Your attendance records will be shown below'
+                : isSystemAdmin 
+                  ? 'All employees are shown'
+                  : 'Only employees with attendance records are shown'}
+            </p>
           </div>
           <div>
             <label className="block text-slate-700 mb-2">Exception Type</label>
@@ -468,7 +584,7 @@ export default function TimeExceptionsPage() {
             </select>
           </div>
           <div>
-            <label className="block text-slate-700 mb-2">Assigned To (Manager) <span className="text-red-500">*</span></label>
+            <label className="block text-slate-700 mb-2">Escalated To (Manager) <span className="text-red-500">*</span></label>
             <select
               value={formData.assignedTo || ''}
               onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value || undefined })}
@@ -477,7 +593,7 @@ export default function TimeExceptionsPage() {
             >
               <option value="">Select Manager</option>
               {allManagers.length === 0 ? (
-                <option value="" disabled>Loading managers...</option>
+                <option value="" disabled>No managers found with the required roles</option>
               ) : (
                 allManagers.map((emp) => {
                   const displayName = emp.fullName || 
@@ -493,7 +609,7 @@ export default function TimeExceptionsPage() {
                 })
               )}
             </select>
-            <p className="text-sm text-slate-500 mt-1">Only managers with roles: Department Head, HR Manager, Payroll Manager, System Admin, Legal & Policy Admin, HR Admin</p>
+            <p className="text-sm text-slate-500 mt-1">Only managers with roles: HR Manager, Payroll Specialist, Payroll Manager, System Admin, Legal & Policy Admin, HR Admin</p>
           </div>
           {selectedItem && (
             <div>

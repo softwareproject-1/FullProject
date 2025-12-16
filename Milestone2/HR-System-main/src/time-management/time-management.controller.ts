@@ -12,6 +12,7 @@ import {
     UsePipes,
     ValidationPipe,
     UseGuards,
+    ForbiddenException,
   } from '@nestjs/common';
   import {
     ApiTags,
@@ -54,6 +55,7 @@ import {
   import { AuthenticationGuard } from '../auth/guards/authentication.guard';
   import { RolesGuard } from '../auth/guards/roles.guard';
   import { Roles } from '../auth/decorators/roles.decorator';
+  import { CurrentUser } from '../auth/decorators/current-user.decorator';
   import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
   
   @ApiTags('time-management')
@@ -267,18 +269,53 @@ import {
     @ApiQuery({ name: 'positionId', required: false, type: String, description: 'Filter by position ID' })
     @ApiQuery({ name: 'status', required: false, enum: ShiftAssignmentStatus, description: 'Filter by status' })
     @ApiResponse({ status: 200, description: 'List of shift assignments' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only view their own shift assignments' })
     async findAllShiftAssignments(
       @Query('employeeId') employeeId?: string,
       @Query('departmentId') departmentId?: string,
       @Query('positionId') positionId?: string,
       @Query('status') status?: ShiftAssignmentStatus,
+      @CurrentUser() user?: any,
     ) {
-      return this.timeManagementService.findAllShiftAssignments({
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      
+      console.log('findAllShiftAssignments - User:', {
+        sub: user?.sub,
+        roles: userRoles,
+        isDepartmentEmployee,
+        isHREmployee,
+        queryEmployeeId: employeeId,
+      });
+      
+      if (isDepartmentEmployee || isHREmployee) {
+        // Department Employees and HR Employees can only see their own shift assignments
+        employeeId = user.sub;
+        console.log('findAllShiftAssignments - Department Employee or HR Employee, setting employeeId to:', employeeId);
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+        // If they try to query another employee's assignments, deny access
+        if (employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees and HR Employees can only view their own shift assignments');
+        }
+      }
+      
+      const filters = {
         employeeId,
         departmentId,
         positionId,
         status,
-      });
+      };
+      
+      console.log('findAllShiftAssignments - Filters:', filters);
+      
+      const result = await this.timeManagementService.findAllShiftAssignments(filters);
+      console.log('findAllShiftAssignments - Result count:', result.length);
+      if (result.length > 0) {
+        console.log('findAllShiftAssignments - First result employeeId:', result[0].employeeId);
+      }
+      
+      return result;
     }
   
     @Get('shift-assignments/:id')
@@ -338,7 +375,17 @@ import {
     @ApiBody({ type: ClockInOutDto })
     @ApiResponse({ status: 201, description: 'Punch recorded successfully' })
     @ApiResponse({ status: 400, description: 'Bad request' })
-    async clockInOut(@Body() clockDto: ClockInOutDto) {
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only clock in/out for themselves' })
+    async clockInOut(@Body() clockDto: ClockInOutDto, @CurrentUser() user: any) {
+      // Department Employees can only clock in/out using their own ID
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      
+      if (isDepartmentEmployee) {
+        // Override employeeId with the authenticated user's ID
+        clockDto.employeeId = user.sub;
+      }
+      
       return this.timeManagementService.clockInOut(clockDto);
     }
   
@@ -362,11 +409,28 @@ import {
     @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Filter by start date' })
     @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Filter by end date' })
     @ApiResponse({ status: 200, description: 'List of attendance records' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and HR Employees can only view their own records' })
     async findAllAttendanceRecords(
       @Query('employeeId') employeeId?: string,
       @Query('startDate') startDate?: string,
       @Query('endDate') endDate?: string,
+      @CurrentUser() user?: any,
     ) {
+      // Department Employees and HR Employees can only see their own attendance records
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      
+      if (isDepartmentEmployee || isHREmployee) {
+        // Force filter to only their own records
+        employeeId = user.sub;
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+        // If they try to query another employee's records, deny access
+        if (employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees and HR Employees can only view their own attendance records');
+        }
+      }
+      
       return this.timeManagementService.findAllAttendanceRecords({
         employeeId,
         startDate,
@@ -381,13 +445,27 @@ import {
     @ApiParam({ name: 'id', description: 'Attendance record ID' })
     @ApiResponse({ status: 200, description: 'Attendance record found' })
     @ApiResponse({ status: 404, description: 'Attendance record not found' })
-    async findAttendanceRecordById(@Param('id') id: string) {
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only view their own records' })
+    async findAttendanceRecordById(@Param('id') id: string, @CurrentUser() user?: any) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      
+      if (isDepartmentEmployee) {
+        // Check if the record belongs to the employee
+        const record = await this.timeManagementService.findAttendanceRecordById(id);
+        const recordEmployeeId = this.getEntityId(record.employeeId);
+        
+        if (recordEmployeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees can only view their own attendance records');
+        }
+      }
+      
       return this.timeManagementService.findAttendanceRecordById(id);
     }
   
     @Put('attendance/records/:id/correct')
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+    @Roles(SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER)
     @ApiOperation({ summary: 'Manually correct attendance record' })
     @ApiParam({ name: 'id', description: 'Attendance record ID' })
     @ApiBody({ type: ManualAttendanceCorrectionDto })
@@ -403,11 +481,20 @@ import {
     @Post('attendance/missed-punches/check')
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.HR_EMPLOYEE)
     @ApiOperation({ summary: 'Check for missed punches and send notifications' })
     @ApiResponse({ status: 200, description: 'Missed punches checked and notifications sent' })
-    async checkMissedPunchesAndNotify() {
-      return this.timeManagementService.checkMissedPunchesAndNotify();
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and HR Employees can only check their own missed punches' })
+    async checkMissedPunchesAndNotify(@CurrentUser() user?: any) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      
+      // Department Employees and HR Employees can only check their own missed punches
+      // Other roles (admins, managers) can check all missed punches
+      const employeeId = (isDepartmentEmployee || isHREmployee) ? user.sub : undefined;
+      
+      return this.timeManagementService.checkMissedPunchesAndNotify(employeeId);
     }
   
     @Post('attendance/correction-requests')
@@ -418,7 +505,25 @@ import {
     @ApiBody({ type: CreateAttendanceCorrectionRequestDto })
     @ApiResponse({ status: 201, description: 'Correction request created successfully' })
     @ApiResponse({ status: 400, description: 'Bad request' })
-    async createCorrectionRequest(@Body() createDto: CreateAttendanceCorrectionRequestDto) {
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only create requests for themselves' })
+    async createCorrectionRequest(@Body() createDto: CreateAttendanceCorrectionRequestDto, @CurrentUser() user: any) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      
+      if (isDepartmentEmployee) {
+        // Department Employees can only create correction requests for themselves
+        if (createDto.employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees can only create correction requests for themselves');
+        }
+        // Also verify the attendance record belongs to them
+        const record = await this.timeManagementService.findAttendanceRecordById(createDto.attendanceRecord);
+        const recordEmployeeId = this.getEntityId(record.employeeId);
+        
+        if (recordEmployeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees can only create correction requests for their own attendance records');
+        }
+      }
+      
       return this.timeManagementService.createCorrectionRequest(createDto);
     }
   
@@ -429,10 +534,26 @@ import {
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'status', required: false, enum: CorrectionRequestStatus, description: 'Filter by status' })
     @ApiResponse({ status: 200, description: 'List of correction requests' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and HR Employees can only view their own requests' })
     async findAllCorrectionRequests(
       @Query('employeeId') employeeId?: string,
       @Query('status') status?: CorrectionRequestStatus,
+      @CurrentUser() user?: any,
     ) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      
+      if (isDepartmentEmployee || isHREmployee) {
+        // Department Employees and HR Employees can only see their own correction requests
+        employeeId = user.sub;
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+        // If they try to query another employee's requests, deny access
+        if (employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees and HR Employees can only view their own correction requests');
+        }
+      }
+      
       return this.timeManagementService.findAllCorrectionRequests({
         employeeId,
         status,
@@ -446,7 +567,22 @@ import {
     @ApiParam({ name: 'id', description: 'Correction request ID' })
     @ApiResponse({ status: 200, description: 'Correction request found' })
     @ApiResponse({ status: 404, description: 'Correction request not found' })
-    async findCorrectionRequestById(@Param('id') id: string) {
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and HR Employees can only view their own requests' })
+    async findCorrectionRequestById(@Param('id') id: string, @CurrentUser() user?: any) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      
+      if (isDepartmentEmployee || isHREmployee) {
+        // Check if the request belongs to the employee
+        const request = await this.timeManagementService.findCorrectionRequestById(id);
+        const requestEmployeeId = this.getEntityId(request.employeeId);
+        
+        if (requestEmployeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees and HR Employees can only view their own correction requests');
+        }
+      }
+      
       return this.timeManagementService.findCorrectionRequestById(id);
     }
   
@@ -473,7 +609,25 @@ import {
     @ApiBody({ type: CreateTimeExceptionDto })
     @ApiResponse({ status: 201, description: 'Time exception created successfully' })
     @ApiResponse({ status: 400, description: 'Bad request' })
-    async createTimeException(@Body() createDto: CreateTimeExceptionDto) {
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only create exceptions for themselves' })
+    async createTimeException(@Body() createDto: CreateTimeExceptionDto, @CurrentUser() user: any) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      
+      if (isDepartmentEmployee) {
+        // Department Employees can only create time exceptions for themselves
+        if (createDto.employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees can only create time exceptions for themselves');
+        }
+        // Also verify the attendance record belongs to them
+        const record = await this.timeManagementService.findAttendanceRecordById(createDto.attendanceRecordId);
+        const recordEmployeeId = this.getEntityId(record.employeeId);
+        
+        if (recordEmployeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees can only create time exceptions for their own attendance records');
+        }
+      }
+      
       return this.timeManagementService.createTimeException(createDto);
     }
   
@@ -486,12 +640,28 @@ import {
     @ApiQuery({ name: 'status', required: false, enum: TimeExceptionStatus, description: 'Filter by status' })
     @ApiQuery({ name: 'assignedTo', required: false, type: String, description: 'Filter by assigned manager ID' })
     @ApiResponse({ status: 200, description: 'List of time exceptions' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and HR Employees can only view their own time exceptions' })
     async findAllTimeExceptions(
       @Query('employeeId') employeeId?: string,
       @Query('type') type?: string,
       @Query('status') status?: TimeExceptionStatus,
       @Query('assignedTo') assignedTo?: string,
+      @CurrentUser() user?: any,
     ) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      
+      if (isDepartmentEmployee || isHREmployee) {
+        // Department Employees and HR Employees can only see their own time exceptions
+        employeeId = user.sub;
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+        // If they try to query another employee's exceptions, deny access
+        if (employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees and HR Employees can only view their own time exceptions');
+        }
+      }
+      
       return this.timeManagementService.findAllTimeExceptions({
         employeeId,
         type: type as any,
@@ -753,7 +923,18 @@ import {
     @ApiParam({ name: 'employeeId', description: 'Employee ID' })
     @ApiResponse({ status: 200, description: 'List of notifications' })
     @ApiResponse({ status: 404, description: 'Employee not found' })
-    async findNotificationsByEmployee(@Param('employeeId') employeeId: string) {
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only view their own notifications' })
+    async findNotificationsByEmployee(@Param('employeeId') employeeId: string, @CurrentUser() user?: any) {
+      const userRoles = user?.roles || [];
+      const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      
+      if (isDepartmentEmployee) {
+        // Department Employees can only see their own notifications
+        if (employeeId !== user.sub) {
+          throw new ForbiddenException('Department Employees can only view their own notifications');
+        }
+      }
+      
       return this.timeManagementService.findNotificationsByEmployee(employeeId);
     }
   
@@ -767,4 +948,26 @@ import {
     async escalatePendingRequestsBeforePayrollCutoff(@Body('cutoffDate') cutoffDate: string) {
       return this.timeManagementService.escalatePendingRequestsBeforePayrollCutoff(new Date(cutoffDate));
     }
+
+  // Utility to safely extract an ID string from populated or raw references
+  private getEntityId(entity: any): string | undefined {
+    if (!entity) return undefined;
+    if (typeof entity === 'string') return entity;
+    if (typeof entity === 'object') {
+      if (entity._id && typeof entity._id.toString === 'function') {
+        return entity._id.toString();
+      }
+      if (entity.id && typeof entity.id.toString === 'function') {
+        return entity.id.toString();
+      }
+      if (typeof entity.toString === 'function') {
+        return entity.toString();
+      }
+    }
+    try {
+      return String(entity);
+    } catch {
+      return undefined;
+    }
   }
+}

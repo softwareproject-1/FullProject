@@ -632,7 +632,12 @@ export const timeManagementApi = {
   deleteScheduleRule: (id: string) => axiosInstance.delete(`/time-management/schedule-rules/${id}`),
 
   // Shift Assignments
-  getShiftAssignments: () => axiosInstance.get('/time-management/shift-assignments'),
+  getShiftAssignments: (filters?: any) => {
+    if (filters) {
+      return axiosInstance.get('/time-management/shift-assignments', { params: filters });
+    }
+    return axiosInstance.get('/time-management/shift-assignments');
+  },
   createShiftAssignment: (data: any) => axiosInstance.post('/time-management/shift-assignments', data),
   createBulkShiftAssignment: (data: any) => axiosInstance.post('/time-management/shift-assignments/bulk', data),
   updateShiftAssignment: (id: string, data: any) => axiosInstance.put(`/time-management/shift-assignments/${id}`, data),
@@ -649,7 +654,7 @@ export const timeManagementApi = {
   createAttendanceRecord: (data: any) => axiosInstance.post('/time-management/attendance/records', data),
   updateAttendanceRecord: (id: string, data: any) => axiosInstance.put(`/time-management/attendance/records/${id}`, data),
   manualAttendanceCorrection: (id: string, data: any) => axiosInstance.put(`/time-management/attendance/records/${id}/correct`, data),
-  checkMissedPunches: () => axiosInstance.post('/time-management/attendance/missed-punches/check'),
+  checkMissedPunches: () => axiosInstance.post('/time-management/attendance/missed-punches/check', {}, { timeout: 60000 }), // 60 second timeout for processing many records
 
   // Correction Requests
   getCorrectionRequests: () => axiosInstance.get('/time-management/attendance/correction-requests'),
@@ -702,11 +707,22 @@ export const employeeProfileApi = {
     // If backend has a specific endpoint, use that instead
     const response = await axiosInstance.get('/employee-profile');
     if (response.data && Array.isArray(response.data)) {
-      const filtered = response.data.filter((emp: any) => 
-        emp.roles && emp.roles.some((role: string) => 
-          roles.some(r => r.toLowerCase() === role.toLowerCase())
-        )
-      );
+      const normalizedTargetRoles = roles.map(r => r.toLowerCase().trim());
+      const filtered = response.data.filter((emp: any) => {
+        // Check both emp.roles and emp.systemRoles?.roles
+        const empRoles = emp.roles || emp.systemRoles?.roles || [];
+        if (!Array.isArray(empRoles)) return false;
+        
+        // Normalize employee roles for comparison
+        const normalizedEmpRoles = empRoles.map((role: string) => 
+          String(role).toLowerCase().trim()
+        );
+        
+        // Check if employee has at least one of the target roles
+        return normalizedEmpRoles.some((empRole: string) => 
+          normalizedTargetRoles.includes(empRole)
+        );
+      });
       return { ...response, data: filtered };
     }
     return response;

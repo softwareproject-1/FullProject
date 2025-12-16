@@ -66,6 +66,9 @@ export default function Navbar() {
             ) : user ? (
               <>
                 {/* User Info - Desktop */}
+                <div className="hidden md:flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-text">
                 <button
                   onClick={() => {
                     if (user?._id) {
@@ -99,6 +102,10 @@ export default function Navbar() {
                       )}
                     </div>
                   )}
+                </div>
+
+                {/* User Info - Mobile */}
+                <div className="md:hidden flex items-center gap-2">
                 </button>
 
                 {/* User Info - Mobile */}
@@ -115,6 +122,7 @@ export default function Navbar() {
                       {user.roles[0]}
                     </span>
                   )}
+                </div>
                   <p className="text-sm font-medium text-text">
                     {user.firstName} {user.lastName}
                   </p>

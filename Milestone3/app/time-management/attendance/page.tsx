@@ -6,12 +6,27 @@ import { Modal } from '../../../components/Modal';
 import { timeManagementApi, employeeProfileApi } from '../../../lib/api';
 import { handleTimeManagementError, extractArrayData } from '../../../lib/time-management-utils';
 import { formatDate, formatTime, isoToLocalDateTime, localDateTimeToISO } from '../../../lib/date-utils';
-import { Edit2, Bell, Plus, Trash2 } from 'lucide-react';
+import { Edit2, Bell, Plus, Trash2, Flag, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole } from '@/utils/roleAccess';
 
 export default function AttendancePage() {
+  const { user } = useAuth();
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const isHRAdmin = user ? hasRole(user.roles, SystemRole.HR_ADMIN) : false;
+  const isHRManager = user ? hasRole(user.roles, SystemRole.HR_MANAGER) : false;
+  const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
+  const canSeeLateWarning = isHRAdmin || isHRManager;
+  // Backend allows: DEPARTMENT_HEAD, SYSTEM_ADMIN, HR_ADMIN, HR_MANAGER
+  // Frontend: Hide for Department Employee, HR Employee, and System Admin
+  const canEditAttendance = !canOnlyViewOwn && !isSystemAdmin;
   const [loading, setLoading] = useState(false);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [shiftAssignments, setShiftAssignments] = useState<any[]>([]);
+  const [shifts, setShifts] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
@@ -19,7 +34,11 @@ export default function AttendancePage() {
   useEffect(() => {
     loadAttendanceRecords();
     loadEmployees();
-  }, []);
+    if (canSeeLateWarning) {
+      loadShiftAssignments();
+      loadShifts();
+    }
+  }, [canSeeLateWarning]);
 
   const loadEmployees = async () => {
     try {
@@ -30,6 +49,93 @@ export default function AttendancePage() {
       console.error('Error loading employees:', error);
       setEmployees([]);
     }
+  };
+
+  const loadShiftAssignments = async () => {
+    try {
+      const response = await timeManagementApi.getShiftAssignments();
+      const assignments = extractArrayData(response);
+      setShiftAssignments(Array.isArray(assignments) ? assignments : []);
+    } catch (error) {
+      console.error('Error loading shift assignments:', error);
+      setShiftAssignments([]);
+    }
+  };
+
+  const loadShifts = async () => {
+    try {
+      const response = await timeManagementApi.getShifts();
+      const shiftsData = extractArrayData(response);
+      setShifts(Array.isArray(shiftsData) ? shiftsData : []);
+    } catch (error) {
+      console.error('Error loading shifts:', error);
+      setShifts([]);
+    }
+  };
+
+  // Check if employee punched in late based on their shift
+  const isEmployeeLate = (record: any): boolean => {
+    if (!canSeeLateWarning || !record.punches) return false;
+    
+    const punchIn = record.punches.find((p: any) => String(p.type).toUpperCase() === 'IN');
+    if (!punchIn || !punchIn.time) return false;
+    
+    const employeeId = typeof record.employeeId === 'string' 
+      ? record.employeeId 
+      : (record.employeeId?._id || record.employeeId?.id || record.employeeId);
+    
+    if (!employeeId) return false;
+    
+    // Find active shift assignment for this employee on the record date
+    const recordDate = record.dateObj || new Date(record.date || record.createdAt);
+    const recordDateStr = recordDate.toISOString().split('T')[0];
+    
+    const assignment = shiftAssignments.find((sa: any) => {
+      const saEmployeeId = typeof sa.employeeId === 'string'
+        ? sa.employeeId
+        : (sa.employeeId?._id || sa.employeeId?.id || sa.employeeId);
+      
+      if (saEmployeeId?.toString() !== employeeId.toString()) return false;
+      
+      const startDate = new Date(sa.startDate);
+      const endDate = sa.endDate ? new Date(sa.endDate) : null;
+      const assignmentDateStr = startDate.toISOString().split('T')[0];
+      
+      // Check if record date is within assignment date range
+      if (recordDateStr < assignmentDateStr) return false;
+      if (endDate && recordDateStr > endDate.toISOString().split('T')[0]) return false;
+      
+      return true;
+    });
+    
+    if (!assignment || !assignment.shiftId) return false;
+    
+    // Get shift details
+    const shiftId = typeof assignment.shiftId === 'string'
+      ? assignment.shiftId
+      : (assignment.shiftId?._id || assignment.shiftId?.id || assignment.shiftId);
+    
+    const shift = shifts.find((s: any) => {
+      const sId = s._id || s.id;
+      return sId?.toString() === shiftId?.toString();
+    });
+    
+    if (!shift || !shift.startTime) return false;
+    
+    // Parse shift start time (format: "HH:MM" or "HH:MM:SS")
+    const [shiftHours, shiftMinutes] = shift.startTime.split(':').map(Number);
+    if (isNaN(shiftHours) || isNaN(shiftMinutes)) return false;
+    
+    // Get punch-in time
+    const punchInTime = new Date(punchIn.time);
+    const punchInHours = punchInTime.getHours();
+    const punchInMinutes = punchInTime.getMinutes();
+    
+    // Compare: if punch-in time is after shift start time, employee is late
+    const punchInTotalMinutes = punchInHours * 60 + punchInMinutes;
+    const shiftStartTotalMinutes = shiftHours * 60 + shiftMinutes;
+    
+    return punchInTotalMinutes > shiftStartTotalMinutes;
   };
 
   const loadAttendanceRecords = async () => {
@@ -50,6 +156,20 @@ export default function AttendancePage() {
       fetch('http://127.0.0.1:7242/ingest/937ae396-a99d-45fe-a2dc-e3f53fc9d362',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attendance/page.tsx:44',message:'After extractArrayData',data:{recordsCount:records?.length,firstRecordKeys:records?.[0]?Object.keys(records[0]):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
       // #endregion
       console.log('Loaded attendance records:', records);
+      console.log('Total records loaded:', records.length);
+      
+      // Log all records with their punches
+      records.forEach((record: any, index: number) => {
+        console.log(`Record ${index + 1}:`, {
+          _id: record._id || record.id,
+          employeeId: record.employeeId,
+          punchesCount: record.punches?.length || 0,
+          punches: record.punches,
+          hasIn: record.punches?.some((p: any) => String(p.type).toUpperCase() === 'IN'),
+          hasOut: record.punches?.some((p: any) => String(p.type).toUpperCase() === 'OUT'),
+        });
+      });
+      
       if (records.length > 0) {
         console.log('Sample record:', JSON.stringify(records[0], null, 2));
         console.log('Sample record employeeId:', records[0].employeeId);
@@ -77,14 +197,19 @@ export default function AttendancePage() {
     }
   };
 
-  // Group records by employee and date, and calculate work hours
+  // Process records and merge records for the same employee on the same date
   const groupedRecords = useMemo(() => {
-    const grouped: any = {};
+    // First, process all records to extract employee, date, and punches
+    const processedRecords: any[] = [];
     
+    // Process ALL records - don't skip any
     attendanceRecords.forEach((record) => {
       // Get employee - could be populated object or just ID
       const employee = record.employeeId || record.employee;
       const employeeId = typeof employee === 'string' ? employee : (employee?._id || employee?.id || employee);
+      
+      // If no employeeId, use a placeholder to ensure the record is still processed
+      const finalEmployeeId = employeeId || 'unknown';
       
       // Get date from first punch time (same logic as backend), or fallback to createdAt/date
       let recordDate: Date | null = null;
@@ -93,17 +218,20 @@ export default function AttendancePage() {
       try {
         // First, try to get date from first punch (most accurate)
         if (record.punches && Array.isArray(record.punches) && record.punches.length > 0) {
-          const sortedPunches = [...record.punches].sort((a: any, b: any) => {
-            const timeA = new Date(a.time).getTime();
-            const timeB = new Date(b.time).getTime();
-            return timeA - timeB;
-          });
-          recordDate = new Date(sortedPunches[0].time);
+          const validPunches = record.punches.filter((p: any) => p && p.time);
+          if (validPunches.length > 0) {
+            const sortedPunches = [...validPunches].sort((a: any, b: any) => {
+              const timeA = new Date(a.time).getTime();
+              const timeB = new Date(b.time).getTime();
+              return timeA - timeB;
+            });
+            recordDate = new Date(sortedPunches[0].time);
+          }
         }
         
         // Fallback to record.date or createdAt if no punches
         if (!recordDate || isNaN(recordDate.getTime())) {
-          const fallbackDate = record.date || record.createdAt;
+          const fallbackDate = record.date || record.createdAt || record.dateObj;
           if (fallbackDate) {
             recordDate = new Date(fallbackDate);
           }
@@ -116,110 +244,183 @@ export default function AttendancePage() {
         
         dateStr = recordDate.toISOString().split('T')[0];
       } catch (e) {
-        console.error('Error parsing date:', e);
+        console.error('Error parsing date:', e, record);
         dateStr = new Date().toISOString().split('T')[0];
         recordDate = new Date();
       }
       
-      const key = `${employeeId}_${dateStr}`;
+      // Create a processed record - include ALL records, even those with no punches or employeeId
+      const processedRecord: any = {
+        _id: record._id || record.id || `${finalEmployeeId}_${dateStr}_${Date.now()}`,
+        employeeId: finalEmployeeId,
+        employee: employee, // Preserve the populated employee object
+        date: dateStr,
+        dateObj: recordDate ? new Date(recordDate) : new Date(),
+        punches: record.punches || [], // Can be empty array - that's fine
+        totalWorkMinutes: record.totalWorkMinutes || 0,
+      };
       
-      if (!grouped[key]) {
-        grouped[key] = {
-          _id: record._id || record.id,
-          employeeId: employeeId,
-          employee: employee, // Preserve the populated employee object (this is record.employeeId if populated)
-          date: dateStr,
-          dateObj: recordDate ? new Date(recordDate) : new Date(),
-          punches: [],
-          totalWorkMinutes: record.totalWorkMinutes || 0, // Use backend calculated value if available
-        };
-      } else {
-        // If we have a populated employee object and the existing one isn't populated, update it
-        if (typeof employee === 'object' && (employee.firstName || employee.lastName || employee.fullName)) {
-          grouped[key].employee = employee;
-        }
-        // Also preserve employeeId reference if it's populated
-        if (typeof employee === 'object' && (employee.firstName || employee.lastName || employee.fullName)) {
-          grouped[key].employeeId = employee; // Store populated object in employeeId too for easier access
-        }
-        // If this record has a more recent totalWorkMinutes (from backend), use it
-        if (record.totalWorkMinutes !== undefined && record.totalWorkMinutes !== null) {
-          grouped[key].totalWorkMinutes = record.totalWorkMinutes;
-        }
+      processedRecords.push(processedRecord);
+    });
+    
+    console.log('Total processed records:', processedRecords.length, 'out of', attendanceRecords.length);
+    
+    // Group records by employeeId and date
+    const groupedMap = new Map<string, any[]>();
+    
+    processedRecords.forEach((record) => {
+      // Create a unique key for grouping: employeeId + date
+      const key = `${record.employeeId}_${record.date}`;
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, []);
+      }
+      groupedMap.get(key)!.push(record);
+    });
+    
+    console.log('Grouped records into', groupedMap.size, 'groups');
+    
+    // Create separate rows for each IN/OUT pair (or single punches)
+    const mergedRecords: any[] = [];
+    
+    groupedMap.forEach((records, key) => {
+      if (records.length === 0) {
+        console.warn('Empty group found for key:', key);
+        return;
       }
       
-      // Add punches from this record, but only keep unique punches (deduplicate by time and type)
-      // This prevents duplicates when multiple records exist for the same employee/date
-      if (record.punches && Array.isArray(record.punches)) {
-        // For each punch, check if we already have one with the same type and time (within 1 minute)
-        record.punches.forEach((punch: any) => {
-          const punchTime = new Date(punch.time).getTime();
-          const punchType = String(punch.type).toUpperCase();
-          
-          // Check if we already have this punch (same type and time within 1 minute)
-          const exists = grouped[key].punches.some((existing: any) => {
-            const existingTime = new Date(existing.time).getTime();
-            const existingType = String(existing.type).toUpperCase();
-            const timeDiff = Math.abs(punchTime - existingTime);
-            return existingType === punchType && timeDiff < 60000; // Within 1 minute
-          });
-          
-          if (!exists) {
-            grouped[key].punches.push(punch);
+      console.log(`Processing ${records.length} record(s) for key: ${key}`);
+      
+      // Use the first record as the base for employee/date info
+      const baseRecord = records[0];
+      
+      // Collect all punches from all records in the group
+      const allPunches: any[] = [];
+      records.forEach((r) => {
+        if (r.punches && Array.isArray(r.punches) && r.punches.length > 0) {
+          allPunches.push(...r.punches);
+        }
+      });
+      
+      // If no punches, still create one record to show
+      if (allPunches.length === 0) {
+        mergedRecords.push({
+          _id: baseRecord._id || `${baseRecord.employeeId}_${baseRecord.date}`,
+          employeeId: baseRecord.employeeId,
+          employee: baseRecord.employee,
+          date: baseRecord.date,
+          dateObj: baseRecord.dateObj,
+          punches: [],
+          totalWorkMinutes: 0,
+        });
+        return;
+      }
+      
+      // Sort all punches by time
+      const sortedPunches = allPunches.sort((a: any, b: any) => {
+        const timeA = new Date(a.time).getTime();
+        const timeB = new Date(b.time).getTime();
+        return timeA - timeB;
+      });
+      
+      // Pair up IN and OUT punches chronologically
+      // Create a row for each IN/OUT pair, or for standalone punches
+      let currentInPunch: any = null;
+      let rowIndex = 0;
+      
+      sortedPunches.forEach((punch: any) => {
+        const punchType = String(punch.type).toUpperCase();
+        
+        if (punchType === 'IN') {
+          // If we have a previous IN without an OUT, create a row for it
+          if (currentInPunch) {
+            mergedRecords.push({
+              _id: `${baseRecord.employeeId}_${baseRecord.date}_${rowIndex++}`,
+              employeeId: baseRecord.employeeId,
+              employee: baseRecord.employee,
+              date: baseRecord.date,
+              dateObj: baseRecord.dateObj,
+              punches: [currentInPunch],
+              totalWorkMinutes: 0,
+            });
           }
+          // Set new IN punch
+          currentInPunch = punch;
+        } else if (punchType === 'OUT') {
+          // If we have a current IN, pair it with this OUT
+          if (currentInPunch) {
+            const punches = [currentInPunch, punch];
+            let totalWorkMinutes = 0;
+            
+            try {
+              const inTime = new Date(currentInPunch.time).getTime();
+              const outTime = new Date(punch.time).getTime();
+              
+              if (!isNaN(inTime) && !isNaN(outTime) && outTime > inTime) {
+                totalWorkMinutes = Math.floor((outTime - inTime) / 60000);
+              }
+            } catch (e) {
+              console.error('Error calculating work minutes:', e);
+            }
+            
+            mergedRecords.push({
+              _id: `${baseRecord.employeeId}_${baseRecord.date}_${rowIndex++}`,
+              employeeId: baseRecord.employeeId,
+              employee: baseRecord.employee,
+              date: baseRecord.date,
+              dateObj: baseRecord.dateObj,
+              punches: punches,
+              totalWorkMinutes: totalWorkMinutes,
+            });
+            currentInPunch = null;
+          } else {
+            // Standalone OUT punch (no matching IN)
+            mergedRecords.push({
+              _id: `${baseRecord.employeeId}_${baseRecord.date}_${rowIndex++}`,
+              employeeId: baseRecord.employeeId,
+              employee: baseRecord.employee,
+              date: baseRecord.date,
+              dateObj: baseRecord.dateObj,
+              punches: [punch],
+              totalWorkMinutes: 0,
+            });
+          }
+        }
+      });
+      
+      // If there's a remaining IN punch without an OUT, create a row for it
+      if (currentInPunch) {
+        mergedRecords.push({
+          _id: `${baseRecord.employeeId}_${baseRecord.date}_${rowIndex++}`,
+          employeeId: baseRecord.employeeId,
+          employee: baseRecord.employee,
+          date: baseRecord.date,
+          dateObj: baseRecord.dateObj,
+          punches: [currentInPunch],
+          totalWorkMinutes: 0,
         });
       }
     });
     
-    // Calculate work hours for each grouped record using the same logic as backend
-    // Only calculate if we have exactly one IN and one OUT punch
-    Object.values(grouped).forEach((group: any) => {
-      if (group.punches && Array.isArray(group.punches)) {
-        // Filter to only IN and OUT punches
-        const inPunches = group.punches.filter((p: any) => {
-          const typeStr = String(p.type).toUpperCase();
-          return typeStr === 'IN' && p && p.time;
-        });
-        const outPunches = group.punches.filter((p: any) => {
-          const typeStr = String(p.type).toUpperCase();
-          return typeStr === 'OUT' && p && p.time;
-        });
-        
-        // Only calculate if we have exactly one IN and one OUT
-        if (inPunches.length === 1 && outPunches.length === 1) {
-          try {
-            const inTime = new Date(inPunches[0].time).getTime();
-            const outTime = new Date(outPunches[0].time).getTime();
-            
-            if (!isNaN(inTime) && !isNaN(outTime)) {
-              const diffMs = outTime - inTime;
-              if (diffMs > 0) {
-                group.totalWorkMinutes = Math.floor(diffMs / 60000);
-              } else {
-                group.totalWorkMinutes = 0;
-              }
-            } else {
-              group.totalWorkMinutes = 0;
-            }
-          } catch (e) {
-            console.error('Error calculating work minutes:', e);
-            group.totalWorkMinutes = 0;
-          }
-        } else {
-          // No calculation if missing IN or OUT
-          group.totalWorkMinutes = 0;
-        }
-      } else {
-        group.totalWorkMinutes = 0;
-      }
-    });
+    console.log('Total merged records:', mergedRecords.length);
     
     // Sort by date descending, then by employee name
-    return Object.values(grouped).sort((a: any, b: any) => {
+    const sorted = mergedRecords.sort((a: any, b: any) => {
       const dateA = a.dateObj?.getTime() || 0;
       const dateB = b.dateObj?.getTime() || 0;
-      return dateB - dateA;
+      if (dateB !== dateA) {
+        return dateB - dateA;
+      }
+      // If same date, sort by employee name
+      const nameA = typeof a.employee === 'object' && a.employee !== null
+        ? (a.employee.fullName || `${a.employee.firstName || ''} ${a.employee.lastName || ''}` || '')
+        : '';
+      const nameB = typeof b.employee === 'object' && b.employee !== null
+        ? (b.employee.fullName || `${b.employee.firstName || ''} ${b.employee.lastName || ''}` || '')
+        : '';
+      return nameA.localeCompare(nameB);
     });
+    
+    return sorted;
   }, [attendanceRecords]);
 
   const handleManualCorrection = async () => {
@@ -229,6 +430,14 @@ export default function AttendancePage() {
     const recordId = selectedItem._id || selectedItem.id;
     if (!recordId) {
       alert('Error: No attendance record ID found. Please try again.');
+      return;
+    }
+    
+    // Ensure recordId is a string and valid MongoDB ObjectId format (24 hex characters)
+    const recordIdStr = recordId.toString();
+    if (!/^[0-9a-fA-F]{24}$/.test(recordIdStr)) {
+      alert('Error: Invalid attendance record ID format. Please try again.');
+      console.error('Invalid record ID:', recordIdStr);
       return;
     }
     
@@ -255,15 +464,45 @@ export default function AttendancePage() {
         time: p.time ? (typeof p.time === 'string' ? p.time : new Date(p.time).toISOString()) : new Date().toISOString(),
       }));
       
-      await timeManagementApi.manualAttendanceCorrection(recordId.toString(), {
+      const response = await timeManagementApi.manualAttendanceCorrection(recordIdStr, {
+        attendanceRecordId: recordIdStr,
         punches: formattedPunches,
         reason: formData.reason || undefined,
       });
+      
+      // Show success message
+      alert('Attendance record corrected successfully!');
+      
+      // Close modal and reload data
       setIsModalOpen(false);
       setSelectedItem(null);
       setFormData({});
-      loadAttendanceRecords();
+      await loadAttendanceRecords();
     } catch (error: any) {
+      console.error('Error correcting attendance:', error);
+      
+      // Extract error message for user feedback
+      let errorMessage = 'Failed to save correction. ';
+      if (error.response) {
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (status === 403) {
+          errorMessage += 'You do not have permission to perform this action.';
+        } else if (status === 400) {
+          errorMessage += data?.message || 'Invalid request. Please check your input.';
+        } else if (status === 404) {
+          errorMessage += 'Attendance record not found.';
+        } else {
+          errorMessage += data?.message || `Server returned status ${status}.`;
+        }
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'An unexpected error occurred.';
+      }
+      
+      alert(errorMessage);
       handleTimeManagementError(error, 'correcting attendance');
     } finally {
       setLoading(false);
@@ -273,10 +512,40 @@ export default function AttendancePage() {
   const checkMissedPunches = async () => {
     try {
       setLoading(true);
-      await timeManagementApi.checkMissedPunches();
-      alert('Missed punches checked and notifications sent');
+      console.log('Frontend: Calling checkMissedPunches API...');
+      const response = await timeManagementApi.checkMissedPunches();
+      console.log('Frontend: Received response:', response);
+      
+      const result = response.data || response;
+      console.log('Frontend: Extracted result:', result);
+      console.log('Frontend: missedPunches array:', result.missedPunches);
+      console.log('Frontend: missedPunches length:', result.missedPunches?.length);
+      
+      // Show notification with results
+      if (result.missedPunches && Array.isArray(result.missedPunches) && result.missedPunches.length > 0) {
+        // Build detailed message with employee names and missing punch types
+        const missedPunchDetails = result.missedPunches.map((mp: any) => {
+          let punchType = '';
+          if (mp.missingIn && mp.missingOut) {
+            punchType = 'Missing both IN and OUT';
+          } else if (mp.missingIn) {
+            punchType = 'Missing Punch In';
+          } else if (mp.missingOut) {
+            punchType = 'Missing Punch Out';
+          }
+          return `${mp.employeeName} - ${punchType}`;
+        }).join('\n');
+        
+        alert(`Found ${result.missedPunches.length} missed punch(es)!\n\n${missedPunchDetails}\n\nNotifications have been sent.`);
+      } else {
+        alert(result.message || 'No missed punches found. All attendance records are complete.');
+      }
+      
       loadAttendanceRecords();
     } catch (error: any) {
+      console.error('Frontend: Error checking missed punches:', error);
+      console.error('Frontend: Error response:', error.response);
+      alert(`Error checking missed punches: ${error.response?.data?.message || error.message || 'Unknown error'}`);
       handleTimeManagementError(error, 'checking missed punches');
     } finally {
       setLoading(false);
@@ -399,7 +668,9 @@ export default function AttendancePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 mb-2">Attendance Records</h1>
-          <p className="text-slate-600">View and manage attendance logs</p>
+          <p className="text-slate-600">
+            {canOnlyViewOwn ? 'View your attendance records' : 'View and manage attendance logs'}
+          </p>
         </div>
         <button
           onClick={checkMissedPunches}
@@ -424,11 +695,23 @@ export default function AttendancePage() {
                   <th className="px-6 py-3 text-left text-slate-700">Punch In</th>
                   <th className="px-6 py-3 text-left text-slate-700">Punch Out</th>
                   <th className="px-6 py-3 text-left text-slate-700">Work Hours</th>
-                  <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  {canEditAttendance && (
+                    <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {groupedRecords.map((record: any) => {
+                {groupedRecords.length === 0 ? (
+                  <tr>
+                    <td 
+                      colSpan={canEditAttendance ? 6 : 5} 
+                      className="px-6 py-12 text-center text-slate-500"
+                    >
+                      No attendance records found.
+                    </td>
+                  </tr>
+                ) : (
+                  groupedRecords.map((record: any) => {
                   // Get employee display name
                   const employee = record.employee || record.employeeId;
                   let employeeName = 'N/A';
@@ -465,6 +748,19 @@ export default function AttendancePage() {
                   // Format date using consistent formatter
                   const dateToFormat = record.date || record.dateObj || record.createdAt;
                   const dateDisplay = formatDate(dateToFormat);
+                  
+                  // Format punch in/out - show time if exists, otherwise N/A
+                  // If only one punch exists, show its date and time, and N/A for the other
+                  let punchInDisplay = 'N/A';
+                  let punchOutDisplay = 'N/A';
+                  
+                  if (punchIn?.time) {
+                    punchInDisplay = formatTime(punchIn.time);
+                  }
+                  
+                  if (punchOut?.time) {
+                    punchOutDisplay = formatTime(punchOut.time);
+                  }
                   
                   // Format work hours - calculate and show when both IN and OUT exist
                   let workHours = 'N/A';
@@ -506,28 +802,50 @@ export default function AttendancePage() {
                     workHours = 'N/A';
                   }
                   
+                  const isLate = isEmployeeLate(record);
+                  
                   return (
                     <tr key={record._id || `${record.employeeId}_${record.date}`}>
-                      <td className="px-6 py-4" suppressHydrationWarning>{employeeName}</td>
+                      <td className="px-6 py-4" suppressHydrationWarning>
+                        <div className="flex items-center gap-2">
+                          {employeeName}
+                          {isLate && (
+                            <AlertTriangle className="w-4 h-4 text-amber-500" title="Employee punched in after shift start time" />
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4" suppressHydrationWarning>{dateDisplay}</td>
                       <td className="px-6 py-4" suppressHydrationWarning>
-                        {punchIn?.time ? formatTime(punchIn.time) : 'N/A'}
+                        <div className="flex items-center gap-2">
+                          {punchInDisplay}
+                          {punchInDisplay === 'N/A' && (
+                            <Flag className="w-4 h-4 text-red-500" />
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4" suppressHydrationWarning>
-                        {punchOut?.time ? formatTime(punchOut.time) : 'N/A'}
+                        <div className="flex items-center gap-2">
+                          {punchOutDisplay}
+                          {punchOutDisplay === 'N/A' && (
+                            <Flag className="w-4 h-4 text-red-500" />
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">{workHours}</td>
-                      <td className="px-6 py-4">
-                        <button
-                          onClick={() => openModal(record)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </td>
+                      {canEditAttendance && (
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => openModal(record)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
-                })}
+                  })
+                )}
               </tbody>
             </table>
           </div>

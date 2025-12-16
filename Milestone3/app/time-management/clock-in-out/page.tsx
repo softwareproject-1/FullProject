@@ -2,36 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from '../../../components/Card';
-import { timeManagementApi, employeeProfileApi } from '../../../lib/api';
+import { timeManagementApi } from '../../../lib/api';
 import { handleTimeManagementError, extractArrayData } from '../../../lib/time-management-utils';
 import { Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole } from '@/utils/roleAccess';
 
 export default function ClockInOutPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [employees, setEmployees] = useState<any[]>([]);
   const [employeeId, setEmployeeId] = useState('');
   const [punchType, setPunchType] = useState<'IN' | 'OUT'>('IN');
   const [location, setLocation] = useState('');
 
   useEffect(() => {
-    loadEmployees();
-  }, []);
-
-  const loadEmployees = async () => {
-    try {
-      const response = await employeeProfileApi.getAll();
-      const employeesData = extractArrayData(response);
-      console.log('Loaded employees:', employeesData.length, employeesData);
-      setEmployees(Array.isArray(employeesData) ? employeesData : []);
-    } catch (error) {
-      console.error('Error loading employees:', error);
-      setEmployees([]);
+    // Auto-populate employeeId with logged-in user for all roles
+    if (user?._id) {
+      setEmployeeId(user._id);
     }
-  };
+  }, [user?._id]);
 
   const handleClock = async () => {
     if (!employeeId) {
-      alert('Please select an employee');
+      alert('Employee information is missing. Please log in again.');
       return;
     }
     try {
@@ -61,27 +54,14 @@ export default function ClockInOutPage() {
         <div className="space-y-4 max-w-md">
           <div>
             <label className="block text-slate-700 mb-2">Employee</label>
-            <select
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg"
-            >
-              <option value="">Select Employee</option>
-              {!Array.isArray(employees) || employees.length === 0 ? (
-                <option value="" disabled>No employees available</option>
-              ) : (
-                employees.map((emp) => {
-                  const displayName = emp.fullName || 
-                    (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : 
-                    emp.firstName || emp.lastName || emp.employeeNumber || 'Unknown Employee');
-                  return (
-                    <option key={emp._id || emp.id} value={emp._id || emp.id}>
-                      {displayName} {emp.employeeNumber ? `(${emp.employeeNumber})` : ''}
-                    </option>
-                  );
-                })
-              )}
-            </select>
+            <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50">
+              <p className="text-slate-700">
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.firstName || user?.lastName || user?.employeeNumber || user?.fullName || 'Current User'}
+                {user?.employeeNumber && ` (${user.employeeNumber})`}
+              </p>
+            </div>
           </div>
           <div>
             <label className="block text-slate-700 mb-2">Punch Type</label>
