@@ -194,40 +194,49 @@ export default function ShiftsPage() {
                   <th className="px-6 py-3 text-left text-slate-700">Shift Type</th>
                   <th className="px-6 py-3 text-left text-slate-700">Time</th>
                   <th className="px-6 py-3 text-left text-slate-700">Status</th>
+                  <th className="px-6 py-3 text-left text-slate-700">Punch Policy</th>
                   <th className="px-6 py-3 text-left text-slate-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {Array.isArray(shifts) && shifts.length > 0 ? (
-                  shifts.map((shift) => (
-                    <tr key={shift._id || shift.id}>
-                      <td className="px-6 py-4">{shift.name}</td>
-                      <td className="px-6 py-4">{shift.shiftType?.name || 'N/A'}</td>
-                      <td className="px-6 py-4">{shift.startTime} - {shift.endTime}</td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={shift.active ? 'Active' : 'Inactive'} />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openModal(shift)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(shift._id || shift.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  shifts.map((shift) => {
+                    const punchPolicy = shift.punchPolicy || 'FIRST_LAST';
+                    const punchPolicyDisplay = punchPolicy === 'MULTIPLE' 
+                      ? 'Multiple' 
+                      : 'First-In/Last-Out';
+                    
+                    return (
+                      <tr key={shift._id || shift.id}>
+                        <td className="px-6 py-4">{shift.name}</td>
+                        <td className="px-6 py-4">{shift.shiftType?.name || 'N/A'}</td>
+                        <td className="px-6 py-4">{shift.startTime} - {shift.endTime}</td>
+                        <td className="px-6 py-4">
+                          <StatusBadge status={shift.active ? 'Active' : 'Inactive'} />
+                        </td>
+                        <td className="px-6 py-4">{punchPolicyDisplay}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => openModal(shift)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(shift._id || shift.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
                       {loading ? 'Loading...' : 'No shifts found. Create your first shift to get started.'}
                     </td>
                   </tr>

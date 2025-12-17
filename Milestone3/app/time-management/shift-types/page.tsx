@@ -8,6 +8,14 @@ import { timeManagementApi } from '../../../lib/api';
 import { handleTimeManagementError, extractArrayData } from '../../../lib/time-management-utils';
 import { Edit2, Plus, XCircle } from 'lucide-react';
 
+// Shift Type Enum values
+const SHIFT_TYPE_OPTIONS = [
+  { value: 'NORMAL', label: 'Normal' },
+  { value: 'SPLIT', label: 'Split' },
+  { value: 'OVERNIGHT', label: 'Overnight' },
+  { value: 'ROTATIONAL', label: 'Rotational' },
+];
+
 export default function ShiftTypesPage() {
   const [loading, setLoading] = useState(false);
   const [shiftTypes, setShiftTypes] = useState<any[]>([]);
@@ -54,7 +62,16 @@ export default function ShiftTypesPage() {
   const handleCreate = async () => {
     try {
       setLoading(true);
-      await timeManagementApi.createShiftType(formData);
+      // Combine name and type for storage (since schema only has name field)
+      // Format: "Name (TYPE)" or just "Name" if type is NORMAL
+      const nameToSave = formData.type && formData.type !== 'NORMAL'
+        ? `${formData.name} (${formData.type})`
+        : formData.name;
+      
+      await timeManagementApi.createShiftType({
+        name: nameToSave,
+        active: formData.active !== false,
+      });
       setIsModalOpen(false);
       setFormData({});
       loadShiftTypes();
@@ -69,14 +86,17 @@ export default function ShiftTypesPage() {
     if (!selectedItem) return;
     try {
       setLoading(true);
-      // Clean the form data - remove MongoDB internal fields
-      const cleanData: any = { ...formData };
-      Object.keys(cleanData).forEach(key => {
-        if (key === '_id' || key === '__v' || key === 'id' || key.startsWith('_') || 
-            key === 'createdAt' || key === 'updatedAt') {
-          delete cleanData[key];
-        }
-      });
+      // Combine name and type for storage (since schema only has name field)
+      // Format: "Name (TYPE)" or just "Name" if type is NORMAL
+      const nameToSave = formData.type && formData.type !== 'NORMAL'
+        ? `${formData.name} (${formData.type})`
+        : formData.name;
+      
+      const cleanData: any = {
+        name: nameToSave,
+        active: formData.active !== false,
+      };
+      
       await timeManagementApi.updateShiftType(selectedItem._id || selectedItem.id, cleanData);
       setIsModalOpen(false);
       setSelectedItem(null);
@@ -102,17 +122,32 @@ export default function ShiftTypesPage() {
     }
   };
 
+  // Helper function to extract type from name (format: "Name (TYPE)" or just use name)
+  const extractTypeFromName = (name: string): string => {
+    const match = name.match(/\((\w+)\)$/);
+    return match ? match[1] : 'NORMAL';
+  };
+
+  // Helper function to extract base name without type suffix
+  const extractBaseName = (name: string): string => {
+    return name.replace(/\s*\(\w+\)$/, '').trim();
+  };
+
   const openModal = (item?: any) => {
     setSelectedItem(item || null);
     if (item) {
-      // Clean the item data - remove MongoDB internal fields but keep the editable fields
+      // Extract type from name if it exists in format "Name (TYPE)"
+      const baseName = extractBaseName(item.name || '');
+      const extractedType = extractTypeFromName(item.name || '');
+      
       const cleanItem: any = {
-        name: item.name || '',
+        name: baseName,
+        type: extractedType,
         active: item.active !== undefined ? item.active : true,
       };
       setFormData(cleanItem);
     } else {
-      setFormData({ active: true });
+      setFormData({ name: '', type: 'NORMAL', active: true });
     }
     setIsModalOpen(true);
   };
@@ -142,19 +177,26 @@ export default function ShiftTypesPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-slate-700">Name</th>
+                  <th className="px-6 py-3 text-left text-slate-700">Type</th>
                   <th className="px-6 py-3 text-left text-slate-700">Status</th>
                   <th className="px-6 py-3 text-left text-slate-700">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {Array.isArray(shiftTypes) && shiftTypes.length > 0 ? (
-                  shiftTypes.map((type) => (
-                    <tr key={type._id || type.id}>
-                      <td className="px-6 py-4">{type.name}</td>
-                      <td className="px-6 py-4">
-                        <StatusBadge status={type.active ? 'Active' : 'Inactive'} />
-                      </td>
-                      <td className="px-6 py-4">
+                  shiftTypes.map((type) => {
+                    // Extract type from name if it exists in format "Name (TYPE)"
+                    const extractedType = extractTypeFromName(type.name || '');
+                    const typeLabel = SHIFT_TYPE_OPTIONS.find(opt => opt.value === extractedType)?.label || extractedType || 'Normal';
+                    const displayName = extractBaseName(type.name || '');
+                    return (
+                      <tr key={type._id || type.id}>
+                        <td className="px-6 py-4">{displayName}</td>
+                        <td className="px-6 py-4">{typeLabel}</td>
+                        <td className="px-6 py-4">
+                          <StatusBadge status={type.active ? 'Active' : 'Inactive'} />
+                        </td>
+                        <td className="px-6 py-4">
                         <div className="flex gap-2">
                           <button
                             onClick={() => openModal(type)}
@@ -171,10 +213,11 @@ export default function ShiftTypesPage() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan={3} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
                       {loading ? 'Loading...' : 'No shift types found. Create your first shift type to get started.'}
                     </td>
                   </tr>
@@ -205,6 +248,20 @@ export default function ShiftTypesPage() {
               className="w-full px-4 py-2 border border-slate-300 rounded-lg"
               placeholder="e.g., Morning Shift"
             />
+          </div>
+          <div>
+            <label className="block text-slate-700 mb-2">Type</label>
+            <select
+              value={formData.type || 'NORMAL'}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg"
+            >
+              {SHIFT_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="flex items-center gap-2">

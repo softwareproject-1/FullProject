@@ -2,7 +2,9 @@ import { IsString, IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
 
 export enum PeriodAction {
     APPROVE = 'APPROVE',
-    REJECT = 'REJECT'
+    APPROVED = 'APPROVED',
+    REJECT = 'REJECT',
+    REJECTED = 'REJECTED'
 }
 
 export class PeriodReviewDto {

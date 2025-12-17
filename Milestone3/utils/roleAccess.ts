@@ -326,6 +326,7 @@ export const roleAccess = {
       '/admin/employee-profile/[id]/edit', // Can edit employee payroll data
       '/employee/profile', // Self-service profile editing
       '/payroll',
+      '/payroll-execution',
     ],
     features: {
       viewAllEmployees: true, // Payroll fields only
@@ -362,6 +363,8 @@ export const roleAccess = {
       '/admin/employee-profile', // Read-only payroll fields
       '/employee/profile', // Self-service profile editing
       '/payroll', // View-only payroll access
+      '/payroll-execution',
+
     ],
     features: {
       viewAllEmployees: true, // Payroll fields only
@@ -474,6 +477,8 @@ export const roleAccess = {
       '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View organizational structure (for budget planning)
       '/payroll', // Read-only payroll view
+      '/payroll-execution',
+
     ],
     features: {
       viewAllEmployees: true, // Finance fields only

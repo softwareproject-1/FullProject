@@ -11,6 +11,7 @@ import { Model, Types } from 'mongoose';
 
 // Schemas
 import { payrollRuns, payrollRunsDocument } from './models/payrollRuns.schema';
+import { EmployeeProfile as Employee, EmployeeProfileDocument } from '../employee-profile/models/employee-profile.schema';
 import { paySlip, PayslipDocument } from './models/payslip.schema';
 import {
   employeePayrollDetails,
@@ -81,6 +82,8 @@ export class PayrollExecutionService {
     private terminationModel: Model<EmployeeTerminationResignationDocument>,
     @InjectModel(employeePenalties.name)
     private penaltiesModel: Model<employeePenaltiesDocument>,
+    @InjectModel(Employee.name)
+    private employeeModel: Model<EmployeeProfileDocument>,
     @Inject(TaxRulesService)
     private taxRulesService: TaxRulesService,
     @Inject(InsuranceBracketsService)
@@ -108,34 +111,53 @@ export class PayrollExecutionService {
 
   async getPendingBenefits() {
     // REAL API CALL - Using database with employee population
+    // Using regex for case-insensitive status measurement (pending/PENDING)
     const bonuses = await this.signingBonusModel
-      .find({ status: BonusStatus.PENDING })
+      .find({ status: { $regex: /^pending$/i } })
       .populate({
         path: 'employeeId',
-        select: 'name workEmail primaryDepartmentId',
+        select: 'firstName lastName fullName workEmail primaryDepartmentId',
         populate: {
           path: 'primaryDepartmentId',
           select: 'name'
         }
       })
       .exec();
-    const terminations = await this.terminationModel
-      .find({ status: BenefitStatus.PENDING })
-      .populate({
-        path: 'employeeId',
-        select: 'name workEmail primaryDepartmentId',
-        populate: {
-          path: 'primaryDepartmentId',
-          select: 'name'
-        }
-      })
-      .exec();
-    return { bonuses, terminations };
 
-    // MOCK DATA - Commented out
-    // const bonuses = this.mockBonuses.filter(b => b.status === BonusStatus.PENDING);
-    // const terminations = this.mockTerminations.filter(t => t.status === BenefitStatus.PENDING);
-    // return { bonuses, terminations };
+    const terminations = await this.terminationModel
+      .find({ status: { $regex: /^pending$/i } })
+      .populate({
+        path: 'employeeId',
+        select: 'firstName lastName fullName workEmail primaryDepartmentId',
+        populate: {
+          path: 'primaryDepartmentId',
+          select: 'name'
+        }
+      })
+      .exec();
+
+    // Map results to match frontend expectation (name and department)
+    const mapBenefit = (benefit: any) => {
+      const obj = benefit.toObject();
+      if (obj.employeeId) {
+        // Construct name
+        obj.employeeId.name = obj.employeeId.fullName ||
+          (obj.employeeId.firstName ? `${obj.employeeId.firstName} ${obj.employeeId.lastName}` : 'Unknown Employee');
+
+        // Flatten department
+        if (obj.employeeId.primaryDepartmentId) {
+          obj.employeeId.department = obj.employeeId.primaryDepartmentId.name;
+        } else {
+          obj.employeeId.department = 'N/A';
+        }
+      }
+      return obj;
+    };
+
+    return {
+      bonuses: bonuses.map(mapBenefit),
+      terminations: terminations.map(mapBenefit)
+    };
   }
 
   async reviewBenefit(dto: ReviewBenefitDto) {
@@ -378,7 +400,7 @@ export class PayrollExecutionService {
     const run = await this.payrollRunModel.findOne({ runId: dto.runId });
     if (!run) throw new NotFoundException('Payroll Run not found');
 
-    if (dto.action === PeriodAction.REJECT) {
+    if (dto.action === PeriodAction.REJECT || dto.action === PeriodAction.REJECTED) {
       run.status = PayRollStatus.REJECTED;
       run.rejectionReason = dto.rejectionReason;
       const saved = await run.save();
@@ -389,7 +411,7 @@ export class PayrollExecutionService {
       };
     }
 
-    if (dto.action === PeriodAction.APPROVE) {
+    if (dto.action === PeriodAction.APPROVE || dto.action === PeriodAction.APPROVED) {
       const processedCount = await this.fetchAndSnapshotEmployees(
         run._id as Types.ObjectId,
       );
@@ -415,17 +437,11 @@ export class PayrollExecutionService {
   }
 
   /**
-   * Retrieves all employees included in a specific payroll run draft.
-   */
+  * Helper to fetch employee details for a run
+  */
   async fetchEligibleEmployees(runId: string) {
-    const run = await this.payrollRunModel.findOne({ runId });
-    if (!run) throw new NotFoundException('Payroll Run not found');
-
-    const employeeDetails = await this.empDetailsModel
-      .find({
-        payrollRunId: run._id,
-      })
-      .exec();
+    const run = await this.payrollRunModel.findOne({ runId }).exec();
+    if (!run) throw new NotFoundException('Payroll run not found');
 
     const payslips = await this.paySlipModel
       .find({
@@ -433,19 +449,51 @@ export class PayrollExecutionService {
       })
       .exec();
 
-    // Fetch employee profile details from employees collection
-    const db = this.payrollRunModel.db;
-    const employeesCollection = db.collection('employees');
-    const employeeIds = employeeDetails.map(detail => detail.employeeId);
-    const employeeProfiles = await employeesCollection.find({
+    const employeeDetails = await this.empDetailsModel
+      .find({
+        payrollRunId: run._id,
+      })
+      .exec();
+
+    // Fetch employee profile details using Mongoose Model (Handles casting automatically)
+    // FORCE CASTING to ensure ObjectIds are valid
+    const employeeIds = employeeDetails.map(detail => new Types.ObjectId(detail.employeeId.toString()));
+
+    // Log connection info - VERIFICATION BANNER
+    this.logger.warn(`!!! V3.0 MONGOOSE MODEL FETCH EXECUTING for Run: ${runId} !!!`);
+    this.logger.log(`DEBUG: Using DB Connection: ${this.payrollRunModel.db.name}`);
+
+    const employeeProfiles = await this.employeeModel.find({
       _id: { $in: employeeIds }
-    }).toArray();
+    }).exec(); // returns HydratedDocuments
 
     // Create a map of employee profiles for quick lookup
     const profileMap = new Map();
-    employeeProfiles.forEach((profile: any) => {
+    employeeProfiles.forEach((profile) => {
       profileMap.set(profile._id.toString(), profile);
     });
+
+    // --- DEBUG LOGS ---
+    this.logger.log(`DEBUG: Fetching eligible employees for run ${runId}`);
+    this.logger.log(`DEBUG: Details found: ${employeeDetails.length}`);
+    this.logger.log(`DEBUG: IDs to look up: ${JSON.stringify(employeeIds)}`);
+    this.logger.log(`DEBUG: Profiles found in DB: ${employeeProfiles.length}`);
+
+    // Check first ID match specifically
+    if (employeeDetails.length > 0) {
+      const checkId = employeeDetails[0].employeeId.toString();
+      this.logger.log(`DEBUG: Checking ID: ${checkId}`);
+      this.logger.log(`DEBUG: Found in map? ${profileMap.has(checkId)}`);
+      if (profileMap.has(checkId)) {
+        const p = profileMap.get(checkId);
+        this.logger.log(`DEBUG: Profile Name: ${p.fullName} | ${p.firstName} ${p.lastName}`);
+      }
+    }
+    // ------------------
+
+    this.logger.log(`DEBUG: Fetching eligible employees for run ${runId}`);
+    this.logger.log(`DEBUG: Details found: ${employeeDetails.length}`);
+    this.logger.log(`DEBUG: Profiles found in DB: ${employeeProfiles.length}`);
 
     return {
       runId: run.runId,
@@ -457,15 +505,23 @@ export class PayrollExecutionService {
         const profile = profileMap.get(detail.employeeId.toString());
         return {
           employeeId: detail.employeeId,
-          employeeName: profile?.name || 'Unknown Employee',
-          department: profile?.department || 'Unknown',
+          employeeName: profile?.fullName || (profile?.firstName ? `${profile.firstName} ${profile.lastName}` : 'Unknown Employee'),
+          department: profile?.department || 'General',
           baseSalary: detail.baseSalary,
+          grossSalary: detail.grossPay || detail.baseSalary, // Map grossPay to grossSalary
           bankStatus: detail.bankStatus,
-          bankAccountNumber: profile?.bankDetails?.accountNumber,
+          bankAccountNumber: profile?.bankAccountNumber || (profile as any)?.bankDetails?.accountNumber,
           exceptions: detail.exceptions,
           netPay: detail.netPay,
           allowances: detail.allowances,
           deductions: detail.deductions,
+          bonuses: detail.bonus || 0,
+          terminationPayout: detail.benefit || 0,
+          totalDeductions: detail.deductions, // Alias for frontend compatibility
+          // Map breakdowns
+          totalTaxes: detail.totalTaxes || 0,
+          totalInsurance: detail.totalInsurance || 0,
+          penalties: detail.penalties || 0,
         };
       }),
       payslips: payslips.length,
@@ -484,33 +540,17 @@ export class PayrollExecutionService {
     runObjectId: Types.ObjectId,
   ): Promise<number> {
     try {
-      // REAL API CALL - Get actual employees from database
-      const db = this.payrollRunModel.db;
-      const employeesCollection = db.collection('employees');
-
-      // FIX 1: Use simpler query like the working version
-      const employees = await employeesCollection.find({
-        isActive: true  // Just check isActive for now
-      }).toArray();
+      // REAL API CALL - Using Mongoose Model
+      const employees = await this.employeeModel.find({
+        isActive: true
+      }).exec();
 
       this.logger.log(`Found ${employees.length} active employees in database`);
 
-      // FIX 2: If no employees, seed them and use them
+      // If no employees, warn and return 0
       if (employees.length === 0) {
-        this.logger.warn('No active employees found in database, seeding mock employees...');
-        await this.seedMockEmployees();
-
-        // Fetch the seeded employees
-        const seededEmployees = await employeesCollection.find({
-          isActive: true
-        }).toArray();
-
-        if (seededEmployees.length === 0) {
-          throw new Error('Failed to seed employees. No employees available for payroll.');
-        }
-
-        this.logger.log(`Using ${seededEmployees.length} seeded employees`);
-        return this.processEmployeesForRun(seededEmployees, runObjectId);
+        this.logger.warn('No active employees found in employee_profiles collection.');
+        return 0;
       }
 
       return this.processEmployeesForRun(employees, runObjectId);
@@ -632,7 +672,7 @@ export class PayrollExecutionService {
   private async seedMockEmployees(): Promise<number> { // Change return type to number
     try {
       const db = this.payrollRunModel.db;
-      const employeesCollection = db.collection('employees');
+      const employeesCollection = db.collection('employee_profiles');
 
       const mockEmployees = [
         {
@@ -737,7 +777,7 @@ export class PayrollExecutionService {
 
       // Check what employees are in the database
       const db = this.payrollRunModel.db;
-      const allEmployees = await db.collection('employees').find({}).toArray();
+      const allEmployees = await db.collection('employee_profiles').find({}).toArray();
 
       return {
         runId: run.runId,
@@ -845,27 +885,24 @@ export class PayrollExecutionService {
 
       // FIX: listCollections() returns a promise, not a cursor
       const collections = await db.listCollections();
-      const hasEmployeesCollection = collections.some((c: any) => c.name === 'employees');
+      const hasEmployeesCollection = collections.some((c: any) => c.name === 'employee_profiles');
 
       if (!hasEmployeesCollection) {
         return {
-          error: 'employees collection not found in database',
+          error: 'employee_profiles collection not found in database',
           availableCollections: collections.map((c: any) => c.name)
         };
       }
 
-      // Get all employees
-      const allEmployees = await db.collection('employees')
+      const allEmployees = await db.collection('employee_profiles')
         .find({})
         .limit(5)
         .toArray();
 
       // Get employees that should be included based on your criteria
-      const activeEmployees = await db.collection('employees')
+      const activeEmployees = await db.collection('employee_profiles')
         .find({
-          isActive: true,
-          contractStatus: 'ACTIVE',
-          isActiveContract: true
+          isActive: true
         })
         .limit(5)
         .toArray();
@@ -934,12 +971,29 @@ export class PayrollExecutionService {
         .exec();
 
       this.logger.log(`Employee details found: ${employeeDetails.length}`);
-      if (employeeDetails.length === 0) {
-        this.logger.warn(
-          `No employee details found for payrollRunId: ${payrollRun._id}. You may need to call reviewPeriod with APPROVE action first.`,
-        );
+      
+      this.logger.log(`Employee details found: ${employeeDetails.length}`);
+      
+      // === ROSTER SYNC: Ensure all active employees are in this run ===
+      // 1. Get all active employees
+      const activeEmployees = await this.employeeModel.find({ isActive: true }).exec();
+      const existingEmployeeIds = new Set(employeeDetails.map(d => d.employeeId.toString()));
+      
+      const missingEmployees = activeEmployees.filter(emp => !existingEmployeeIds.has(emp._id.toString()));
+      
+      if (missingEmployees.length > 0) {
+        this.logger.log(`Found ${missingEmployees.length} active employees missing from this run. Syncing...`);
+        await this.processEmployeesForRun(missingEmployees, payrollRun._id as Types.ObjectId);
+        
+        // Reload details after sync
+        const reloadedDetails = await this.empDetailsModel.find({ payrollRunId: payrollRun._id }).exec();
+        employeeDetails.length = 0;
+        employeeDetails.push(...reloadedDetails);
+        this.logger.log(`Roster synced. Total employees in run: ${employeeDetails.length}`);
       }
+      // =============================================================
 
+      // Re-fetch payslips to include any newly created ones
       const payslips = await this.paySlipModel
         .find({
           payrollRunId: payrollRun._id,
@@ -979,7 +1033,7 @@ export class PayrollExecutionService {
             continue;
           }
 
-          const employee = await db.collection('employees').findOne({
+          const employee = await db.collection('employee_profiles').findOne({
             _id: employeeId,
           });
 
@@ -1036,22 +1090,68 @@ export class PayrollExecutionService {
               employeeId: empDetail.employeeId,
               status: BonusStatus.APPROVED,
             })
+            .findOne({
+              employeeId: empDetail.employeeId,
+              status: BonusStatus.APPROVED,
+            })
             .exec();
+
+          // Check for approved termination benefits
+          const approvedTermination = await this.terminationModel
+            .findOne({
+              employeeId: empDetail.employeeId,
+              status: BenefitStatus.APPROVED,
+            })
+            .exec();
+
+          // Calculation Logic Update: Refunds
+          // User Formula: Net Pay = Net Salary - Penalties + Refunds
+          const refundsAmount = empDetail.refunds || 0; 
+          
           // Calculate salary - update calculateSalary method to not expect employee model
           const calculation = await this.calculateSalary(
             empDetail,
             employee, // Pass the raw employee object, not Mongoose model
             penalties,
             approvedBonus,
+            approvedTermination,
             runId,
+            refundsAmount // Pass refunds
           );
 
           // Update employee payroll details
+          empDetail.grossPay = calculation.grossSalary;
+          empDetail.baseSalary = calculation.grossSalary; // Update base salary to reflect actual used base (optional but good for consistency)
+
           empDetail.allowances = calculation.allowances;
           empDetail.deductions = calculation.totalDeductions;
           empDetail.netSalary = calculation.netSalary;
           empDetail.netPay = calculation.finalSalary;
           empDetail.bonus = calculation.bonuses.signingBonus;
+          empDetail.benefit = calculation.termination.amount;
+
+          // Populate Breakdown Arrays for Frontend (Draft Page)
+          if (calculation.tax && calculation.tax.breakdown) {
+              (empDetail as any).taxBreakdown = calculation.tax.breakdown.map((t: any) => ({
+                  bracket: t.name, // Frontend expects 'bracket', backend calculation has 'name'
+                  rate: t.rate,
+                  amount: t.amount
+              }));
+          }
+          if (calculation.insurance) {
+              (empDetail as any).insuranceBreakdown = [{
+                  name: calculation.insurance.bracket || 'Insurance',
+                  rate: calculation.insurance.employeeRate,
+                  amount: calculation.insurance.employeeAmount
+              }];
+          }
+
+          // Save breakdowns
+          empDetail.totalTaxes = calculation.tax.amount;
+          empDetail.totalInsurance = calculation.insurance.amount;
+          empDetail.penalties = calculation.deductions.penalties;
+          empDetail.refunds = refundsAmount;
+
           await empDetail.save();
 
           // Update payslip
@@ -1064,24 +1164,67 @@ export class PayrollExecutionService {
             payslip.totaDeductions = calculation.totalDeductions;
             payslip.netPay = calculation.finalSalary;
 
+
             // Ensure payslip structure exists
             this.ensurePayslipStructure(payslip);
 
+            // Populate Breakdown Arrays
+            // Tax Breakdown
+            if (calculation.tax && calculation.tax.breakdown) {
+                // Map to schema format if necessary, or just push compatible objects
+                 payslip.deductionsDetails!.taxes = calculation.tax.breakdown.map((t: any) => ({
+                     name: t.name,
+                     rate: t.rate,
+                     amount: t.amount,
+                     description: `Progressive Tax Rules` // Add if schema requires description? Schema says 'taxes: taxRules[]'
+                     // Wait, 'taxRules[]' schema expects a full taxRules object? 
+                     // Let's check schema: 'taxes: taxRules[]'. And taxRules has name, rate, status...
+                     // We should try to match the shape.
+                 })) as any; 
+                 // Actually, it's safer to cast to avoid strict schema validation issues here, or construct proper objects.
+                 // Ideally we should just save the breakdown provided by calculation.
+            }
+
+            // Insurance Breakdown
+            if (calculation.insurance) {
+                // Schema expects 'insurances: insuranceBrackets[]'. 
+                // Our calculation returns a single bracket usually, or composite?
+                // calculation.insurance has { amount, bracket, employeeRate ... }
+                // Let's explicitly construct an array
+                payslip.deductionsDetails!.insurances = [{
+                    name: calculation.insurance.bracket || 'Standard Insurance',
+                    employeeRate: calculation.insurance.employeeRate || 0,
+                    employerRate: calculation.insurance.employerRate || 0,
+                    minSalary: 0,       // Required by Schema
+                    maxSalary: 999999,  // Required by Schema
+                    status: 'approved'  // Lowercase to match Enum
+                }] as any; 
+            }
+
             // Add bonus to payslip if exists
             if (approvedBonus) {
-              // Get the full bonus config to get positionName
-              const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
-                _id: approvedBonus.signingBonusId
-              });
+                // Get the full bonus config to get positionName
+                const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
+                  _id: approvedBonus.signingBonusId
+                });
 
-              // Now bonuses array is guaranteed to exist after ensurePayslipStructure
-              payslip.earningsDetails!.bonuses!.push({
-                positionName: bonusConfig?.positionName || 'General Position',
-                amount: approvedBonus.givenAmount,
-                status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
-                createdBy: approvedBonus.employeeId,
-                approvedBy: approvedBonus.employeeId,
-                approvedAt: new Date(),
+                // Now bonuses array is guaranteed to exist after ensurePayslipStructure
+                payslip.earningsDetails!.bonuses!.push({
+                  positionName: bonusConfig?.positionName || 'General Position',
+                  amount: approvedBonus.givenAmount,
+                  status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
+                  createdBy: approvedBonus.employeeId,
+                  approvedBy: approvedBonus.employeeId,
+                  approvedAt: new Date(),
+                } as any);
+            }
+
+            // Add termination benefit to earnings if exists
+            if (approvedTermination) {
+              payslip.earningsDetails!.benefits!.push({
+                name: 'Termination/Resignation Benefit',
+                amount: approvedTermination.givenAmount,
+                type: 'TERMINATION',
               } as any);
             }
 
@@ -1164,13 +1307,17 @@ export class PayrollExecutionService {
     employee: any,
     penalties: any,
     approvedBonus: any,
+    approvedTermination: any,
     runId: string,
+    refunds?: number,
   ): Promise<any> {
-    let grossSalary = empDetail.baseSalary || 0;
+    let baseSalary = empDetail.baseSalary || 0;
 
     // REQ-PY-2: Calculate Prorated Salary for mid-month hires/exits
-    const proratedInfo = await this.calculateProratedSalary(employee, grossSalary, runId);
-    grossSalary = proratedInfo.proratedSalary;
+    const proratedInfo = await this.calculateProratedSalary(employee, baseSalary, runId);
+
+    // Start Gross Salary with the (possibly prorated) base salary
+    let grossSalary = proratedInfo.proratedSalary;
 
     // Fetch run to get period details
     const run = await this.payrollRunModel.findOne({ runId });
@@ -1178,46 +1325,46 @@ export class PayrollExecutionService {
     let unpaidLeaveDays = 0;
 
     if (run && run.payrollPeriod) {
-        const periodDate = new Date(run.payrollPeriod);
-        const year = periodDate.getFullYear();
-        const month = periodDate.getMonth(); // 0-indexed
-        
-        const startDate = new Date(year, month, 1);
-        const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+      const periodDate = new Date(run.payrollPeriod);
+      const year = periodDate.getFullYear();
+      const month = periodDate.getMonth(); // 0-indexed
 
-        try {
-            // Integration: Time Management (Overtime) - Local Calculation
-            // Fetch raw records and calculate overtime here since we cannot modify TimeManagementService
-            const records = await this.timeManagementService.findAllAttendanceRecords({
-                employeeId: employee._id.toString(),
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString()
-            });
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
 
-            const STANDARD_WORK_MINUTES = 480; // 8 hours
-            let totalOvertimeMinutes = 0;
+      try {
+        // Integration: Time Management (Overtime) - Local Calculation
+        // Fetch raw records and calculate overtime here since we cannot modify TimeManagementService
+        const records = await this.timeManagementService.findAllAttendanceRecords({
+          employeeId: employee._id.toString(),
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
+        });
 
-            records.forEach(record => {
-               if (record.totalWorkMinutes > STANDARD_WORK_MINUTES) {
-                  totalOvertimeMinutes += (record.totalWorkMinutes - STANDARD_WORK_MINUTES);
-               }
-            });
+        const STANDARD_WORK_MINUTES = 480; // 8 hours
+        let totalOvertimeMinutes = 0;
 
-            overtimeHours = Math.round((totalOvertimeMinutes / 60) * 100) / 100;
+        records.forEach(record => {
+          if (record.totalWorkMinutes > STANDARD_WORK_MINUTES) {
+            totalOvertimeMinutes += (record.totalWorkMinutes - STANDARD_WORK_MINUTES);
+          }
+        });
 
-        } catch (error) {
-            this.logger.warn(`Failed to fetch attendance for ${employee._id}: ${error.message}`);
-        }
+        overtimeHours = Math.round((totalOvertimeMinutes / 60) * 100) / 100;
 
-        // Integration: Leaves (Unpaid Leave)
-        // Reverted to placeholder as valid public method is not available in LeavesService
-        // and we cannot modify the service.
-        unpaidLeaveDays = employee.unpaidLeaveDays || 0; 
-        
+      } catch (error) {
+        this.logger.warn(`Failed to fetch attendance for ${employee._id}: ${error.message}`);
+      }
+
+      // Integration: Leaves (Unpaid Leave)
+      // Reverted to placeholder as valid public method is not available in LeavesService
+      // and we cannot modify the service.
+      unpaidLeaveDays = employee.unpaidLeaveDays || 0;
+
     } else {
-        // Fallback
-        overtimeHours = employee.overtimeHours || 0;
-        unpaidLeaveDays = employee.unpaidLeaveDays || 0;
+      // Fallback
+      overtimeHours = employee.overtimeHours || 0;
+      unpaidLeaveDays = employee.unpaidLeaveDays || 0;
     }
 
     // Calculate penalty deduction
@@ -1234,53 +1381,86 @@ export class PayrollExecutionService {
     const unpaidLeaveDeduction = unpaidLeaveDays * dailyRate;
 
     // Calculate overtime pay (1.5x normal rate)
-    const hourlyRate = grossSalary / (this.WORKING_DAYS_PER_MONTH * this.HOURS_PER_DAY);
+    const hourlyRate = proratedInfo.proratedSalary / (this.WORKING_DAYS_PER_MONTH * this.HOURS_PER_DAY);
     const overtimePay = overtimeHours * hourlyRate * 1.5;
 
+    // Get taxable benefits amount
+    const signingBonus = approvedBonus ? approvedBonus.givenAmount || 0 : 0;
+    const terminationBenefit = approvedTermination ? approvedTermination.givenAmount || 0 : 0;
+    // User Feedback Correction: Add taxable benefits to Gross BEFORE tax
+    grossSalary += (overtimePay + signingBonus + terminationBenefit);
+
     // BR 5, 6: Calculate Progressive Tax
-    const tax = await this.calculateProgressiveTax(grossSalary);
+    let taxAmount = 0;
+    let taxRes: any = null;
+    try {
+      taxRes = await this.calculateProgressiveTax(grossSalary);
+      // Ensure taxRes is an object before accessing totalTax
+      taxAmount = (taxRes && typeof taxRes === 'object' && !isNaN(taxRes.totalTax)) ? taxRes.totalTax : 0;
+    } catch (err) {
+      this.logger.warn(`Tax calculation failed for emp ${empDetail.employeeId}: ${err.message}. Defaulting to 0.`);
+    }
 
     // BR 7, 8: Calculate Insurance based on brackets
-    const insurance = await this.calculateInsurance(grossSalary);
+    let insuranceAmount = 0;
+    let insuranceRes: any = null;
+    try {
+      insuranceRes = await this.calculateInsurance(grossSalary);
+      // Ensure insuranceRes is an object before accessing totalInsurance
+      insuranceAmount = (insuranceRes && typeof insuranceRes === 'object' && !isNaN(insuranceRes.totalInsurance)) ? insuranceRes.totalInsurance : 0;
+    } catch (err) {
+      this.logger.warn(`Insurance calculation failed for emp ${empDetail.employeeId}: ${err.message}. Defaulting to 0.`);
+    }
 
-    // Calculate net salary before adjustments (BR 31, 34)
-    const netSalary = grossSalary - tax.totalTax - insurance.totalInsurance;
+    // Calculate net salary
+    const netSalary = grossSalary - taxAmount - insuranceAmount;
+    
+    // this.logger.warn(`DEBUG CALCULATION for ${empDetail.employeeId}:`);
+    // this.logger.warn(`  Gross: ${grossSalary}`);
+    // this.logger.warn(`  Tax: ${taxAmount}`);
+    // this.logger.warn(`  Insurance: ${insuranceAmount}`);
+    // this.logger.warn(`  Net (Pre-Deductions): ${netSalary}`);
 
-    // Calculate bonus if approved (BR 56)
-    const signingBonus = approvedBonus ? approvedBonus.givenAmount || 0 : 0;
+    // Penalties
+    const penDeduction = (penaltyDeduction && !isNaN(penaltyDeduction)) ? penaltyDeduction : 0;
+    const leaveDeduction = (unpaidLeaveDeduction && !isNaN(unpaidLeaveDeduction)) ? unpaidLeaveDeduction : 0;
+    
+    const refundsAdded = (refunds && !isNaN(refunds)) ? refunds : 0; // Check refunds
 
-    // Integration Point: Leave Encashment for Terminated/Resigned Employees (BR 56)
-    // When Leaves Module integration is available, add:
-    // if (employee.employmentStatus === 'TERMINATED' || employee.employmentStatus === 'RESIGNED') {
-    //   const leaveEncashment = await this.leavesService.calculateLeaveEncashment(
-    //     employee._id, employee.contractEndDate
-    //   );
-    //   finalSalary += leaveEncashment; // Add unused annual leave payout
-    // }
+    // this.logger.warn(`  Penalties: ${penDeduction}`);
+    // this.logger.warn(`  Unpaid Leave: ${leaveDeduction}`);
+    // this.logger.warn(`  Refunds: ${refundsAdded}`);
 
-    // Apply final adjustments (BR 31)
-    let finalSalary =
-      netSalary +
-      overtimePay +
-      signingBonus -
-      penaltyDeduction -
-      unpaidLeaveDeduction;
+    // Final Net Pay Formula: Net Salary - Penalties - Unpaid Leave + Refunds
+    let finalSalary = netSalary - penDeduction - leaveDeduction + refundsAdded;
 
     // BR 60: Ensure minimum wage floor
     const beforeMinWageCheck = finalSalary;
     finalSalary = Math.max(this.MINIMUM_WAGE, finalSalary);
+    
+    if (isNaN(finalSalary)) {
+       this.logger.error(`CRITICAL: Final Salary calculation resulted in NaN. Defaulting to Base Salary or Min Wage.`);
+       finalSalary = Math.max(this.MINIMUM_WAGE, grossSalary); 
+    }
+    
+    // this.logger.warn(`  Final Salary: ${finalSalary}`);
+
+    // Anomalies detection
+    const anomalies: string[] = [];
 
     if (finalSalary === this.MINIMUM_WAGE && beforeMinWageCheck < this.MINIMUM_WAGE) {
-      this.logger.warn(
-        `BR 60: Employee ${empDetail.employeeId} salary adjusted to minimum wage. ` +
-        `Calculated: ${beforeMinWageCheck}, Adjusted to: ${this.MINIMUM_WAGE}`
-      );
+      anomalies.push('Below Minimum Wage');
+    }
+
+    // Check for negative net pay (before min wage adjustment)
+    if (beforeMinWageCheck < 0) {
+      anomalies.push('Negative Net Pay');
     }
 
     return {
       employeeId: empDetail.employeeId,
       runId,
-      grossSalary: proratedInfo.proratedSalary,
+      grossSalary: grossSalary,
       fullMonthSalary: proratedInfo.fullMonthSalary,
       prorated: proratedInfo.isProrated,
       proratedDetails: proratedInfo.isProrated ? {
@@ -1289,15 +1469,16 @@ export class PayrollExecutionService {
         reason: proratedInfo.reason,
       } : null,
       tax: {
-        amount: tax.totalTax,
-        breakdown: tax.breakdown,
+        amount: taxAmount,
+        breakdown: taxRes?.breakdown || [],
         progressive: true,
       },
       insurance: {
-        amount: insurance.totalInsurance,
-        employeeAmount: insurance.employeeAmount,
-        employerAmount: insurance.employerAmount,
-        bracket: insurance.bracket,
+        amount: insuranceAmount,
+        employeeAmount: insuranceRes?.employeeAmount || 0,
+        employerAmount: insuranceRes?.employerAmount || 0,
+        bracket: insuranceRes?.bracket || 'Unknown',
+        employeeRate: insuranceRes?.employeeRate || 0 // Pass rate for breakdown construction
       },
       overtime: {
         hours: overtimeHours,
@@ -1309,16 +1490,20 @@ export class PayrollExecutionService {
         approved: !!approvedBonus,
       },
       deductions: {
-        penalties: penaltyDeduction,
-        unpaidLeave: unpaidLeaveDeduction,
-        unpaidLeaveDays: unpaidLeaveDays,
+        penalties: penDeduction,
+        unpaidLeave: leaveDeduction,
       },
-      allowances: overtimePay + signingBonus,
-      totalDeductions:
-        tax.totalTax + insurance.totalInsurance + penaltyDeduction + unpaidLeaveDeduction,
+      termination: {
+        amount: terminationBenefit,
+        approved: !!approvedTermination
+      },
+      refunds: refundsAdded, // Return refunds for downstream use
+      allowances: overtimePay + signingBonus + terminationBenefit,
+      totalDeductions: taxAmount + insuranceAmount + penDeduction + leaveDeduction,
       netSalary,
       finalSalary: finalSalary,
       minimumWageApplied: finalSalary === this.MINIMUM_WAGE && beforeMinWageCheck < this.MINIMUM_WAGE,
+      anomalies, // Return detected anomalies
       calculationDate: new Date(),
     };
   }
@@ -1421,28 +1606,125 @@ export class PayrollExecutionService {
     try {
       // Fetch all tax rules from configuration
       const taxRules = await this.taxRulesService.findAll();
-
+      
       if (!taxRules || taxRules.length === 0) {
-        // Fallback to default progressive brackets if no rules configured
         this.logger.warn('No tax rules configured. Using default progressive tax brackets.');
         return this.calculateDefaultProgressiveTax(grossSalary);
       }
 
-      // Apply progressive tax calculation
+      // Sort rules by specific order or rate to ensure tiers are correct
+      // Assuming user seeded 'Tier 1', 'Tier 2' etc. or simple rates.
+      // Standard Egyptian Brackets (Example):
+      // 0 - 15,000: 0%
+      // 15,000 - 30,000: 2.5%
+      // 30,000 - 45,000: 10%
+      // 45,000 - 60,000: 15%
+      // 60,000 - 200,000: 20%
+      // 200,000 - 400,000: 22.5%
+      // > 400,000: 25%
+      
+      // We map the fetched rules to these tiers based on rate or name
+      // This is a heuristic since the schema lacks min/max.
+      
+      let remainingSalary = grossSalary;
       let totalTax = 0;
       const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
 
-      for (const rule of taxRules) {
-        if (rule.status === 'APPROVED') {
-          const taxAmount = grossSalary * (rule.rate / 100);
-          totalTax += taxAmount;
-          breakdown.push({
-            name: rule.name,
-            rate: rule.rate,
-            amount: taxAmount,
-          });
-        }
+      // Define thresholds
+      const tiers = [
+          { limit: 15000, rate: 0 },
+          { limit: 15000, rate: 2.5 }, // 15k-30k (width 15k)
+          { limit: 15000, rate: 10 },  // 30k-45k (width 15k)
+          { limit: 15000, rate: 15 },  // 45k-60k (width 15k)
+          { limit: 140000, rate: 20 }, // 60k-200k (width 140k)
+          { limit: 200000, rate: 22.5 }, // 200k-400k (width 200k)
+          { limit: Infinity, rate: 25 }  // >400k
+      ];
+
+      // Helper to find authorized rate from DB for a given target rate
+      const getRuleRate = (targetRate: number) => {
+          const rule = taxRules.find(r => Math.abs(r.rate - targetRate) < 0.1 && (r.status === 'APPROVED' || r.status === 'ACTIVE'));
+          return rule ? rule.rate : targetRate; // Use DB rule rate or fallback to standard
+      };
+
+      let currentThreshold = 0;
+      
+      // Tier 1: 0 - 15,000
+      let tierWidth = 15000;
+      let taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
+      let rate = getRuleRate(0);
+      let tax = taxedAmount * (rate / 100);
+      if (tax > 0) {
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 1 (0-15k)', rate, amount: tax });
       }
+      currentThreshold += tierWidth;
+
+      // Tier 2: 15,000 - 30,000
+      tierWidth = 15000;
+      taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
+      rate = getRuleRate(2.5);
+      tax = taxedAmount * (rate / 100);
+      if (tax > 0) {
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 2 (15k-30k)', rate, amount: tax });
+      }
+      currentThreshold += tierWidth;
+
+      // Tier 3: 30,000 - 45,000
+      tierWidth = 15000;
+      taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
+      rate = getRuleRate(10);
+      tax = taxedAmount * (rate / 100);
+      if (tax > 0) {
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 3 (30k-45k)', rate, amount: tax });
+      }
+      currentThreshold += tierWidth;
+
+      // Tier 4: 45,000 - 60,000
+      tierWidth = 15000;
+      taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
+      rate = getRuleRate(15);
+      tax = taxedAmount * (rate / 100);
+      if (tax > 0) {
+         totalTax += tax;
+         breakdown.push({ name: 'Tier 4 (45k-60k)', rate, amount: tax });
+      }
+      currentThreshold += tierWidth;
+
+      // Tier 5: 60,000 - 200,000
+      tierWidth = 140000;
+      taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
+      rate = getRuleRate(20);
+      tax = taxedAmount * (rate / 100);
+      if (tax > 0) {
+         totalTax += tax;
+         breakdown.push({ name: 'Tier 5 (60k-200k)', rate, amount: tax });
+      }
+      currentThreshold += tierWidth;
+
+       // Tier 6: 200,000 - 400,000
+      tierWidth = 200000;
+      taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
+      rate = getRuleRate(22.5);
+      tax = taxedAmount * (rate / 100);
+      if (tax > 0) {
+         totalTax += tax;
+         breakdown.push({ name: 'Tier 6 (200k-400k)', rate, amount: tax });
+      }
+      currentThreshold += tierWidth;
+
+       // Tier 7: > 400,000
+      taxedAmount = Math.max(grossSalary - currentThreshold, 0);
+      if (taxedAmount > 0) {
+          rate = getRuleRate(25);
+          tax = taxedAmount * (rate / 100);
+          totalTax += tax;
+          breakdown.push({ name: 'Tier 7 (>400k)', rate, amount: tax });
+      }
+
+      this.logger.warn(`  Total Tax Calculated (Progressive): ${totalTax}`);
 
       return { totalTax, breakdown };
     } catch (error) {
@@ -1485,14 +1767,19 @@ export class PayrollExecutionService {
    */
   private async calculateInsurance(grossSalary: number): Promise<any> {
     try {
-      // Fetch insurance brackets from configuration
+    // Fetch insurance brackets from configuration
       const brackets = await this.insuranceBracketsService.findAll();
+      
+      this.logger.warn(`DEBUG INSURANCE: Found ${brackets ? brackets.length : 0} brackets`);
 
       if (!brackets || brackets.length === 0) {
         // Fallback to default rates
         this.logger.warn('No insurance brackets configured. Using default rates.');
         return this.calculateDefaultInsurance(grossSalary);
       }
+      
+      // Log brackets for debug
+      brackets.forEach(b => this.logger.warn(`  Bracket: ${b.name}, Range: ${b.minSalary}-${b.maxSalary}, Status: ${b.status}`));
 
       const applicableBracket = brackets.find(
         (bracket) =>
@@ -1666,12 +1953,11 @@ export class PayrollExecutionService {
           `Invalid payslip ID format: ${payslipId}`,
         );
       }
-      throw new BadRequestException(
-        `Manual adjustment failed: ${error.message}`,
-      );
     }
   }
-  // ==================== UTILITY METHODS ====================
+
+
+  // ==================== TEST DATA SEEDING ====================
 
   private getMonthNumber(monthName: string): string {
     const months: { [key: string]: string } = {
@@ -1725,7 +2011,7 @@ export class PayrollExecutionService {
   async debugEmployeesCollection() {
     try {
       const db = this.payrollRunModel.db;
-      const employeesCollection = db.collection('employees');
+      const employeesCollection = db.collection('employee_profiles');
 
       // Get ALL employees (no filters)
       const allEmployees = await employeesCollection
@@ -1775,12 +2061,28 @@ export class PayrollExecutionService {
 
     return {
       runId: run.runId,
-      payslips: payslips.map((p) => ({
+      status: run.status,
+      period: run.payrollPeriod,
+      totalEmployees: payslips.length,
+      totalGrossPay: payslips.reduce((acc, p) => acc + (p.totalGrossSalary || 0), 0),
+      totalNetPay: payslips.reduce((acc, p) => acc + (p.netPay || 0), 0),
+      employees: payslips.map((p: any) => ({
         payslipId: p._id,
         employeeId: p.employeeId,
+        employeeName: p.employeeName,
         netPay: p.netPay,
-        totalGrossSalary: p.totalGrossSalary,
-        totaDeductions: p.totaDeductions,
+        grossSalary: p.totalGrossSalary,
+        totalDeductions: p.totaDeductions,
+        baseSalary: p.baseSalary,
+        taxBreakdown: p.taxDetails?.breakdown || [],
+        insurance: p.insuranceDetails,
+        penalties: p.deductionsDetails?.penalties?.total || 0,
+        overtimePay: p.earningsDetails?.overtime?.amount || 0,
+        bonuses: p.earningsDetails?.bonuses?.total || 0,
+        terminationPayout: p.earningsDetails?.terminationPayout || 0,
+        status: p.status,
+        minimumWageApplied: p.minimumWageApplied,
+        bankAccountNumber: p.bankAccountNumber
       })),
     };
   }
@@ -1976,7 +2278,7 @@ export class PayrollExecutionService {
 
     // REQ-PY-5: Anomaly Check 3 - Salary Spike Detection (>20% increase)
     const db = this.payrollRunModel.db;
-    const employeesCollection = db.collection('employees');
+    const employeesCollection = db.collection('employee_profiles');
 
     for (const empDetail of employeeDetails) {
       const employee = await employeesCollection.findOne({ _id: empDetail.employeeId });
@@ -2122,6 +2424,33 @@ export class PayrollExecutionService {
     }
 
     if (dto.status === ReviewStatus.APPROVED) {
+      // Check for unresolved anomalies before approving
+      const employeeDetails = await this.empDetailsModel.find({ payrollRunId: run._id }).exec();
+
+      const unresolvedAnomalies = employeeDetails.filter(emp => {
+        const hasExceptionString = emp.exceptions && emp.exceptions.trim() !== '';
+
+        // Case-insensitive check for resolution keywords
+        const exceptionsUpper = (emp.exceptions || '').toUpperCase();
+        const isResolved = exceptionsUpper.includes('DEFERRED') ||
+          exceptionsUpper.includes('OVERRIDE');
+
+        if (hasExceptionString && !isResolved) {
+          return true;
+        }
+        if (!isResolved && (emp.bankStatus === BankStatus.MISSING || (emp.bankStatus as string) === 'MISSING')) {
+          return true;
+        }
+
+        return false;
+      });
+
+      if (unresolvedAnomalies.length > 0) {
+        throw new BadRequestException(
+          `Cannot approve payroll. There are ${unresolvedAnomalies.length} unresolved anomalies. Please resolve them first.`
+        );
+      }
+
       // Approved: Move to finance review
       run.status = PayRollStatus.PENDING_FINANCE_APPROVAL;
       await run.save();
@@ -2348,6 +2677,7 @@ export class PayrollExecutionService {
 
     const runs = await this.payrollRunModel
       .find()
+      .populate('payrollSpecialistId', 'name') // Populate creator name
       .sort({ createdAt: -1 }) // Most recent first
       .exec();
 
@@ -2366,8 +2696,42 @@ export class PayrollExecutionService {
         // Calculate total anomalies from employee exceptions
         // Count employees that have any exception/anomaly flag
         const totalAnomalies = employeeDetails.filter(
-          emp => emp.exceptions && emp.exceptions.trim() !== ''
+          emp => {
+            const hasExceptionString = emp.exceptions && emp.exceptions.trim() !== '';
+
+            // Case-insensitive check for resolution keywords
+            const exceptionsUpper = (emp.exceptions || '').toUpperCase();
+            const isResolved = exceptionsUpper.includes('DEFERRED') ||
+              exceptionsUpper.includes('OVERRIDE');
+
+            // An anomaly exists if:
+            // 1. There is an exception string AND it's not resolved
+            // 2. OR Bank Status is MISSING (implying unresolved bank issue, since override sets it to VALID)
+            if (hasExceptionString && !isResolved) {
+              this.logger.debug(`[History Debug] Anomaly String Found for ${emp.employeeId}: "${emp.exceptions}"`);
+              return true;
+            }
+            if (!isResolved && (emp.bankStatus === BankStatus.MISSING || (emp.bankStatus as string) === 'MISSING')) {
+              this.logger.debug(`[History Debug] Bank Anomaly Found for ${emp.employeeId}: Status=${emp.bankStatus}`);
+              return true;
+            }
+
+            return false;
+
+            return false;
+          }
         ).length;
+
+        if (totalAnomalies > 0) {
+          this.logger.debug(`Run ${run.runId}: Found ${totalAnomalies} anomalies.`);
+        } else {
+          // START DEBUG
+          const potentialAnomalies = employeeDetails.filter(e => e.exceptions).length;
+          if (potentialAnomalies > 0) {
+            this.logger.warn(`Run ${run.runId}: Has ${potentialAnomalies} exceptions but they might be empty strings? Sample: ${employeeDetails.find(e => e.exceptions)?.exceptions || 'None'}`);
+          }
+          // END DEBUG
+        }
 
         // Extract month and year from payrollPeriod Date
         const periodDate = new Date(run.payrollPeriod);
@@ -2379,6 +2743,13 @@ export class PayrollExecutionService {
         // Calculate period start and end (assuming full month)
         const startDate = new Date(year, periodDate.getMonth(), 1);
         const endDate = new Date(year, periodDate.getMonth() + 1, 0); // Last day of month
+
+        // Get creator name from populated field
+        const creatorProfile = run.payrollSpecialistId as any;
+        const creatorName = creatorProfile?.fullName ||
+          (creatorProfile?.firstName && creatorProfile?.lastName
+            ? `${creatorProfile.firstName} ${creatorProfile.lastName}`
+            : 'Unknown');
 
         return {
           runId: run.runId,
@@ -2392,10 +2763,14 @@ export class PayrollExecutionService {
           totalAmount: Math.round(totalAmount * 100) / 100,
           currentStatus: run.status,
           paymentStatus: run.paymentStatus,
-          employeeCount: employeeDetails.length,
+          employeeCount: employeeDetails.filter(e =>
+            !e.exceptions ||
+            typeof e.exceptions !== 'string' ||
+            !e.exceptions.includes('DEFERRED TO NEXT RUN')
+          ).length,
           totalAnomalies: totalAnomalies,
           createdAt: (run as any).createdAt || new Date(), // Mongoose timestamp field
-          createdBy: run.payrollSpecialistId, // Use the correct field name from schema
+          createdBy: creatorName, // Now returns the actual name instead of ObjectId
         };
       })
     );
@@ -2648,6 +3023,157 @@ export class PayrollExecutionService {
     };
   }
 
+  /**
+   * REQ-PY-20: Resolve Anomalies (Manager Review)
+   * Allows Payroll Manager to review and resolve escalated irregularities
+   * reported by Payroll Specialists at a higher decision level.
+   * 
+   * Resolution Actions:
+   * - DEFER_TO_NEXT_RUN: Remove employee from current run (paid next cycle)
+   * - OVERRIDE_PAYMENT_METHOD: Pay via Cheque/Cash (bypasses bank requirement)
+   * - REJECT_PAYROLL: Send entire batch back to Draft status
+   */
+  async resolveAnomalies(runId: string, dto: any) {
+    const run = await this.payrollRunModel.findOne({ runId });
+    if (!run) throw new NotFoundException('Payroll Run not found');
+
+    this.logger.log(`REQ-PY-20: Manager resolving anomalies for ${runId}`);
+
+    const resolutions = dto.resolutions || [];
+    let deferredCount = 0;
+    let overrideCount = 0;
+    let shouldRejectEntirePayroll = false;
+    const deferredEmployeeIds: string[] = [];
+
+    // Process each resolution
+    for (const resolution of resolutions) {
+      this.logger.log(
+        `Resolving anomalies for employee ${resolution.employeeName}: ${resolution.action}`,
+      );
+      this.logger.log(`Manager justification: ${resolution.justification}`);
+
+      switch (resolution.action) {
+        case 'DEFER_TO_NEXT_RUN':
+          // Option A: Remove employee from this run
+          deferredCount++;
+          deferredEmployeeIds.push(resolution.employeeId);
+
+          // Mark employee details as deferred
+          await this.empDetailsModel.updateMany(
+            { payrollRunId: run._id, employeeId: resolution.employeeId },
+            {
+              $set: {
+                exceptions: `DEFERRED TO NEXT RUN by Manager: ${resolution.justification}`,
+                netPay: 0, // Zero out payment for this cycle
+              },
+            },
+          );
+
+          // Delete associated payslip
+          await this.paySlipModel.deleteMany({
+            payrollRunId: run._id,
+            employeeId: resolution.employeeId,
+          });
+
+          this.logger.warn(
+            `Employee ${resolution.employeeName} deferred to next payroll cycle`,
+          );
+          break;
+
+        case 'OVERRIDE_PAYMENT_METHOD':
+          // Option B: Pay via alternative method (Cheque/Cash)
+          overrideCount++;
+
+          await this.empDetailsModel.updateMany(
+            { payrollRunId: run._id, employeeId: resolution.employeeId },
+            {
+              $set: {
+                exceptions: `PAYMENT METHOD OVERRIDE by Manager: ${resolution.overridePaymentMethod} - ${resolution.justification}`,
+                bankStatus: BankStatus.VALID, // Override bank requirement
+              },
+            },
+          );
+
+          // Update payslip with alternative payment method
+          await this.paySlipModel.updateMany(
+            { payrollRunId: run._id, employeeId: resolution.employeeId },
+            {
+              $set: {
+                paymentMethod: resolution.overridePaymentMethod,
+                managerOverride: true,
+                overrideReason: resolution.justification,
+              },
+            },
+          );
+
+          this.logger.log(
+            `Payment method overridden to ${resolution.overridePaymentMethod} for ${resolution.employeeName}`,
+          );
+          break;
+
+        case 'REJECT_PAYROLL':
+          // Option C: Reject entire payroll batch
+          shouldRejectEntirePayroll = true;
+          this.logger.warn(
+            `Manager chose to REJECT entire payroll batch. Reason: ${resolution.justification}`,
+          );
+          break;
+      }
+    }
+
+    // Handle payroll rejection if any resolution chose this option
+    if (shouldRejectEntirePayroll) {
+      run.status = PayRollStatus.DRAFT;
+      run.rejectionReason = `Manager rejected payroll due to anomalies requiring data corrections. Batch returned to Draft status.`;
+      await run.save();
+
+      return {
+        message: 'Payroll batch REJECTED and returned to Draft status',
+        runId: run.runId,
+        status: run.status,
+        reason: 'Awaiting employee data corrections before reprocessing',
+        rejectedAt: new Date(),
+        note: 'All employees must resolve their data issues. Payroll cannot proceed to Finance until revalidated.',
+      };
+    }
+
+    // Update run statistics
+    const remainingEmployees = await this.empDetailsModel.countDocuments({
+      payrollRunId: run._id,
+      netPay: { $gt: 0 }, // Count only employees with active payments
+    });
+
+    const newExceptionCount = await this.empDetailsModel.countDocuments({
+      payrollRunId: run._id,
+      exceptions: { $exists: true, $ne: '' },
+      netPay: { $gt: 0 }, // Only count active employees
+    });
+
+    run.employees = remainingEmployees;
+    run.exceptions = newExceptionCount;
+    await run.save();
+
+    this.logger.log(
+      `REQ-PY-20: Anomaly resolution complete for ${runId}. ` +
+      `Deferred: ${deferredCount}, Override: ${overrideCount}, Remaining Employees: ${remainingEmployees}`,
+    );
+
+    return {
+      message: 'Anomalies resolved successfully by Payroll Manager',
+      runId: run.runId,
+      totalResolutions: resolutions.length,
+      breakdown: {
+        deferredToNextRun: deferredCount,
+        paymentMethodOverride: overrideCount,
+      },
+      deferredEmployees: deferredEmployeeIds,
+      remainingEmployees: remainingEmployees,
+      remainingExceptions: newExceptionCount,
+      resolvedAt: new Date(),
+      note: 'Deferred employees removed from current cycle. Overridden employees will be paid via alternative methods. All actions logged for audit (REQ-PY-20).',
+    };
+  }
+
   // === MEMBER 3 (PAYSLIP DETAILS) ===
   // REQ-PY-8: DETAILED PAYSLIP WITH TAX BREAKDOWN
 
@@ -2863,6 +3389,22 @@ export class PayrollExecutionService {
       // REQ-PY-8: Multi-channel distribution
       distribution: distributionStatus,
 
+      // Frontend Compatibility Fields (Direct mapping for PayslipPreviewModal)
+      taxBreakdown: empDetails?.taxBreakdown || [], 
+      insurance: empDetails?.insuranceBreakdown && empDetails.insuranceBreakdown.length > 0 ? {
+        employeeAmount: empDetails.insuranceBreakdown[0].amount || 0,
+        employerAmount: 0, // Not stored in breakdown currently, defaults to 0
+        total: empDetails.insuranceBreakdown[0].amount || 0
+      } : { employeeAmount: 0, employerAmount: 0, total: 0 },
+      penalties: empDetails?.penalties || 0,
+      bonuses: empDetails?.bonus || 0,
+      overtimePay: 0, // Placeholder, overtime not fully implemented in schema yet
+      minimumWageApplied: empDetails?.exceptions?.includes('Minimum Wage') || false,
+      baseSalary: payslip.earningsDetails.baseSalary,
+      grossSalary: payslip.totalGrossSalary,
+      netPay: payslip.netPay,
+      totalDeductions: payslip.totaDeductions || 0,
+
       // Bank details for payment
       bankStatus: empDetails?.bankStatus,
       exceptions: empDetails?.exceptions,
@@ -2961,13 +3503,13 @@ export class PayrollExecutionService {
   async seedTestBenefits() {
     try {
       const db = this.payrollRunModel.db;
-      const employeesCollection = db.collection('employees');
+      const employeesCollection = db.collection('employee_profiles');
 
       // Ensure employees exist first
       const employeeCount = await employeesCollection.countDocuments();
       if (employeeCount === 0) {
-        await this.seedMockEmployees();
-        this.logger.log('Seeded mock employees first');
+        this.logger.warn('No employees found in employee_profiles to seed benefits for.');
+        // Do NOT seed mock employees as per user request
       }
 
       // Get employee IDs

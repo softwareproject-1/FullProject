@@ -6,7 +6,7 @@ import { terminationAndResignationBenefits, terminationAndResignationBenefitsSch
 import { taxRules, taxRulesSchema } from '../../payroll-configuration/models/taxRules.schema';
 import { insuranceBrackets, insuranceBracketsSchema } from '../../payroll-configuration/models/insuranceBrackets.schema';
 import { employeePenalties, employeePenaltiesSchema } from './employeePenalties.schema';
-import {  EmployeeProfile as Employee} from '../../employee-profile/models/employee-profile.schema';
+import { EmployeeProfile as Employee } from '../../employee-profile/models/employee-profile.schema';
 import { refundDetails, refundDetailsSchema } from '../../payroll-tracking/models/refunds.schema';
 import { payrollRuns } from './payrollRuns.schema';
 import { PaySlipPaymentStatus } from '../enums/payroll-execution-enum';
@@ -69,6 +69,15 @@ export class paySlip {
     netPay: number
     @Prop({ type: String, enum: PaySlipPaymentStatus, default: PaySlipPaymentStatus.PENDING })
     paymentStatus: PaySlipPaymentStatus// in case we have bank integration in future
+
+    @Prop({ default: false })
+    managerOverride: boolean;
+
+    @Prop()
+    overrideReason?: string;
+
+    @Prop()
+    paymentMethod?: string;
 }
 
 export const paySlipSchema = SchemaFactory.createForClass(paySlip);

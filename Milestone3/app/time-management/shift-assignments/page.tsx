@@ -7,9 +7,15 @@ import { StatusBadge } from '../../../components/StatusBadge';
 import { timeManagementApi, employeeProfileApi, organizationApi } from '../../../lib/api';
 import { handleTimeManagementError, extractArrayData } from '../../../lib/time-management-utils';
 import { formatDate, toISO8601 } from '../../../lib/date-utils';
-import { Edit2, Plus, XCircle } from 'lucide-react';
+import { Edit2, Plus, XCircle, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole } from '@/utils/roleAccess';
 
 export default function ShiftAssignmentsPage() {
+  const { user } = useAuth();
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
   const [loading, setLoading] = useState(false);
   const [shiftAssignments, setShiftAssignments] = useState<any[]>([]);
   const [shifts, setShifts] = useState<any[]>([]);
@@ -22,17 +28,35 @@ export default function ShiftAssignmentsPage() {
 
   useEffect(() => {
     loadShiftAssignments();
-    loadShifts();
-    loadEmployees();
-    loadDepartments();
-  }, []);
+    loadShifts(); // Department Employees and HR Employees need this to see shift names
+    // Department Employees and HR Employees don't need employees/departments lists since they can't create assignments
+    if (!canOnlyViewOwn) {
+      loadEmployees();
+      loadDepartments();
+    }
+  }, [canOnlyViewOwn]);
 
   const loadShiftAssignments = async () => {
     setLoading(true);
     try {
-      const response = await timeManagementApi.getShiftAssignments();
+      // For Department Employees and HR Employees, the backend automatically filters by user.sub
+      // But we can pass employeeId explicitly to help with debugging
+      // Note: Backend uses user.sub from JWT token, which should match user._id from /auth/me
+      const filters = canOnlyViewOwn && user?._id
+        ? { employeeId: user._id }
+        : undefined;
+      
+      console.log('Loading shift assignments with filters:', filters);
+      console.log('User object:', { _id: user?._id, roles: user?.roles });
+      console.log('Is Department Employee:', isDepartmentEmployee);
+      console.log('Is HR Employee:', isHREmployee);
+      console.log('Can only view own:', canOnlyViewOwn);
+      
+      const response = await timeManagementApi.getShiftAssignments(filters);
       const assignments = extractArrayData(response);
       console.log('Loaded shift assignments:', assignments);
+      console.log('Number of assignments found:', assignments.length);
+      
       if (assignments.length > 0) {
         console.log('Sample assignment:', JSON.stringify(assignments[0], null, 2));
         console.log('Employee data type:', typeof assignments[0].employeeId);
@@ -43,10 +67,20 @@ export default function ShiftAssignmentsPage() {
           console.log('Has fullName?', assignments[0].employeeId.fullName);
           console.log('Has _id?', assignments[0].employeeId._id);
         }
+      } else {
+        console.log('No shift assignments found.');
+        console.log('Filters used:', filters);
+        console.log('User ID:', user?._id);
+        console.log('Is Department Employee:', isDepartmentEmployee);
       }
       setShiftAssignments(assignments);
     } catch (error: any) {
       console.error('Error loading shift assignments:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
       setShiftAssignments([]);
       handleTimeManagementError(error, 'loading shift assignments');
     } finally {
@@ -185,6 +219,29 @@ export default function ShiftAssignmentsPage() {
     }
   };
 
+  // Helper function to check if shift assignment is nearing expiry (within 7 days)
+  const isNearingExpiry = (endDate: string | null | undefined, status: string | undefined): boolean => {
+    if (!endDate || status === 'EXPIRED' || status === 'CANCELLED') {
+      return false;
+    }
+    
+    try {
+      const end = new Date(endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      
+      const diffTime = end.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Return true if endDate is within 7 days and hasn't passed
+      return diffDays >= 0 && diffDays <= 7;
+    } catch (error) {
+      console.error('Error checking expiry date:', error);
+      return false;
+    }
+  };
+
   const openModal = (item?: any) => {
     setSelectedItem(item || null);
     if (item) {
@@ -220,15 +277,19 @@ export default function ShiftAssignmentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 mb-2">Shift Assignments</h1>
-          <p className="text-slate-600">Assign shifts to employees individually or in bulk</p>
+          <p className="text-slate-600">
+            {canOnlyViewOwn ? 'View your assigned shifts' : 'Assign shifts to employees individually or in bulk'}
+          </p>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Assign Shift
-        </button>
+        {!canOnlyViewOwn && (
+          <button
+            onClick={() => openModal()}
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Assign Shift
+          </button>
+        )}
       </div>
 
       {loading && shiftAssignments.length === 0 ? (
@@ -243,11 +304,23 @@ export default function ShiftAssignmentsPage() {
                   <th className="px-6 py-3 text-left text-slate-700">Shift</th>
                   <th className="px-6 py-3 text-left text-slate-700">Date Range</th>
                   <th className="px-6 py-3 text-left text-slate-700">Status</th>
-                  <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  {!canOnlyViewOwn && (
+                    <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {shiftAssignments.map((assignment) => {
+                {shiftAssignments.length === 0 ? (
+                  <tr>
+                    <td 
+                      colSpan={canOnlyViewOwn ? 4 : 5} 
+                      className="px-6 py-12 text-center text-slate-500"
+                    >
+                      No shift assignments found.
+                    </td>
+                  </tr>
+                ) : (
+                  shiftAssignments.map((assignment) => {
                   // Get employee display name - handle populated employee object
                   const employee = assignment.employeeId || assignment.employee;
                   let employeeName = 'N/A';
@@ -301,36 +374,53 @@ export default function ShiftAssignmentsPage() {
                     }
                   }
                   
+                  const nearingExpiry = isNearingExpiry(assignment.endDate, assignment.status);
+                  
                   return (
                   <tr key={assignment._id || assignment.id}>
                     <td className="px-6 py-4">{employeeName}</td>
                     <td className="px-6 py-4">{shiftName}</td>
                     <td className="px-6 py-4" suppressHydrationWarning>
-                      {assignment.startDate ? formatDate(assignment.startDate) : 'N/A'} - 
-                      {assignment.endDate ? formatDate(assignment.endDate) : 'Ongoing'}
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {assignment.startDate ? formatDate(assignment.startDate) : 'N/A'} - 
+                          {assignment.endDate ? formatDate(assignment.endDate) : 'Ongoing'}
+                        </span>
+                        {nearingExpiry && (
+                          <span 
+                            className="inline-flex items-center" 
+                            title="Shift assignment is expiring within 7 days"
+                          >
+                            <AlertCircle className="w-5 h-5 text-orange-500" />
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={assignment.status || 'PENDING'} />
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openModal(assignment)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(assignment._id || assignment.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+                    {!canOnlyViewOwn && (
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openModal(assignment)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(assignment._id || assignment.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>

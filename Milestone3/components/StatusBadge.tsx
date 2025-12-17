@@ -9,11 +9,12 @@ export function StatusBadge({ status, variant }: StatusBadgeProps) {
     if (variant) return variant;
     
     const lowerStatus = status.toLowerCase();
+    // Check for inactive first (before active) to avoid matching 'active' within 'inactive'
+    if (lowerStatus.includes('inactive') || lowerStatus.includes('terminated') || lowerStatus.includes('rejected') || lowerStatus.includes('delimited') || lowerStatus.includes('absent')) {
+      return 'danger';
+    }
     if (lowerStatus.includes('active') || lowerStatus.includes('approved') || lowerStatus.includes('completed') || lowerStatus.includes('paid')) {
       return 'success';
-    }
-    if (lowerStatus.includes('terminated') || lowerStatus.includes('rejected') || lowerStatus.includes('delimited') || lowerStatus.includes('absent')) {
-      return 'danger';
     }
     if (lowerStatus.includes('pending') || lowerStatus.includes('draft') || lowerStatus.includes('late') || lowerStatus.includes('missing')) {
       return 'warning';

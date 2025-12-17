@@ -9,8 +9,14 @@ import { handleTimeManagementError, extractArrayData } from '../../../lib/time-m
 import { formatDate } from '../../../lib/date-utils';
 import { Plus, CheckCircle, XCircle } from 'lucide-react';
 import { CorrectionRequestStatus } from '../../../../Milestone2/HR-System-main/src/time-management/models/enums';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole } from '@/utils/roleAccess';
 
 export default function CorrectionRequestsPage() {
+  const { user } = useAuth();
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
   const [loading, setLoading] = useState(false);
   const [correctionRequests, setCorrectionRequests] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
@@ -20,9 +26,20 @@ export default function CorrectionRequestsPage() {
 
   useEffect(() => {
     loadCorrectionRequests();
-    loadEmployees();
+    if (!canOnlyViewOwn) {
+      loadEmployees();
+    }
     loadAttendanceRecords();
-  }, []);
+  }, [canOnlyViewOwn]);
+
+  // Auto-populate employeeId for Department Employees and HR Employees when modal opens
+  useEffect(() => {
+    if (isModalOpen && canOnlyViewOwn && user?._id) {
+      setFormData({ employeeId: user._id, attendanceRecord: '', reason: '' });
+      // Reload attendance records for the logged-in employee
+      loadAttendanceRecords();
+    }
+  }, [isModalOpen, canOnlyViewOwn, user?._id]);
 
   const loadCorrectionRequests = async () => {
     setLoading(true);
@@ -57,7 +74,10 @@ export default function CorrectionRequestsPage() {
 
   const loadAttendanceRecords = async () => {
     try {
-      const response = await timeManagementApi.getAttendanceRecords();
+      // For Department Employees and HR Employees, only load their own attendance records
+      const response = (isDepartmentEmployee || isHREmployee) && user?._id
+        ? await timeManagementApi.getAttendanceRecords({ employeeId: user._id })
+        : await timeManagementApi.getAttendanceRecords();
       const data = extractArrayData(response);
       console.log('Loaded attendance records:', data);
       if (data.length > 0) {
@@ -126,7 +146,9 @@ export default function CorrectionRequestsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 mb-2">Correction Requests</h1>
-          <p className="text-slate-600">Manage attendance correction requests</p>
+          <p className="text-slate-600">
+            {canOnlyViewOwn ? 'Submit and track your correction requests' : 'Manage attendance correction requests'}
+          </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -149,7 +171,9 @@ export default function CorrectionRequestsPage() {
                   <th className="px-6 py-3 text-left text-slate-700">Date</th>
                   <th className="px-6 py-3 text-left text-slate-700">Reason</th>
                   <th className="px-6 py-3 text-left text-slate-700">Status</th>
-                  <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  {!canOnlyViewOwn && (
+                    <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -232,32 +256,34 @@ export default function CorrectionRequestsPage() {
                         <td className="px-6 py-4">
                           <StatusBadge status={request.status || CorrectionRequestStatus.SUBMITTED} />
                         </td>
-                        <td className="px-6 py-4">
-                          {showActions && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleApprove(request._id || request.id)}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                                title="Approve"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleReject(request._id || request.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                title="Reject"
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-                        </td>
+                        {!canOnlyViewOwn && (
+                          <td className="px-6 py-4">
+                            {showActions && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleApprove(request._id || request.id)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                                  title="Approve"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleReject(request._id || request.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                  title="Reject"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={canOnlyViewOwn ? 4 : 5} className="px-6 py-8 text-center text-slate-500">
                       No correction requests found
                     </td>
                   </tr>
@@ -280,30 +306,41 @@ export default function CorrectionRequestsPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-slate-700 mb-2">Employee</label>
-            <select
-              value={formData.employeeId || ''}
-              onChange={(e) => {
-                // Clear attendance record when employee changes
-                setFormData({ ...formData, employeeId: e.target.value, attendanceRecord: '' });
-              }}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg"
-            >
-              <option value="">Select Employee</option>
-              {employees.length === 0 ? (
-                <option value="" disabled>No employees available</option>
-              ) : (
-                employees.map((emp) => {
-                  const displayName = emp.fullName || 
-                    (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : 
-                    emp.firstName || emp.lastName || emp.employeeNumber || 'Unknown Employee');
-                  return (
-                    <option key={emp._id || emp.id} value={emp._id || emp.id}>
-                      {displayName} {emp.employeeNumber ? `(${emp.employeeNumber})` : ''}
-                    </option>
-                  );
-                })
-              )}
-            </select>
+            {(isDepartmentEmployee || isHREmployee) ? (
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50">
+                <p className="text-slate-700">
+                  {user?.firstName && user?.lastName 
+                    ? `${user.firstName} ${user.lastName}`
+                    : user?.firstName || user?.lastName || user?.employeeNumber || 'Current User'}
+                  {user?.employeeNumber && ` (${user.employeeNumber})`}
+                </p>
+              </div>
+            ) : (
+              <select
+                value={formData.employeeId || ''}
+                onChange={(e) => {
+                  // Clear attendance record when employee changes
+                  setFormData({ ...formData, employeeId: e.target.value, attendanceRecord: '' });
+                }}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg"
+              >
+                <option value="">Select Employee</option>
+                {employees.length === 0 ? (
+                  <option value="" disabled>No employees available</option>
+                ) : (
+                  employees.map((emp) => {
+                    const displayName = emp.fullName || 
+                      (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}` : 
+                      emp.firstName || emp.lastName || emp.employeeNumber || 'Unknown Employee');
+                    return (
+                      <option key={emp._id || emp.id} value={emp._id || emp.id}>
+                        {displayName} {emp.employeeNumber ? `(${emp.employeeNumber})` : ''}
+                      </option>
+                    );
+                  })
+                )}
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-slate-700 mb-2">Attendance Record</label>
@@ -313,7 +350,7 @@ export default function CorrectionRequestsPage() {
               className="w-full px-4 py-2 border border-slate-300 rounded-lg"
               disabled={!formData.employeeId}
             >
-              <option value="">{formData.employeeId ? 'Select Attendance Record' : 'Select Employee First'}</option>
+              <option value="">{formData.employeeId ? 'Select Attendance Record' : ((isDepartmentEmployee || isHREmployee) ? 'Loading...' : 'Select Employee First')}</option>
               {Array.isArray(attendanceRecords) && attendanceRecords.length > 0 && formData.employeeId ? (
                 (() => {
                   // Filter by selected employee - only show records for the selected employee

@@ -8,8 +8,14 @@ import { timeManagementApi } from '../../../lib/api';
 import { handleTimeManagementError, extractArrayData } from '../../../lib/time-management-utils';
 import { formatDate, toISO8601 } from '../../../lib/date-utils';
 import { Edit2, Plus, XCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasRole, SystemRole } from '@/utils/roleAccess';
 
 export default function HolidaysPage() {
+  const { user } = useAuth();
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const canOnlyView = isDepartmentEmployee || isHREmployee;
   const [loading, setLoading] = useState(false);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -162,15 +168,19 @@ export default function HolidaysPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 mb-2">Holidays</h1>
-          <p className="text-slate-600">Manage holiday calendar and rest days</p>
+          <p className="text-slate-600">
+            {canOnlyView ? 'View holiday calendar' : 'Manage holiday calendar and rest days'}
+          </p>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add Holiday
-        </button>
+        {!canOnlyView && (
+          <button
+            onClick={() => openModal()}
+            className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Holiday
+          </button>
+        )}
       </div>
 
       {loading && holidays.length === 0 ? (
@@ -185,7 +195,9 @@ export default function HolidaysPage() {
                   <th className="px-6 py-3 text-left text-slate-700">Date</th>
                   <th className="px-6 py-3 text-left text-slate-700">Type</th>
                   <th className="px-6 py-3 text-left text-slate-700">Status</th>
-                  <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  {!canOnlyView && (
+                    <th className="px-6 py-3 text-left text-slate-700">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -199,22 +211,24 @@ export default function HolidaysPage() {
                     <td className="px-6 py-4">
                       <StatusBadge status={holiday.active ? 'Active' : 'Inactive'} />
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openModal(holiday)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(holiday._id || holiday.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+                    {!canOnlyView && (
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openModal(holiday)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(holiday._id || holiday.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

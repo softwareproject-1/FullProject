@@ -49,6 +49,24 @@ export class employeePayrollDetails {
     @Prop()
     refunds?: number; // refunds added
 
+    @Prop({ type: Array })
+    taxBreakdown?: any[];
+
+    @Prop({ type: Array })
+    insuranceBreakdown?: any[];
+
+    @Prop({ default: true })
+    isActive?: boolean;
+
+    @Prop()
+    bankName?: string;
+
+    @Prop()
+    bankAccountNumber?: string;
+
+    @Prop({ type: Object })
+    bankDetails?: any;
+
 }
 
 
