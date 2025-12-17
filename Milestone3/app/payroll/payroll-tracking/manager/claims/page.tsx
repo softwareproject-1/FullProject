@@ -5,67 +5,45 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { payrollSpecialistApi, ExpenseClaimDto } from '@/services/api';
+import { payrollManagerApi, ExpenseClaimDto } from '@/services/api';
 import StatusBadge from '@/components/payroll/StatusBadge';
 import { toast } from 'sonner';
 
-export default function SpecialistClaimsPage() {
+export default function ManagerClaimsPage() {
     const [claims, setClaims] = useState<ExpenseClaimDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'ALL' | 'PENDING'>('PENDING');
 
     useEffect(() => {
         fetchClaims();
-    }, [filter]);
+    }, []);
 
     const fetchClaims = async () => {
         try {
             setLoading(true);
-            const response = filter === 'PENDING'
-                ? await payrollSpecialistApi.getPendingClaims()
-                : await payrollSpecialistApi.getAllClaims();
-            setClaims(response.data);
+            const response = await payrollManagerApi.getSpecialistApprovedClaims();
+            console.log('Manager claims API response:', response);
+            console.log('Response data:', response.data);
+            // Backend returns array directly, not wrapped in { data: [...] }
+            const claimsData = Array.isArray(response.data) ? response.data : [];
+            console.log('Claims to display:', claimsData);
+            setClaims(claimsData);
         } catch (err) {
-            const { MOCK_CLAIMS } = await import('@/lib/mockData');
-            const filtered = filter === 'PENDING'
-                ? (MOCK_CLAIMS as any).filter((c: ExpenseClaimDto) => c.status === 'PENDING')
-                : MOCK_CLAIMS;
-            setClaims(filtered as any);
+            console.error('Failed to fetch claims:', err);
+            toast.error('Failed to load claims');
+            setClaims([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleQuickReview = async (id: string, action: 'APPROVE' | 'REJECT') => {
-        try {
-            await payrollSpecialistApi.reviewClaim(id, action, `Quick ${action.toLowerCase()} from list view`);
-            toast.success(`Claim ${action.toLowerCase()}d successfully`);
-            fetchClaims();
-        } catch (err) {
-            toast.error('Failed to review claim');
-        }
-    };
+
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Review Expense Claims</h1>
-                    <p className="text-slate-600 mt-1">Review and approve employee expense reimbursements</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant={filter === 'PENDING' ? 'default' : 'outline'}
-                        onClick={() => setFilter('PENDING')}
-                    >
-                        Pending Only
-                    </Button>
-                    <Button
-                        variant={filter === 'ALL' ? 'default' : 'outline'}
-                        onClick={() => setFilter('ALL')}
-                    >
-                        All Claims
-                    </Button>
+                    <h1 className="text-3xl font-bold text-slate-900">Manager Claim Confirmations</h1>
+                    <p className="text-slate-600 mt-1">Review and confirm specialist-approved claims</p>
                 </div>
             </div>
 
@@ -73,7 +51,7 @@ export default function SpecialistClaimsPage() {
                 <CardHeader>
                     <CardTitle>Claims Queue</CardTitle>
                     <CardDescription>
-                        Approve to escalate to manager, or reject to close the claim
+                        Final approval step: Approve to finalize the claim, or reject to close it
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -102,41 +80,21 @@ export default function SpecialistClaimsPage() {
                                             <p className="text-sm text-slate-600 mb-3">{claim.description}</p>
                                             <div className="flex items-center gap-4 text-sm text-slate-500">
                                                 <span>Employee: {claim.employeeName}</span>
-                                                <span>Submitted: {new Date(claim.submittedAt).toLocaleDateString()}</span>
+                                                <span>Submitted: {claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : 'N/A'}</span>
                                                 <span className="font-semibold text-green-600">
                                                     ${claim.amount.toLocaleString()}
                                                 </span>
-                                                {claim.receipts.length > 0 && (
+                                                {claim.receipts?.length ? (
                                                     <span>{claim.receipts.length} receipt(s)</span>
-                                                )}
+                                                ) : null}
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <Link href={`/payroll/tracking/specialist/claims/${claim._id}`}>
+                                            <Link href={`/payroll/payroll-tracking/manager/claims/${claim._id}`}>
                                                 <Button size="sm" variant="outline" className="w-full">
                                                     Review Details
                                                 </Button>
                                             </Link>
-                                            {claim.status === 'PENDING' && (
-                                                <>
-                                                    <Button
-                                                        size="sm"
-                                                        className="bg-green-600 hover:bg-green-700"
-                                                        onClick={() => handleQuickReview(claim._id, 'APPROVE')}
-                                                    >
-                                                        <CheckCircle className="w-4 h-4 mr-1" />
-                                                        Approve
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() => handleQuickReview(claim._id, 'REJECT')}
-                                                    >
-                                                        <XCircle className="w-4 h-4 mr-1" />
-                                                        Reject
-                                                    </Button>
-                                                </>
-                                            )}
                                         </div>
                                     </div>
                                 </div>

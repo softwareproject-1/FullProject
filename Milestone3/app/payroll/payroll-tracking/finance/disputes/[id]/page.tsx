@@ -29,11 +29,11 @@ export default function FinanceDisputeProcessPage() {
     const fetchDispute = async () => {
         try {
             const response = await financeStaffApi.getDispute(disputeId);
-            setDispute(response.data);
+            setDispute(response.data.data || response.data);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            const found = (MOCK_DISPUTES as any).find((d: DisputeDto) => d._id === disputeId);
-            setDispute(found || null);
+            // Fallback to mock data - you can add mock data handling here if needed
+            console.warn('Failed to fetch dispute, using fallback');
+            setDispute(null);
         } finally {
             setLoading(false);
         }
@@ -44,7 +44,7 @@ export default function FinanceDisputeProcessPage() {
         try {
             await financeStaffApi.processDisputeRefund(disputeId);
             toast.success('Refund processed successfully - Status updated to COMPLETED');
-            router.push('/payroll/tracking/finance/disputes');
+            router.push('/payroll/payroll-tracking/finance/disputes');
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to process refund');
         } finally {
@@ -60,8 +60,9 @@ export default function FinanceDisputeProcessPage() {
         try {
             await financeStaffApi.rejectDispute(disputeId, reason);
             toast.success('Dispute rejected');
-            router.push('/payroll/tracking/finance/disputes');
+            router.push('/payroll/payroll-tracking/finance/disputes');
         } catch (err: any) {
+            console.error('Reject Error:', err);
             toast.error(err.response?.data?.message || 'Failed to reject dispute');
         } finally {
             setSubmitting(false);
@@ -80,7 +81,7 @@ export default function FinanceDisputeProcessPage() {
         return (
             <div className="text-center py-12">
                 <p className="text-red-600">Dispute not found</p>
-                <Link href="/payroll/tracking/finance/disputes">
+                <Link href="/payroll/payroll-tracking/finance/disputes">
                     <Button className="mt-4">Back to Disputes</Button>
                 </Link>
             </div>
@@ -90,7 +91,7 @@ export default function FinanceDisputeProcessPage() {
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div className="flex items-center gap-4">
-                <Link href="/payroll/tracking/finance/disputes">
+                <Link href="/payroll/payroll-tracking/finance/disputes">
                     <Button variant="outline" size="sm">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
@@ -142,11 +143,56 @@ export default function FinanceDisputeProcessPage() {
                 </CardHeader>
                 <CardContent>
                     <ApprovalTimeline
-                        status={dispute.status}
-                        specialistDecision={dispute.specialistDecision}
-                        specialistReviewedAt={dispute.specialistReviewedAt}
-                        managerReviewedAt={dispute.managerReviewedAt}
-                        processedAt={dispute.processedAt}
+                        steps={[
+                            {
+                                title: 'Dispute Submitted',
+                                status: 'completed',
+                                date: dispute.createdAt ? new Date(dispute.createdAt).toLocaleDateString() : undefined,
+                                description: 'Payroll dispute was submitted for investigation'
+                            },
+                            {
+                                title: 'Specialist Review',
+                                status: dispute.specialistReviewedAt
+                                    ? (dispute.specialistDecision === 'REJECTED' ? 'rejected' : 'completed')
+                                    : (dispute.status === 'PENDING' ? 'current' : 'pending'),
+                                date: dispute.specialistReviewedAt ? new Date(dispute.specialistReviewedAt).toLocaleDateString() : undefined,
+                                description: dispute.specialistDecision === 'REJECTED'
+                                    ? 'Dispute was rejected by specialist'
+                                    : dispute.specialistReviewedAt
+                                        ? 'Reviewed and approved by payroll specialist'
+                                        : 'Awaiting specialist review'
+                            },
+                            {
+                                title: 'Manager Approval',
+                                status: dispute.status === 'REJECTED'
+                                    ? 'rejected'
+                                    : dispute.managerReviewedAt
+                                        ? 'completed'
+                                        : dispute.specialistReviewedAt && dispute.specialistDecision !== 'REJECTED'
+                                            ? 'current'
+                                            : 'pending',
+                                date: dispute.managerReviewedAt ? new Date(dispute.managerReviewedAt).toLocaleDateString() : undefined,
+                                description: dispute.status === 'REJECTED'
+                                    ? 'Dispute was rejected by manager'
+                                    : dispute.managerReviewedAt
+                                        ? 'Approved by payroll manager'
+                                        : 'Awaiting manager approval'
+                            },
+                            {
+                                title: 'Finance Processing',
+                                status: dispute.status === 'RESOLVED' || dispute.processedAt
+                                    ? 'completed'
+                                    : dispute.status === 'APPROVED'
+                                        ? 'current'
+                                        : 'pending',
+                                date: dispute.processedAt ? new Date(dispute.processedAt).toLocaleDateString() : undefined,
+                                description: dispute.status === 'RESOLVED'
+                                    ? 'Refund has been processed'
+                                    : dispute.status === 'APPROVED'
+                                        ? 'Awaiting finance staff processing'
+                                        : 'Pending approval'
+                            }
+                        ]}
                     />
 
                     {dispute.specialistComments && (
@@ -177,7 +223,7 @@ export default function FinanceDisputeProcessPage() {
                     <div className="flex gap-3">
                         <Button
                             onClick={handleProcess}
-                            disabled={submitting || dispute.status !== 'APPROVED'}
+                            disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
                             className="flex-1 bg-green-600 hover:bg-green-700"
                         >
                             <CheckCircle className="w-4 h-4 mr-2" />
@@ -185,14 +231,14 @@ export default function FinanceDisputeProcessPage() {
                         </Button>
                         <Button
                             onClick={handleReject}
-                            disabled={submitting || dispute.status !== 'APPROVED'}
+                            disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
                             variant="destructive"
                         >
                             <XCircle className="w-4 h-4 mr-2" />
                             Reject
                         </Button>
                     </div>
-                    {dispute.status !== 'APPROVED' && (
+                    {(dispute.status !== 'APPROVED' && dispute.status !== 'approved') && (
                         <p className="text-sm text-amber-600 mt-3">
                             ⚠️ This dispute is not in APPROVED status and cannot be processed
                         </p>

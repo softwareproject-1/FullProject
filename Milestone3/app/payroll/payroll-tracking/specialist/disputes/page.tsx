@@ -24,13 +24,10 @@ export default function SpecialistDisputesPage() {
             const response = filter === 'PENDING'
                 ? await payrollSpecialistApi.getPendingDisputes()
                 : await payrollSpecialistApi.getAllDisputes();
-            setDisputes(response.data);
+            setDisputes(response.data.data || response.data || []);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            const filtered = filter === 'PENDING'
-                ? (MOCK_DISPUTES as any).filter((d: DisputeDto) => d.status === 'PENDING')
-                : MOCK_DISPUTES;
-            setDisputes(filtered as any);
+            console.error('Failed to fetch disputes:', err);
+            setDisputes([]);
         } finally {
             setLoading(false);
         }
@@ -102,7 +99,7 @@ export default function SpecialistDisputesPage() {
                                             <p className="text-sm text-slate-600 mb-3">{dispute.description}</p>
                                             <div className="flex items-center gap-4 text-sm text-slate-500">
                                                 <span>Employee: {dispute.employeeName}</span>
-                                                <span>Submitted: {new Date(dispute.submittedAt).toLocaleDateString()}</span>
+                                                <span>Submitted: {dispute.submittedAt ? new Date(dispute.submittedAt).toLocaleDateString() : 'N/A'}</span>
                                                 <span>Payslip: {dispute.payslipId}</span>
                                                 {dispute.amount && (
                                                     <span className="font-semibold text-green-600">

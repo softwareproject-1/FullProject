@@ -4,43 +4,43 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { payrollManagerApi, DisputeDto, PayslipDto } from '@/services/api';
+import { ArrowLeft, Loader2, DollarSign, FileText, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { payrollManagerApi, ExpenseClaimDto } from '@/services/api';
 import StatusBadge from '@/components/payroll/StatusBadge';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { format } from 'date-fns';
 
-export default function SpecialistDisputeDetailPage() {
+export default function ManagerClaimDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const disputeId = params.id as string;
+    const claimId = params.id as string;
 
-    const [dispute, setDispute] = useState<DisputeDto | null>(null);
-    const [payslip, setPayslip] = useState<PayslipDto | null>(null);
+    const [claim, setClaim] = useState<ExpenseClaimDto | null>(null);
     const [loading, setLoading] = useState(true);
-    const [decision, setDecision] = useState<'APPROVE' | 'REJECT'>('APPROVE');
+    const [decision, setDecision] = useState<'confirm' | 'reject'>('confirm');
     const [comments, setComments] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchDisputeDetails();
-    }, [disputeId]);
+        if (claimId) {
+            fetchClaimDetails();
+        }
+    }, [claimId]);
 
-    const fetchDisputeDetails = async () => {
+    const fetchClaimDetails = async () => {
         try {
-            const response = await payrollManagerApi.getDispute(disputeId);
-            setDispute(response.data);
-            setDispute(response.data);
-            // Fetch related payslip for context
-            // const payslipResponse = await payrollTrackingApi.getPayslipById(response.data.payslipId);
-            // setPayslip(payslipResponse.data);
+            setLoading(true);
+            const response = await payrollManagerApi.getClaim(claimId);
+            // Handle potentially unwrapped data if backend returns directly
+            const data = response.data && (response.data as any).data ? (response.data as any).data : response.data;
+            setClaim(data);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            const found = (MOCK_DISPUTES as any).find((d: DisputeDto) => d._id === disputeId);
-            setDispute(found || null);
+            console.error('Failed to fetch claim:', err);
+            toast.error('Failed to load claim details');
         } finally {
             setLoading(false);
         }
@@ -48,23 +48,26 @@ export default function SpecialistDisputeDetailPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!comments.trim()) {
-            toast.error('Please provide comments for your decision');
+
+        if (decision === 'reject' && !comments.trim()) {
+            toast.error('Rejection reason is required');
             return;
         }
 
-        setSubmitting(true);
         try {
-            if (decision === 'APPROVE') {
-                await payrollManagerApi.approveDispute(disputeId, comments);
-                toast.success('Dispute approved - Status updated to APPROVED. Sent to finance for processing.');
-            } else {
-                await payrollManagerApi.rejectDispute(disputeId, comments);
-                toast.success('Dispute rejected - Status updated to REJECTED');
-            }
-            router.push('/payroll/tracking/manager/disputes');
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to submit review');
+            setSubmitting(true);
+            await payrollManagerApi.managerActionClaim(
+                claimId,
+                decision,
+                decision === 'reject' ? comments : undefined
+            );
+
+            toast.success(`Claim ${decision === 'confirm' ? 'approved' : 'rejected'} successfully`);
+            router.push('/payroll/payroll-tracking/manager/claims');
+            router.refresh(); // Refresh to update the list
+        } catch (err) {
+            console.error('Failed to process claim:', err);
+            toast.error('Failed to process claim');
         } finally {
             setSubmitting(false);
         }
@@ -72,147 +75,157 @@ export default function SpecialistDisputeDetailPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+            <div className="flex items-center justify-center p-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             </div>
         );
     }
 
-    if (!dispute) {
+    if (!claim) {
         return (
-            <div className="text-center py-12">
-                <p className="text-red-600">Dispute not found</p>
-                <Link href="/payroll/tracking/specialist/disputes">
-                    <Button className="mt-4">Back to Disputes</Button>
-                </Link>
+            <div className="p-6">
+                <div className="flex items-center gap-2 text-slate-500 mb-6">
+                    <Link href="/payroll/payroll-tracking/manager/claims" className="hover:text-slate-800 transition-colors">
+                        <ArrowLeft className="w-4 h-4" />
+                    </Link>
+                    <span>Back to Claims</span>
+                </div>
+                <Card className="bg-red-50 border-red-200">
+                    <CardContent className="pt-6 text-center text-red-600">
+                        Claim not found
+                    </CardContent>
+                </Card>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="flex items-center gap-4">
-                <Link href="/payroll/tracking/specialist/disputes">
-                    <Button variant="outline" size="sm">
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
-                    </Button>
+        <div className="space-y-6 max-w-4xl mx-auto p-6">
+            <div className="flex items-center gap-2 text-slate-500">
+                <Link href="/payroll/payroll-tracking/manager/claims" className="hover:text-slate-800 transition-colors">
+                    <ArrowLeft className="w-4 h-4" />
                 </Link>
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Confirm Dispute</h1>
-                    <p className="text-slate-600 mt-1">Final approval - Manager confirmation</p>
-                </div>
+                <span>Back to Claims</span>
             </div>
 
-            {/* Dispute Details */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle>{dispute.reason}</CardTitle>
-                            <CardDescription>Submitted by {dispute.employeeName}</CardDescription>
-                        </div>
-                        <StatusBadge status={dispute.status} />
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <Label className="text-sm font-semibold">Description</Label>
-                        <p className="text-slate-700 mt-1">{dispute.description}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label className="text-sm font-semibold">Payslip ID</Label>
-                            <p className="text-slate-700 mt-1">{dispute.payslipId}</p>
-                        </div>
-                        {dispute.amount && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Claim Details */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
                             <div>
-                                <Label className="text-sm font-semibold">Expected Amount</Label>
-                                <p className="text-green-600 font-semibold mt-1">
-                                    ${dispute.amount.toLocaleString()}
-                                </p>
+                                <CardTitle className="text-xl">Claim Details</CardTitle>
+                                <CardDescription className="font-mono mt-1">{claim.claimId}</CardDescription>
                             </div>
-                        )}
-                        {dispute.specialistComments && (
-                            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                                <p className="text-sm font-medium text-blue-900">Specialist Recommendation:</p>
-                                <p className="text-sm text-blue-700 mt-1">{dispute.specialistComments}</p>
-                                <p className="text-xs text-blue-600 mt-1">
-                                    Decision: {dispute.specialistDecision === 'APPROVE' ? '✓ Approved' : '✗ Rejected'}
-                                </p>
-                            </div>
-                        )}
-                        <div>
-                            <Label className="text-sm font-semibold">Submitted Date</Label>
-                            <p className="text-slate-700 mt-1">
-                                {new Date(dispute.submittedAt).toLocaleDateString()}
-                            </p>
+                            <StatusBadge status={claim.status} />
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <Label className="text-slate-500">Amount</Label>
+                                <div className="flex items-center gap-2 font-semibold text-lg">
+                                    <DollarSign className="w-4 h-4 text-slate-400" />
+                                    {claim.amount.toLocaleString()}
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-slate-500">Type</Label>
+                                <div className="font-medium">{claim.claimType}</div>
+                            </div>
+                        </div>
 
-            {/* Review Form */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Manager Final Approval</CardTitle>
-                    <CardDescription>
-                        Approve to send to finance for processing (status → APPROVED), or reject to close the dispute (status → REJECTED)
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-3">
-                            <Label>Decision</Label>
-                            <RadioGroup value={decision} onValueChange={(v) => setDecision(v as any)}>
-                                <div className="flex items-center space-x-2 border border-green-200 bg-green-50 p-3 rounded-lg">
-                                    <RadioGroupItem value="APPROVE" id="approve" />
-                                    <Label htmlFor="approve" className="flex-1 cursor-pointer font-medium text-green-900">
-                                        <CheckCircle className="w-4 h-4 inline mr-2" />
-                                        Approve - Send to Finance
+                        <div className="space-y-1">
+                            <Label className="text-slate-500">Description</Label>
+                            <div className="p-3 bg-slate-50 rounded-md text-sm">
+                                {claim.description}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-slate-500">Receipts</Label>
+                            {claim.receipts && claim.receipts.length > 0 ? (
+                                <div className="flex items-center gap-2 text-sm text-blue-600">
+                                    <FileText className="w-4 h-4" />
+                                    <span>{claim.receipts.length} receipt(s) attached</span>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-slate-500 italic">No receipts attached</div>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-slate-500">Submission Date</Label>
+                            <div className="flex items-center gap-2 text-sm">
+                                <Calendar className="w-4 h-4 text-slate-400" />
+                                {claim.submittedAt ? format(new Date(claim.submittedAt), 'PPP') : 'N/A'}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Confirm Action */}
+                <Card className="h-fit">
+                    <CardHeader>
+                        <CardTitle>Manager Confirmation</CardTitle>
+                        <CardDescription>Review and make a final decision</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <RadioGroup
+                                value={decision}
+                                onValueChange={(v) => setDecision(v as 'confirm' | 'reject')}
+                                className="grid grid-cols-2 gap-4"
+                            >
+                                <div>
+                                    <RadioGroupItem value="confirm" id="confirm" className="peer sr-only" />
+                                    <Label
+                                        htmlFor="confirm"
+                                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-green-500 peer-data-[state=checked]:bg-green-50 [&:has([data-state=checked])]:border-green-500 cursor-pointer"
+                                    >
+                                        <CheckCircle className="mb-2 h-6 w-6 text-green-600" />
+                                        <span className="font-semibold text-green-700">Approve</span>
                                     </Label>
                                 </div>
-                                <div className="flex items-center space-x-2 border border-red-200 bg-red-50 p-3 rounded-lg">
-                                    <RadioGroupItem value="REJECT" id="reject" />
-                                    <Label htmlFor="reject" className="flex-1 cursor-pointer font-medium text-red-900">
-                                        <XCircle className="w-4 h-4 inline mr-2" />
-                                        Reject - Close Dispute
+                                <div>
+                                    <RadioGroupItem value="reject" id="reject" className="peer sr-only" />
+                                    <Label
+                                        htmlFor="reject"
+                                        className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-red-500 peer-data-[state=checked]:bg-red-50 [&:has([data-state=checked])]:border-red-500 cursor-pointer"
+                                    >
+                                        <XCircle className="mb-2 h-6 w-6 text-red-600" />
+                                        <span className="font-semibold text-red-700">Reject</span>
                                     </Label>
                                 </div>
                             </RadioGroup>
-                        </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="comments">
-                                Comments <span className="text-red-600">*</span>
-                            </Label>
-                            <Textarea
-                                id="comments"
-                                value={comments}
-                                onChange={(e) => setComments(e.target.value)}
-                                placeholder={
-                                    decision === 'APPROVE'
-                                        ? 'Explain why you approve this dispute for finance processing...'
-                                        : 'Explain why you are rejecting this dispute...'
-                                }
-                                rows={5}
-                                required
-                            />
-                        </div>
+                            {decision === 'reject' && (
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                    <Label htmlFor="comments">Rejection Reason <span className="text-red-500">*</span></Label>
+                                    <Textarea
+                                        id="comments"
+                                        placeholder="Please provide a reason for rejection..."
+                                        value={comments}
+                                        onChange={(e) => setComments(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            )}
 
-                        <div className="flex gap-3">
-                            <Button type="submit" disabled={submitting} className="flex-1">
-                                {submitting ? 'Submitting...' : `${decision === 'APPROVE' ? 'Approve & Send to Finance' : 'Reject Dispute'}`}
-                            </Button>
-                            <Link href="/payroll/tracking/specialist/disputes">
-                                <Button type="button" variant="outline">
-                                    Cancel
+                            <div className="pt-4">
+                                <Button
+                                    type="submit"
+                                    className={`w-full ${decision === 'confirm' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                                    disabled={submitting}
+                                >
+                                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {decision === 'confirm' ? 'Confirm Approval' : 'Reject Claim'}
                                 </Button>
-                            </Link>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

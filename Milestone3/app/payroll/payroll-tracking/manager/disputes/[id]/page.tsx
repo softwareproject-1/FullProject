@@ -13,7 +13,7 @@ import StatusBadge from '@/components/payroll/StatusBadge';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
-export default function SpecialistDisputeDetailPage() {
+export default function ManagerDisputeDetailPage() {
     const params = useParams();
     const router = useRouter();
     const disputeId = params.id as string;
@@ -32,15 +32,13 @@ export default function SpecialistDisputeDetailPage() {
     const fetchDisputeDetails = async () => {
         try {
             const response = await payrollManagerApi.getDispute(disputeId);
-            setDispute(response.data);
-            setDispute(response.data);
+            setDispute(response.data.data || response.data);
             // Fetch related payslip for context
             // const payslipResponse = await payrollTrackingApi.getPayslipById(response.data.payslipId);
             // setPayslip(payslipResponse.data);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            const found = (MOCK_DISPUTES as any).find((d: DisputeDto) => d._id === disputeId);
-            setDispute(found || null);
+            console.error('Failed to load dispute:', err);
+            setDispute(null);
         } finally {
             setLoading(false);
         }
@@ -55,14 +53,10 @@ export default function SpecialistDisputeDetailPage() {
 
         setSubmitting(true);
         try {
-            if (decision === 'APPROVE') {
-                await payrollManagerApi.approveDispute(disputeId, comments);
-                toast.success('Dispute approved - Status updated to APPROVED. Sent to finance for processing.');
-            } else {
-                await payrollManagerApi.rejectDispute(disputeId, comments);
-                toast.success('Dispute rejected - Status updated to REJECTED');
-            }
-            router.push('/payroll/tracking/manager/disputes');
+            const action = decision === 'APPROVE' ? 'confirm' : 'reject';
+            await payrollManagerApi.managerActionDispute(disputeId, action, decision === 'REJECT' ? comments : undefined);
+            toast.success(decision === 'APPROVE' ? 'Dispute confirmed - Sent to finance for processing.' : 'Dispute rejected');
+            router.push('/payroll/payroll-tracking/manager/disputes');
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to submit review');
         } finally {
@@ -82,7 +76,7 @@ export default function SpecialistDisputeDetailPage() {
         return (
             <div className="text-center py-12">
                 <p className="text-red-600">Dispute not found</p>
-                <Link href="/payroll/tracking/specialist/disputes">
+                <Link href="/payroll/payroll-tracking/manager/disputes">
                     <Button className="mt-4">Back to Disputes</Button>
                 </Link>
             </div>
@@ -92,7 +86,7 @@ export default function SpecialistDisputeDetailPage() {
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div className="flex items-center gap-4">
-                <Link href="/payroll/tracking/specialist/disputes">
+                <Link href="/payroll/payroll-tracking/manager/disputes">
                     <Button variant="outline" size="sm">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
@@ -145,7 +139,7 @@ export default function SpecialistDisputeDetailPage() {
                         <div>
                             <Label className="text-sm font-semibold">Submitted Date</Label>
                             <p className="text-slate-700 mt-1">
-                                {new Date(dispute.submittedAt).toLocaleDateString()}
+                                {dispute.submittedAt && new Date(dispute.submittedAt).toLocaleDateString()}
                             </p>
                         </div>
                     </div>
@@ -204,7 +198,7 @@ export default function SpecialistDisputeDetailPage() {
                             <Button type="submit" disabled={submitting} className="flex-1">
                                 {submitting ? 'Submitting...' : `${decision === 'APPROVE' ? 'Approve & Send to Finance' : 'Reject Dispute'}`}
                             </Button>
-                            <Link href="/payroll/tracking/specialist/disputes">
+                            <Link href="/payroll/payroll-tracking/manager/disputes">
                                 <Button type="button" variant="outline">
                                     Cancel
                                 </Button>

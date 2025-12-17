@@ -41,7 +41,7 @@ export default function MyDisputesPage() {
                     <h1 className="text-3xl font-bold text-slate-900">My Disputes</h1>
                     <p className="text-slate-600 mt-1">Track and manage your payroll disputes</p>
                 </div>
-                <Link href="/payroll/tracking/employee/disputes/create">
+                <Link href="/payroll/payroll-tracking/employee/disputes/create">
                     <Button>
                         <Plus className="w-4 h-4 mr-2" />
                         Submit New Dispute
@@ -92,7 +92,7 @@ export default function MyDisputesPage() {
                         <div className="text-center py-12">
                             <AlertCircle className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                             <p className="text-slate-600 mb-4">No disputes submitted yet</p>
-                            <Link href="/payroll/tracking/employee/disputes/create">
+                            <Link href="/payroll/payroll-tracking/employee/disputes/create">
                                 <Button>Submit Your First Dispute</Button>
                             </Link>
                         </div>

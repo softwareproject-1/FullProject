@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import Card from "@/components/ui/card";
+import Button from "@/components/ui/button";
 import axiosInstance from "@/utils/ApiClient";
 import { isSystemAdmin } from "@/utils/roleUtils";
 

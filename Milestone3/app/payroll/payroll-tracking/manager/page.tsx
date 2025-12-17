@@ -22,17 +22,13 @@ export default function ManagerDashboard() {
                 payrollManagerApi.getSpecialistApprovedDisputes(),
                 payrollManagerApi.getSpecialistApprovedClaims(),
             ]);
-            setPendingDisputes(disputesRes.data);
-            setPendingClaims(claimsRes.data);
+            setPendingDisputes(disputesRes.data.data || disputesRes.data);
+            setPendingClaims(claimsRes.data.data || claimsRes.data);
         } catch (err) {
-            const { MOCK_DISPUTES, MOCK_CLAIMS } = await import('@/lib/mockData');
-            // Show only specialist-approved items
-            setPendingDisputes((MOCK_DISPUTES as any).filter((d: DisputeDto) =>
-                d.specialistDecision === 'APPROVE' && d.status === 'PENDING'
-            ));
-            setPendingClaims((MOCK_CLAIMS as any).filter((c: ExpenseClaimDto) =>
-                c.specialistDecision === 'APPROVE' && c.status === 'PENDING'
-            ));
+            console.error('Failed to fetch pending items:', err);
+            // For now, set empty arrays on error
+            setPendingDisputes([]);
+            setPendingClaims([]);
         } finally {
             setLoading(false);
         }
@@ -59,7 +55,7 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-slate-600 mb-3">
                             Disputes approved by specialist awaiting your final confirmation
                         </p>
-                        <Link href="/payroll/tracking/manager/disputes">
+                        <Link href="/payroll/payroll-tracking/manager/disputes">
                             <Button variant="outline" size="sm" className="w-full">
                                 Review Disputes
                             </Button>
@@ -79,7 +75,7 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-slate-600 mb-3">
                             Claims approved by specialist awaiting your final confirmation
                         </p>
-                        <Link href="/payroll/tracking/manager/claims">
+                        <Link href="/payroll/payroll-tracking/manager/claims">
                             <Button variant="outline" size="sm" className="w-full">
                                 Review Claims
                             </Button>
@@ -109,7 +105,7 @@ export default function ManagerDashboard() {
                             {pendingDisputes.slice(0, 5).map((dispute) => (
                                 <Link
                                     key={dispute._id}
-                                    href={`/payroll/tracking/manager/disputes/${dispute._id}`}
+                                    href={`/payroll/payroll-tracking/manager/disputes/${dispute._id}`}
                                     className="block p-3 border border-slate-200 rounded-lg hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between">
@@ -154,7 +150,7 @@ export default function ManagerDashboard() {
                             {pendingClaims.slice(0, 5).map((claim) => (
                                 <Link
                                     key={claim._id}
-                                    href={`/payroll/tracking/manager/claims/${claim._id}`}
+                                    href={`/payroll/payroll-tracking/manager/claims/${claim._id}`}
                                     className="block p-3 border border-slate-200 rounded-lg hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between">

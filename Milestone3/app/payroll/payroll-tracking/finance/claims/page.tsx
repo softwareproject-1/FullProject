@@ -20,10 +20,10 @@ export default function FinanceDisputesPage() {
     const fetchClaims = async () => {
         try {
             const response = await financeStaffApi.getApprovedClaims();
-            setClaims(response.data);
+            setClaims(response.data.data || response.data || []);
         } catch (err) {
-            const { MOCK_CLAIMS } = await import('@/lib/mockData');
-            setClaims((MOCK_CLAIMS as any).filter((c: ExpenseClaimDto) => c.status === 'APPROVED'));
+            console.error('Failed to fetch claims:', err);
+            setClaims([]);
         } finally {
             setLoading(false);
         }
@@ -111,7 +111,7 @@ export default function FinanceDisputesPage() {
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <Link href={`/payroll/tracking/finance/claims/${claim._id}`}>
+                                            <Link href={`/payroll/payroll-tracking/finance/claims/${claim._id}`}>
                                                 <Button size="sm" variant="outline" className="w-full">
                                                     Review Details
                                                 </Button>

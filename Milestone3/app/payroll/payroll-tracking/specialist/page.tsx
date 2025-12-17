@@ -22,12 +22,12 @@ export default function SpecialistDashboard() {
                 payrollSpecialistApi.getPendingDisputes(),
                 payrollSpecialistApi.getPendingClaims(),
             ]);
-            setPendingDisputes(disputesRes.data);
-            setPendingClaims(claimsRes.data);
+            setPendingDisputes(disputesRes.data.data || disputesRes.data || []);
+            setPendingClaims(claimsRes.data.data || claimsRes.data || []);
         } catch (err) {
-            const { MOCK_DISPUTES, MOCK_CLAIMS } = await import('@/lib/mockData');
-            setPendingDisputes((MOCK_DISPUTES as any).filter((d: DisputeDto) => d.status === 'PENDING'));
-            setPendingClaims((MOCK_CLAIMS as any).filter((c: ExpenseClaimDto) => c.status === 'PENDING'));
+            console.error('Failed to fetch pending items:', err);
+            setPendingDisputes([]);
+            setPendingClaims([]);
         } finally {
             setLoading(false);
         }
@@ -51,7 +51,7 @@ export default function SpecialistDashboard() {
                         <CardTitle className="text-3xl text-yellow-600">{pendingDisputes.length}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Link href="/payroll/tracking/specialist/disputes">
+                        <Link href="/payroll/payroll-tracking/specialist/disputes">
                             <Button variant="outline" size="sm" className="w-full">
                                 Review Disputes
                             </Button>
@@ -68,7 +68,7 @@ export default function SpecialistDashboard() {
                         <CardTitle className="text-3xl text-yellow-600">{pendingClaims.length}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Link href="/payroll/tracking/specialist/claims">
+                        <Link href="/payroll/payroll-tracking/specialist/claims">
                             <Button variant="outline" size="sm" className="w-full">
                                 Review Claims
                             </Button>
@@ -84,7 +84,7 @@ export default function SpecialistDashboard() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <Link href="/payroll/tracking/specialist/reports">
+                        <Link href="/payroll/payroll-tracking/specialist/reports">
                             <Button variant="outline" size="sm" className="w-full">
                                 View Reports
                             </Button>
@@ -122,7 +122,7 @@ export default function SpecialistDashboard() {
                                             <p className="font-medium text-slate-900">{dispute.reason}</p>
                                             <p className="text-sm text-slate-600">{dispute.employeeName}</p>
                                             <p className="text-xs text-slate-500 mt-1">
-                                                Submitted {new Date(dispute.submittedAt).toLocaleDateString()}
+                                                Submitted {dispute.submittedAt ? new Date(dispute.submittedAt).toLocaleDateString() : 'N/A'}
                                             </p>
                                         </div>
                                         {dispute.amount && (
@@ -157,7 +157,7 @@ export default function SpecialistDashboard() {
                             {pendingClaims.slice(0, 5).map((claim) => (
                                 <Link
                                     key={claim._id}
-                                    href={`/payroll/tracking/specialist/claims/${claim._id}`}
+                                    href={`/payroll/payroll-tracking/specialist/claims/${claim._id}`}
                                     className="block p-3 border border-slate-200 rounded-lg hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between">
@@ -165,7 +165,7 @@ export default function SpecialistDashboard() {
                                             <p className="font-medium text-slate-900">{claim.claimType}</p>
                                             <p className="text-sm text-slate-600">{claim.employeeName}</p>
                                             <p className="text-xs text-slate-500 mt-1">
-                                                Submitted {new Date(claim.submittedAt).toLocaleDateString()}
+                                                Submitted {claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : 'N/A'}
                                             </p>
                                         </div>
                                         <p className="font-semibold text-green-600">${claim.amount.toLocaleString()}</p>

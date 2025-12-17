@@ -133,7 +133,7 @@ export default function SalaryHistoryPage() {
                                                         <span>{changePercent}%</span>
                                                     </div>
                                                 )}
-                                                <Link href={`/payroll/tracking/employee/payslips/${slip._id}`}>
+                                                <Link href={`/payroll/payroll-tracking/employee/payslips/${slip._id}`}>
                                                     <Button variant="outline" size="sm">
                                                         View Details
                                                     </Button>

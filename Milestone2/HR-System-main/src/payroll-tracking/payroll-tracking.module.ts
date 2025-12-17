@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { PayrollTrackingController } from './payroll-tracking.controller';
+import { FinanceController } from './finance.controller';
 import { PayrollTrackingService } from './payroll-tracking.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { refunds, refundsSchema } from './models/refunds.schema';
@@ -20,10 +21,10 @@ import { NotificationLog, NotificationLogSchema } from '../time-management/model
 
 
 @Module({
-  
+
   imports: [
     PayrollConfigurationModule,
-    forwardRef(()=> PayrollExecutionModule),
+    forwardRef(() => PayrollExecutionModule),
     AuthModule,
     MongooseModule.forFeature([
       { name: refunds.name, schema: refundsSchema },
@@ -37,8 +38,8 @@ import { NotificationLog, NotificationLogSchema } from '../time-management/model
       { name: EmployeeProfileChangeRequest.name, schema: EmployeeProfileChangeRequestSchema },
       { name: NotificationLog.name, schema: NotificationLogSchema },
     ])],
-  controllers: [PayrollTrackingController],
+  controllers: [PayrollTrackingController, FinanceController],
   providers: [PayrollTrackingService, EmployeeProfileService],
-  exports:[PayrollTrackingService]
+  exports: [PayrollTrackingService]
 })
 export class PayrollTrackingModule { }

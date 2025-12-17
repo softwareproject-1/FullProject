@@ -8,13 +8,19 @@ const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Set global prefix for all routes
   app.setGlobalPrefix('api');
-  
+
   // Enable cookie parser middleware (CRITICAL for cookie-based authentication)
   app.use(cookieParser());
-  
+
+  // 🔥 DEBUG: Log ALL incoming requests
+  app.use((req, res, next) => {
+    console.log(`🌐 ${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
   // Enable CORS with explicit frontend origin
   app.enableCors({
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
@@ -22,7 +28,7 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
-  
+
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -34,7 +40,7 @@ async function bootstrap() {
       },
     }),
   );
-  
+
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('HR System API')
@@ -64,7 +70,7 @@ async function bootstrap() {
       'JWT-auth',
     )
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
@@ -79,19 +85,19 @@ async function bootstrap() {
     customfavIcon: '/favicon.ico',
     customCss: '.swagger-ui .topbar { display: none }',
   });
-  
+
   // Get MongoDB connection and listen for connection events
   const connection = app.get<Connection>(getConnectionToken());
-  
+
   let connectionLogged = false;
-  
+
   const logConnection = () => {
     if (!connectionLogged) {
       console.log(' MongoDB connected successfully!');
       connectionLogged = true;
     }
   };
-  
+
   // Check if already connected
   if (connection.readyState === 1) {
     logConnection();
@@ -101,17 +107,17 @@ async function bootstrap() {
       logConnection();
     });
   }
-  
+
   connection.on('error', (err) => {
     console.error('MongoDB connection error:', err);
   });
-  
+
   connection.on('disconnected', () => {
     console.log('MongoDB disconnected');
   });
-  
+
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-  
+
   try {
     await app.listen(port);
     console.log(` Nest backend is running on http://localhost:${port}`);
@@ -131,7 +137,7 @@ async function bootstrap() {
       throw error;
     }
   }
-  
+
   // Check again after a short delay in case connection completes after app starts
   setTimeout(() => {
     if (connection.readyState === 1 && !connectionLogged) {

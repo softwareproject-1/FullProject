@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Plus, Loader2, Receipt } from 'lucide-react';
 import { payrollTrackingApi, ExpenseClaimDto } from '@/services/api';
 import StatusBadge from '@/components/payroll/StatusBadge';
@@ -46,7 +46,7 @@ export default function MyClaimsPage() {
                     <h1 className="text-3xl font-bold text-slate-900">My Expense Claims</h1>
                     <p className="text-slate-600 mt-1">Track and manage your expense reimbursements</p>
                 </div>
-                <Link href="/payroll/tracking/employee/claims/create">
+                <Link href="/payroll/payroll-tracking/employee/claims/create">
                     <Button>
                         <Plus className="w-4 h-4 mr-2" />
                         Submit New Claim
@@ -138,11 +138,56 @@ export default function MyClaimsPage() {
                                     {selectedClaim?._id === claim._id && (
                                         <div className="mt-6 pt-6 border-t border-slate-200">
                                             <ApprovalTimeline
-                                                status={claim.status}
-                                                specialistDecision={claim.specialistDecision}
-                                                specialistReviewedAt={claim.specialistReviewedAt}
-                                                managerReviewedAt={claim.managerReviewedAt}
-                                                processedAt={claim.processedAt}
+                                                steps={[
+                                                    {
+                                                        title: 'Claim Submitted',
+                                                        status: 'completed',
+                                                        date: claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : new Date(claim.createdAt).toLocaleDateString(),
+                                                        description: 'Your expense claim was submitted for review'
+                                                    },
+                                                    {
+                                                        title: 'Specialist Review',
+                                                        status: claim.specialistReviewedAt
+                                                            ? (claim.specialistDecision === 'REJECTED' ? 'rejected' : 'completed')
+                                                            : (claim.status === 'PENDING' ? 'current' : 'pending'),
+                                                        date: claim.specialistReviewedAt ? new Date(claim.specialistReviewedAt).toLocaleDateString() : undefined,
+                                                        description: claim.specialistDecision === 'REJECTED'
+                                                            ? 'Claim was rejected by specialist'
+                                                            : claim.specialistReviewedAt
+                                                                ? 'Reviewed and approved by payroll specialist'
+                                                                : 'Awaiting specialist review'
+                                                    },
+                                                    {
+                                                        title: 'Manager Approval',
+                                                        status: claim.status === 'REJECTED'
+                                                            ? 'rejected'
+                                                            : claim.managerReviewedAt
+                                                                ? 'completed'
+                                                                : claim.specialistReviewedAt && claim.specialistDecision !== 'REJECTED'
+                                                                    ? 'current'
+                                                                    : 'pending',
+                                                        date: claim.managerReviewedAt ? new Date(claim.managerReviewedAt).toLocaleDateString() : undefined,
+                                                        description: claim.status === 'REJECTED'
+                                                            ? 'Claim was rejected by manager'
+                                                            : claim.managerReviewedAt
+                                                                ? 'Approved by payroll manager'
+                                                                : 'Awaiting manager approval'
+                                                    },
+                                                    {
+                                                        title: 'Payment Processing',
+                                                        status: claim.status === 'PAID' || claim.processedAt
+                                                            ? 'completed'
+                                                            : claim.status === 'APPROVED'
+                                                                ? 'current'
+                                                                : 'pending',
+                                                        date: claim.processedAt ? new Date(claim.processedAt).toLocaleDateString() : undefined,
+                                                        description: claim.status === 'PAID'
+                                                            ? 'Payment has been processed'
+                                                            : claim.status === 'APPROVED'
+                                                                ? 'Processing payment for next payroll cycle'
+                                                                : 'Awaiting approval before processing'
+                                                    }
+                                                ]}
                                             />
                                             {claim.specialistComments && (
                                                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">

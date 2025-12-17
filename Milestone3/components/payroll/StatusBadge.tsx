@@ -26,6 +26,8 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '' }) => 
                 return 'bg-indigo-100 text-indigo-800 border-indigo-300';
             case 'DISPUTED':
                 return 'bg-red-100 text-red-800 border-red-300';
+            case 'COMPLETED':
+                return 'bg-teal-100 text-teal-800 border-teal-300';
             default:
                 return 'bg-gray-100 text-gray-800 border-gray-300';
         }

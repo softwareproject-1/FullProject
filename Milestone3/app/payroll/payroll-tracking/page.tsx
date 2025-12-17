@@ -79,7 +79,7 @@ export default function PayrollTracking() {
                             Run Payroll
                         </button>
                     </Link>
-                    <Link href="/payroll/tracking">
+                    <Link href="/payroll/payroll-tracking">
                         <button
                             className={`px-4 py-2 rounded-lg transition-colors ${pathname?.includes('/tracking')
                                 ? 'bg-slate-900 text-white'
@@ -166,7 +166,7 @@ export default function PayrollTracking() {
                                             <td className="px-6 py-4">
                                                 <Button
                                                     onClick={() => {
-                                                        const targetUrl = `/payroll/tracking/payslips/${slip._id}`;
+                                                        const targetUrl = `/payroll/payroll-tracking/payslips/${slip._id}`;
                                                         console.log('🔍 DEBUG: View Details clicked');
                                                         console.log('🔍 DEBUG: Payslip ID:', slip._id);
                                                         console.log('🔍 DEBUG: Navigating to:', targetUrl);

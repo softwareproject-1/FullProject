@@ -24,13 +24,10 @@ export default function SpecialistClaimsPage() {
             const response = filter === 'PENDING'
                 ? await payrollSpecialistApi.getPendingClaims()
                 : await payrollSpecialistApi.getAllClaims();
-            setClaims(response.data);
+            setClaims(response.data.data || response.data || []);
         } catch (err) {
-            const { MOCK_CLAIMS } = await import('@/lib/mockData');
-            const filtered = filter === 'PENDING'
-                ? (MOCK_CLAIMS as any).filter((c: ExpenseClaimDto) => c.status === 'PENDING')
-                : MOCK_CLAIMS;
-            setClaims(filtered as any);
+            console.error('Failed to fetch claims:', err);
+            setClaims([]);
         } finally {
             setLoading(false);
         }
@@ -102,17 +99,17 @@ export default function SpecialistClaimsPage() {
                                             <p className="text-sm text-slate-600 mb-3">{claim.description}</p>
                                             <div className="flex items-center gap-4 text-sm text-slate-500">
                                                 <span>Employee: {claim.employeeName}</span>
-                                                <span>Submitted: {new Date(claim.submittedAt).toLocaleDateString()}</span>
+                                                <span>Submitted: {claim.submittedAt ? new Date(claim.submittedAt).toLocaleDateString() : 'N/A'}</span>
                                                 <span className="font-semibold text-green-600">
                                                     ${claim.amount.toLocaleString()}
                                                 </span>
-                                                {claim.receipts.length > 0 && (
+                                                {claim.receipts && claim.receipts.length > 0 && (
                                                     <span>{claim.receipts.length} receipt(s)</span>
                                                 )}
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <Link href={`/payroll/tracking/specialist/claims/${claim._id}`}>
+                                            <Link href={`/payroll/payroll-tracking/specialist/claims/${claim._id}`}>
                                                 <Button size="sm" variant="outline" className="w-full">
                                                     Review Details
                                                 </Button>

@@ -28,7 +28,7 @@ export default function CreateDisputePage() {
         try {
             await payrollTrackingApi.submitDispute(formData);
             toast.success('Dispute submitted successfully');
-            router.push('/payroll/tracking/employee/disputes');
+            router.push('/payroll/payroll-tracking/employee/disputes');
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to submit dispute');
         } finally {
@@ -39,7 +39,7 @@ export default function CreateDisputePage() {
     return (
         <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex items-center gap-4">
-                <Link href="/payroll/tracking/employee/disputes">
+                <Link href="/payroll/payroll-tracking/employee/disputes">
                     <Button variant="outline" size="sm">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
@@ -128,7 +128,7 @@ export default function CreateDisputePage() {
                             <Button type="submit" disabled={submitting} className="flex-1">
                                 {submitting ? 'Submitting...' : 'Submit Dispute'}
                             </Button>
-                            <Link href="/payroll/tracking/employee/disputes">
+                            <Link href="/payroll/payroll-tracking/employee/disputes">
                                 <Button type="button" variant="outline">
                                     Cancel
                                 </Button>

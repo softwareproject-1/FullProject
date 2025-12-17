@@ -6,17 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { financeStaffApi, ExpenseClaimDto } from '@/services/api';
 import StatusBadge from '@/components/payroll/StatusBadge';
-import ApprovalTimeline from '@/components/payroll/ApprovalTimeline';
+
 import { toast } from 'sonner';
 import Link from 'next/link';
 
 export default function FinanceDisputeProcessPage() {
     const params = useParams();
     const router = useRouter();
-    const disputeId = params.id as string;
+    const claimId = params.id as string;
 
     const [claim, setClaim] = useState<ExpenseClaimDto | null>(null);
     const [loading, setLoading] = useState(true);
@@ -24,16 +24,16 @@ export default function FinanceDisputeProcessPage() {
 
     useEffect(() => {
         fetchClaim();
-    }, [disputeId]);
+    }, [claimId]);
 
     const fetchClaim = async () => {
         try {
-            const response = await financeStaffApi.getClaim(disputeId);
-            setClaim(response.data);
+            const response = await financeStaffApi.getClaim(claimId);
+            setClaim(response.data.data || response.data);
         } catch (err) {
-            const { MOCK_CLAIMS } = await import('@/lib/mockData');
-            const found = (MOCK_CLAIMS as any).find((c: ExpenseClaimDto) => c._id === disputeId);
-            setClaim(found || null);
+            // Fallback to mock data - you can add mock data handling here if needed
+            console.warn('Failed to fetch claim, using fallback');
+            setClaim(null);
         } finally {
             setLoading(false);
         }
@@ -42,9 +42,9 @@ export default function FinanceDisputeProcessPage() {
     const handleProcess = async () => {
         setSubmitting(true);
         try {
-            await financeStaffApi.processClaimRefund(disputeId);
+            await financeStaffApi.processClaimRefund(claimId);
             toast.success('Refund processed successfully - Status updated to COMPLETED');
-            router.push('/payroll/tracking/finance/claims');
+            router.push('/payroll/payroll-tracking/finance/claims');
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to process refund');
         } finally {
@@ -52,21 +52,7 @@ export default function FinanceDisputeProcessPage() {
         }
     };
 
-    const handleReject = async () => {
-        const reason = prompt('Enter rejection reason:');
-        if (!reason) return;
 
-        setSubmitting(true);
-        try {
-            await financeStaffApi.rejectClaim(disputeId, reason);
-            toast.success('Claim rejected');
-            router.push('/payroll/tracking/finance/claims');
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to reject dispute');
-        } finally {
-            setSubmitting(false);
-        }
-    };
 
     if (loading) {
         return (
@@ -80,7 +66,7 @@ export default function FinanceDisputeProcessPage() {
         return (
             <div className="text-center py-12">
                 <p className="text-red-600">Claim not found</p>
-                <Link href="/payroll/tracking/finance/claims">
+                <Link href="/payroll/payroll-tracking/finance/claims">
                     <Button className="mt-4">Back to Claims</Button>
                 </Link>
             </div>
@@ -90,7 +76,7 @@ export default function FinanceDisputeProcessPage() {
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div className="flex items-center gap-4">
-                <Link href="/payroll/tracking/finance/claims">
+                <Link href="/payroll/payroll-tracking/finance/claims">
                     <Button variant="outline" size="sm">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
@@ -135,35 +121,7 @@ export default function FinanceDisputeProcessPage() {
                 </CardContent>
             </Card>
 
-            {/* Approval Timeline */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Approval History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <ApprovalTimeline
-                        status={claim.status}
-                        specialistDecision={claim.specialistDecision}
-                        specialistReviewedAt={claim.specialistReviewedAt}
-                        managerReviewedAt={claim.managerReviewedAt}
-                        processedAt={claim.processedAt}
-                    />
 
-                    {claim.specialistComments && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                            <p className="text-sm font-medium text-blue-900">Specialist Comments:</p>
-                            <p className="text-sm text-blue-700 mt-1">{claim.specialistComments}</p>
-                        </div>
-                    )}
-
-                    {claim.managerComments && (
-                        <div className="mt-2 p-3 bg-green-50 rounded-lg">
-                            <p className="text-sm font-medium text-green-900">Manager Comments:</p>
-                            <p className="text-sm text-green-700 mt-1">{claim.managerComments}</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
 
             {/* Process Actions */}
             <Card>
@@ -177,22 +135,15 @@ export default function FinanceDisputeProcessPage() {
                     <div className="flex gap-3">
                         <Button
                             onClick={handleProcess}
-                            disabled={submitting || claim.status !== 'APPROVED'}
+                            disabled={submitting || (claim.status !== 'APPROVED' && claim.status !== 'approved')}
                             className="flex-1 bg-green-600 hover:bg-green-700"
                         >
                             <CheckCircle className="w-4 h-4 mr-2" />
                             {submitting ? 'Processing...' : 'Process Refund'}
                         </Button>
-                        <Button
-                            onClick={handleReject}
-                            disabled={submitting || claim.status !== 'APPROVED'}
-                            variant="destructive"
-                        >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Reject
-                        </Button>
+
                     </div>
-                    {claim.status !== 'APPROVED' && (
+                    {(claim.status !== 'APPROVED' && claim.status !== 'approved') && (
                         <p className="text-sm text-amber-600 mt-3">
                             ⚠️ This claim is not in APPROVED status and cannot be processed
                         </p>

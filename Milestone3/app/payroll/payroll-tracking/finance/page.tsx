@@ -18,16 +18,14 @@ export default function FinanceDashboard() {
 
     const fetchApprovedItems = async () => {
         try {
-            const [disputesRes, claimsRes] = await Promise.all([
-                financeStaffApi.getApprovedDisputes(),
-                financeStaffApi.getApprovedClaims(),
-            ]);
-            setApprovedDisputes(disputesRes.data);
-            setApprovedClaims(claimsRes.data);
+            const disputesRes = await financeStaffApi.getApprovedDisputes();
+            const claimsRes = await financeStaffApi.getApprovedClaims();
+            setApprovedDisputes(disputesRes.data.data || disputesRes.data || []);
+            setApprovedClaims(claimsRes.data.data || claimsRes.data || []);
         } catch (err) {
-            const { MOCK_DISPUTES, MOCK_CLAIMS } = await import('@/lib/mockData');
-            setApprovedDisputes((MOCK_DISPUTES as any).filter((d: DisputeDto) => d.status === 'APPROVED'));
-            setApprovedClaims((MOCK_CLAIMS as any).filter((c: ExpenseClaimDto) => c.status === 'APPROVED'));
+            console.error('Failed to fetch finance data:', err);
+            setApprovedDisputes([]);
+            setApprovedClaims([]);
         } finally {
             setLoading(false);
         }
@@ -57,7 +55,7 @@ export default function FinanceDashboard() {
                         </p>
                     </CardHeader>
                     <CardContent>
-                        <Link href="/payroll/tracking/finance/disputes">
+                        <Link href="/payroll/payroll-tracking/finance/disputes">
                             <Button variant="outline" size="sm" className="w-full">
                                 Process Disputes
                             </Button>
@@ -77,7 +75,7 @@ export default function FinanceDashboard() {
                         </p>
                     </CardHeader>
                     <CardContent>
-                        <Link href="/payroll/tracking/finance/claims">
+                        <Link href="/payroll/payroll-tracking/finance/claims">
                             <Button variant="outline" size="sm" className="w-full">
                                 Process Claims
                             </Button>
@@ -93,14 +91,9 @@ export default function FinanceDashboard() {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        <Link href="/payroll/tracking/finance/reports/compliance">
+                        <Link href="/payroll/payroll-tracking/finance/reports">
                             <Button variant="outline" size="sm" className="w-full">
-                                Compliance
-                            </Button>
-                        </Link>
-                        <Link href="/payroll/tracking/finance/reports/summaries">
-                            <Button variant="outline" size="sm" className="w-full">
-                                Summaries
+                                View Reports
                             </Button>
                         </Link>
                     </CardContent>
@@ -128,7 +121,7 @@ export default function FinanceDashboard() {
                             {approvedDisputes.slice(0, 5).map((dispute) => (
                                 <Link
                                     key={dispute._id}
-                                    href={`/payroll/tracking/finance/disputes/${dispute._id}`}
+                                    href={`/payroll/payroll-tracking/finance/disputes/${dispute._id}`}
                                     className="block p-3 border border-slate-200 rounded-lg hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between">
@@ -171,7 +164,7 @@ export default function FinanceDashboard() {
                             {approvedClaims.slice(0, 5).map((claim) => (
                                 <Link
                                     key={claim._id}
-                                    href={`/payroll/tracking/finance/claims/${claim._id}`}
+                                    href={`/payroll/payroll-tracking/finance/claims/${claim._id}`}
                                     className="block p-3 border border-slate-200 rounded-lg hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between">
