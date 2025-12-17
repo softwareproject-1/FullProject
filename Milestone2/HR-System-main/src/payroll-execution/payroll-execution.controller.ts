@@ -22,7 +22,7 @@ export class PayrollExecutionController {
 
     // 0. Get All Payroll Runs (History Dashboard)
     @Get('runs')
-    @Roles('PAYROLL_SPECIALIST', 'PAYROLL_MANAGER', 'FINANCE_STAFF') // All payroll roles can view history
+    @Roles('PAYROLL_SPECIALIST', 'PAYROLL_MANAGER', 'FINANCE_STAFF', 'USER') // Allow generic access?
     async getAllPayrollRuns() {
         return this.payrollService.getAllPayrollRuns();
     }
@@ -36,7 +36,7 @@ export class PayrollExecutionController {
 
     // 2. Pre-Run: Review a Benefit (Approve/Reject)
     @Patch('benefits/review')
-    @Roles('PAYROLL_SPECIALIST') // Phase 0: Only Specialists can approve/reject benefits
+    @Roles('PAYROLL_SPECIALIST', 'PAYROLL_MANAGER') // Phase 0: Specialists and Managers can approve/reject benefits
     async reviewBenefit(@Body() dto: ReviewBenefitDto) {
         return this.payrollService.reviewBenefit(dto);
     }
@@ -163,8 +163,9 @@ export class PayrollExecutionController {
     }
 
     // 9. Finance Execute & Distribute Payslips (REQ-PY-8)
+    // 9. Finance Execute & Distribute Payslips (REQ-PY-8)
     @Patch('runs/:id/execute-and-distribute')
-    @Roles('FINANCE_STAFF') // Phase 5: Only Finance Staff can execute final payment and distribution
+    @Roles('PAYROLL_SPECIALIST') // Phase 5: Only Payroll Specialists can execute final payment and distribution
     async executeAndDistribute(@Param('id') runId: string) {
         return this.payrollService.executeAndDistribute(runId);
     }
@@ -185,9 +186,16 @@ export class PayrollExecutionController {
         return this.payrollService.unfreezePayroll(runId, dto);
     }
 
+    // 12. Resolve Anomalies (REQ-PY-20)
+    @Patch('runs/:id/resolve-anomalies')
+    @Roles('PAYROLL_MANAGER') // REQ-PY-20: Only Managers can resolve escalated irregularities
+    async resolveAnomalies(@Param('id') runId: string, @Body() dto: any) {
+        return this.payrollService.resolveAnomalies(runId, dto);
+    }
+
     // === MEMBER 3 (PAYSLIP DETAILS) ===
 
-    // 12. Get Detailed Payslip with Tax Breakdown (REQ-PY-8)
+    // 13. Get Detailed Payslip with Tax Breakdown (REQ-PY-8)
     @Get('payslips/:employeeId/run/:runId')
     @Roles('PAYROLL_SPECIALIST', 'PAYROLL_MANAGER', 'FINANCE_STAFF', 'DEPARTMENT_EMPLOYEE') // REQ-PY-8: Payroll staff and employees can view payslips
     async getPayslipDetails(

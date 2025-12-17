@@ -2,6 +2,7 @@ import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PayrollExecutionController } from './payroll-execution.controller';
 import { PayrollExecutionService } from './payroll-execution.service';
+import { EmployeeProfile as Employee, EmployeeProfileSchema as EmployeeSchema } from '../employee-profile/models/employee-profile.schema';
 import { terminationAndResignationBenefits, terminationAndResignationBenefitsSchema } from '../payroll-configuration/models/terminationAndResignationBenefits';
 import { employeePayrollDetails, employeePayrollDetailsSchema } from './models/employeePayrollDetails.schema';
 import { employeePenalties, employeePenaltiesSchema } from './models/employeePenalties.schema';
@@ -32,6 +33,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: EmployeeTerminationResignation.name, schema: EmployeeTerminationResignationSchema },
       { name: terminationAndResignationBenefits.name, schema: terminationAndResignationBenefitsSchema },
       { name: employeePenalties.name, schema: employeePenaltiesSchema },
+      { name: Employee.name, schema: EmployeeSchema },
 
     ])],
   controllers: [PayrollExecutionController],
