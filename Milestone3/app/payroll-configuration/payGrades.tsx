@@ -21,10 +21,18 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
 export default function PayGrades() {
   const [payGrades, setPayGrades] = useState<PayGrade[]>([]);
-  // Removed department/position state
   const [availableAllowances, setAvailableAllowances] = useState<Allowance[]>(
     []
   );
+  const [selectedAllowanceIds, setSelectedAllowanceIds] = useState<string[]>(
+    []
+  );
+  const [selectedAllowancesTotal, setSelectedAllowancesTotal] = useState(0);
+  const [editSelectedAllowanceIds, setEditSelectedAllowanceIds] = useState<
+    string[]
+  >([]);
+  const [editSelectedAllowancesTotal, setEditSelectedAllowancesTotal] =
+    useState(0);
 
   // Form states
   const [grade, setGrade] = useState("");
@@ -32,7 +40,6 @@ export default function PayGrades() {
   const [baseSalary, setBaseSalary] = useState("");
   // Remove allowance selection; always use all approved allowances
   const [grossSalary, setGrossSalary] = useState("");
-  const [totalAllowances, setTotalAllowances] = useState(0);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,28 +107,51 @@ export default function PayGrades() {
     return "An error occurred";
   };
 
-  // Compute gross salary as base + sum(all approved allowances)
-  const computeGrossSalary = (base: string) => {
-    const baseNum = parseFloat(base) || 0;
-    const allowancesSum = availableAllowances.reduce(
-      (sum, a) => sum + (a.amount || 0),
-      0
-    );
-    setTotalAllowances(allowancesSum);
-    return (baseNum + allowancesSum).toFixed(2);
-  };
+  const sumSelectedAllowances = useCallback(
+    (allowanceIds: string[]) => {
+      if (!allowanceIds || allowanceIds.length === 0) return 0;
+      const selectedSet = new Set(allowanceIds);
+      return availableAllowances.reduce((sum, allowance) => {
+        if (selectedSet.has(allowance._id)) {
+          return sum + (allowance.amount || 0);
+        }
+        return sum;
+      }, 0);
+    },
+    [availableAllowances]
+  );
+
+  const computeGrossSalary = useCallback(
+    (base: string, allowanceIds: string[]) => {
+      const baseNum = parseFloat(base) || 0;
+      const allowancesSum = sumSelectedAllowances(allowanceIds);
+      return {
+        gross: (baseNum + allowancesSum).toFixed(2),
+        allowancesSum,
+      };
+    },
+    [sumSelectedAllowances]
+  );
 
   // Auto-compute gross salary for add form
   useEffect(() => {
-    const computed = computeGrossSalary(baseSalary);
-    setGrossSalary(computed);
-  }, [baseSalary, availableAllowances]);
+    const { gross, allowancesSum } = computeGrossSalary(
+      baseSalary,
+      selectedAllowanceIds
+    );
+    setGrossSalary(gross);
+    setSelectedAllowancesTotal(allowancesSum);
+  }, [baseSalary, selectedAllowanceIds, computeGrossSalary]);
 
   // Auto-compute gross salary for edit form
   useEffect(() => {
-    const computed = computeGrossSalary(editBaseSalary);
-    setEditGrossSalary(computed);
-  }, [editBaseSalary, availableAllowances]);
+    const { gross, allowancesSum } = computeGrossSalary(
+      editBaseSalary,
+      editSelectedAllowanceIds
+    );
+    setEditGrossSalary(gross);
+    setEditSelectedAllowancesTotal(allowancesSum);
+  }, [editBaseSalary, editSelectedAllowanceIds, computeGrossSalary]);
 
   const fetchPayGrades = useCallback(async () => {
     try {
@@ -154,6 +184,23 @@ export default function PayGrades() {
       console.error(err);
     }
   }, []);
+
+  useEffect(() => {
+    setSelectedAllowanceIds((prev) => {
+      if (prev.length === 0) return prev;
+      const validIds = prev.filter((id) =>
+        availableAllowances.some((allowance) => allowance._id === id)
+      );
+      return validIds.length === prev.length ? prev : validIds;
+    });
+    setEditSelectedAllowanceIds((prev) => {
+      if (prev.length === 0) return prev;
+      const validIds = prev.filter((id) =>
+        availableAllowances.some((allowance) => allowance._id === id)
+      );
+      return validIds.length === prev.length ? prev : validIds;
+    });
+  }, [availableAllowances]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -200,6 +247,7 @@ export default function PayGrades() {
         grade,
         baseSalary: baseNum,
         grossSalary: grossNum,
+        allowanceIds: selectedAllowanceIds,
       };
 
       const res = await fetch(`${API_BASE}/pay-grades`, {
@@ -212,8 +260,7 @@ export default function PayGrades() {
       });
       if (!res.ok) throw new Error(await res.text());
       showMessage("success", "Pay grade created successfully!");
-      resetAddForm();
-      setIsAddModalOpen(false);
+      closeAddModal();
       fetchPayGrades();
     } catch (err) {
       console.error(err);
@@ -256,6 +303,7 @@ export default function PayGrades() {
         grade: editGrade,
         baseSalary: baseNum,
         grossSalary: grossNum,
+        allowanceIds: editSelectedAllowanceIds,
       };
 
       const res = await fetch(`${API_BASE}/pay-grades/${editPayGradeId}`, {
@@ -268,7 +316,7 @@ export default function PayGrades() {
       });
       if (!res.ok) throw new Error(await res.text());
       showMessage("success", "Pay grade updated successfully!");
-      setIsEditModalOpen(false);
+      closeEditModal();
       fetchPayGrades();
     } catch (err) {
       console.error(err);
@@ -366,11 +414,18 @@ export default function PayGrades() {
       return;
     }
     if (pg.status !== "draft") return;
+    resetEditForm();
     setEditPayGradeId(pg._id);
     setEditGrade(pg.grade);
     // Department/Position removed
     setEditBaseSalary(pg.baseSalary.toString());
     setEditGrossSalary(pg.grossSalary.toString());
+    if (pg.allowances && pg.allowances.length > 0) {
+      const derivedIds = deriveAllowanceSelectionFromPayGrade(pg);
+      if (derivedIds.length > 0) {
+        setEditSelectedAllowanceIds(derivedIds);
+      }
+    }
     setIsEditModalOpen(true);
   };
 
@@ -391,10 +446,94 @@ export default function PayGrades() {
     setIsConfirmModalOpen(true);
   };
 
+  const toggleAllowanceSelection = (allowanceId: string) => {
+    setSelectedAllowanceIds((prev) => {
+      if (prev.includes(allowanceId)) {
+        return prev.filter((id) => id !== allowanceId);
+      }
+      return [...prev, allowanceId];
+    });
+  };
+
+  const toggleEditAllowanceSelection = (allowanceId: string) => {
+    setEditSelectedAllowanceIds((prev) => {
+      if (prev.includes(allowanceId)) {
+        return prev.filter((id) => id !== allowanceId);
+      }
+      return [...prev, allowanceId];
+    });
+  };
+
+  const deriveAllowanceSelectionFromPayGrade = useCallback(
+    (pg: PayGrade) => {
+      if (!pg.allowances || pg.allowances.length === 0) {
+        return [];
+      }
+
+      const availableById = new Map(
+        availableAllowances.map((allowance) => [allowance._id, allowance])
+      );
+
+      const matchedIds = pg.allowances
+        .map((pgAllowance) => {
+          if (pgAllowance._id && availableById.has(pgAllowance._id)) {
+            return pgAllowance._id;
+          }
+
+          return (
+            availableAllowances.find(
+              (allowance) =>
+                allowance.name === pgAllowance.name &&
+                allowance.amount === pgAllowance.amount
+            )?._id || null
+          );
+        })
+        .filter((id): id is string => Boolean(id));
+
+      return Array.from(new Set(matchedIds));
+    },
+    [availableAllowances]
+  );
+
+  const selectAllAllowances = () => {
+    setSelectedAllowanceIds(availableAllowances.map((a) => a._id));
+  };
+
+  const clearAllAllowances = () => {
+    setSelectedAllowanceIds([]);
+  };
+
+  const selectAllEditAllowances = () => {
+    setEditSelectedAllowanceIds(availableAllowances.map((a) => a._id));
+  };
+
+  const clearAllEditAllowances = () => {
+    setEditSelectedAllowanceIds([]);
+  };
+
   const resetAddForm = () => {
     setGrade("");
     setBaseSalary("");
     setGrossSalary("");
+    setSelectedAllowanceIds(availableAllowances.map((a) => a._id));
+  };
+
+  const resetEditForm = () => {
+    setEditPayGradeId(null);
+    setEditGrade("");
+    setEditBaseSalary("");
+    setEditGrossSalary("");
+    setEditSelectedAllowanceIds([]);
+  };
+
+  const closeAddModal = () => {
+    setIsAddModalOpen(false);
+    resetAddForm();
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    resetEditForm();
   };
 
   const showMessage = (type: "success" | "error", text: string) => {
@@ -512,9 +651,6 @@ export default function PayGrades() {
                     Base Salary
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Allowances
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Gross Salary
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -547,11 +683,6 @@ export default function PayGrades() {
                       {/* Department/Position cells removed */}
                       <td className="px-6 py-4 whitespace-nowrap text-slate-600">
                         ${pg.baseSalary.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-slate-600">
-                        {pg.allowances && pg.allowances.length > 0
-                          ? `${pg.allowances.length} allowance(s)`
-                          : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap font-semibold text-slate-900">
                         ${(pg.grossSalary ?? 0).toLocaleString()}
@@ -611,7 +742,7 @@ export default function PayGrades() {
       {/* Add Modal */}
       <Modal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={closeAddModal}
         title="Add New Pay Grade"
       >
         <div className="space-y-4">
@@ -647,27 +778,60 @@ export default function PayGrades() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Total Approved Allowances
+              Allowances
             </label>
+            <p className="text-xs text-slate-500 mb-2">
+              Select which approved allowances should contribute to this grade's
+              gross salary.
+            </p>
             <div className="border border-slate-300 rounded-lg p-3 bg-slate-50">
               {availableAllowances.length === 0 ? (
                 <p className="text-sm text-slate-500">
                   No approved allowances available
                 </p>
               ) : (
-                <div className="flex flex-col gap-1">
-                  {availableAllowances.map((allowance) => (
-                    <div
-                      key={allowance._id}
-                      className="flex justify-between text-sm"
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 justify-end text-xs text-blue-600">
+                    <button
+                      type="button"
+                      onClick={selectAllAllowances}
+                      className="hover:underline"
                     >
-                      <span>{allowance.name}</span>
-                      <span>${allowance.amount.toLocaleString()}</span>
-                    </div>
+                      Select all
+                    </button>
+                    <span className="text-slate-400">|</span>
+                    <button
+                      type="button"
+                      onClick={clearAllAllowances}
+                      className="hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {availableAllowances.map((allowance) => (
+                    <label
+                      key={allowance._id}
+                      className="flex items-center justify-between gap-4 rounded-md border border-transparent px-2 py-1 text-sm hover:border-slate-200"
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-blue-600"
+                          checked={selectedAllowanceIds.includes(allowance._id)}
+                          onChange={() =>
+                            toggleAllowanceSelection(allowance._id)
+                          }
+                        />
+                        {allowance.name}
+                      </span>
+                      <span className="font-medium">
+                        ${allowance.amount.toLocaleString()}
+                      </span>
+                    </label>
                   ))}
-                  <div className="flex justify-between font-semibold mt-2">
-                    <span>Total</span>
-                    <span>${totalAllowances.toLocaleString()}</span>
+                  <div className="flex justify-between font-semibold mt-2 pt-2 border-t border-slate-200">
+                    <span>Selected Total</span>
+                    <span>${selectedAllowancesTotal.toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -691,13 +855,13 @@ export default function PayGrades() {
               <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Gross Salary = Base Salary + Sum of Approved Allowances
+              Gross Salary = Base Salary + Sum of Selected Allowances
             </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
             <button
-              onClick={() => setIsAddModalOpen(false)}
+              onClick={closeAddModal}
               className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition"
             >
               Cancel
@@ -716,7 +880,7 @@ export default function PayGrades() {
       {/* Edit Modal */}
       <Modal
         isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
+        onClose={closeEditModal}
         title="Edit Pay Grade"
       >
         <div className="space-y-4">
@@ -752,27 +916,61 @@ export default function PayGrades() {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Total Approved Allowances
+              Allowances
             </label>
+            <p className="text-xs text-slate-500 mb-2">
+              Update which allowances should remain part of this pay grade.
+            </p>
             <div className="border border-slate-300 rounded-lg p-3 bg-slate-50">
               {availableAllowances.length === 0 ? (
                 <p className="text-sm text-slate-500">
                   No approved allowances available
                 </p>
               ) : (
-                <div className="flex flex-col gap-1">
-                  {availableAllowances.map((allowance) => (
-                    <div
-                      key={allowance._id}
-                      className="flex justify-between text-sm"
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 justify-end text-xs text-blue-600">
+                    <button
+                      type="button"
+                      onClick={selectAllEditAllowances}
+                      className="hover:underline"
                     >
-                      <span>{allowance.name}</span>
-                      <span>${allowance.amount.toLocaleString()}</span>
-                    </div>
+                      Select all
+                    </button>
+                    <span className="text-slate-400">|</span>
+                    <button
+                      type="button"
+                      onClick={clearAllEditAllowances}
+                      className="hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {availableAllowances.map((allowance) => (
+                    <label
+                      key={allowance._id}
+                      className="flex items-center justify-between gap-4 rounded-md border border-transparent px-2 py-1 text-sm hover:border-slate-200"
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-blue-600"
+                          checked={editSelectedAllowanceIds.includes(
+                            allowance._id
+                          )}
+                          onChange={() =>
+                            toggleEditAllowanceSelection(allowance._id)
+                          }
+                        />
+                        {allowance.name}
+                      </span>
+                      <span className="font-medium">
+                        ${allowance.amount.toLocaleString()}
+                      </span>
+                    </label>
                   ))}
-                  <div className="flex justify-between font-semibold mt-2">
-                    <span>Total</span>
-                    <span>${totalAllowances.toLocaleString()}</span>
+                  <div className="flex justify-between font-semibold mt-2 pt-2 border-t border-slate-200">
+                    <span>Selected Total</span>
+                    <span>${editSelectedAllowancesTotal.toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -802,7 +1000,7 @@ export default function PayGrades() {
 
           <div className="flex justify-end gap-3 pt-4">
             <button
-              onClick={() => setIsEditModalOpen(false)}
+              onClick={closeEditModal}
               className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition"
             >
               Cancel

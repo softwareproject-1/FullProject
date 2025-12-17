@@ -26,4 +26,9 @@ export class CreatePayGradeDto {
   // @IsOptional()
   //   @IsString()
   //   status?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  allowanceIds?: string[];
 }

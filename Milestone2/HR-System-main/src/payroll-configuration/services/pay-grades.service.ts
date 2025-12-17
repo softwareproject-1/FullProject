@@ -31,14 +31,37 @@ export class PayGradesService {
   private async validateGrossSalary(
     baseSalary: number,
     grossSalary: number,
+    allowanceIds?: string[],
   ): Promise<void> {
-    // Fetch approved allowances and sum their amounts
-    const allowances = await this.allowanceModel
-      .find({ status: ConfigStatus.APPROVED })
-      .exec();
+    let allowances: Array<{ amount: number }>;
+
+    if (Array.isArray(allowanceIds)) {
+      if (allowanceIds.length === 0) {
+        allowances = [];
+      } else {
+        const uniqueIds = Array.from(new Set(allowanceIds));
+        allowances = await this.allowanceModel
+          .find({
+            _id: { $in: uniqueIds },
+            status: ConfigStatus.APPROVED,
+          })
+          .exec();
+
+        if (allowances.length !== uniqueIds.length) {
+          throw new BadRequestException(
+            'One or more selected allowances are invalid or not approved.',
+          );
+        }
+      }
+    } else {
+      // Fallback to all approved allowances for backward compatibility
+      allowances = await this.allowanceModel
+        .find({ status: ConfigStatus.APPROVED })
+        .exec();
+    }
 
     const totalAllowances = allowances.reduce(
-      (sum, allowance) => sum + allowance.amount,
+      (sum: number, allowance: { amount: number }) => sum + allowance.amount,
       0,
     );
 
@@ -55,11 +78,17 @@ export class PayGradesService {
   //   return created.save();
   // }
   async create(dto: CreatePayGradeDto) {
-    // Validate gross salary = base + allowances
-    await this.validateGrossSalary(dto.baseSalary, dto.grossSalary);
+    const { allowanceIds, ...restDto } = dto;
+
+    // Validate gross salary = base + selected allowances (or all approved if none provided)
+    await this.validateGrossSalary(
+      restDto.baseSalary,
+      restDto.grossSalary,
+      allowanceIds,
+    );
 
     // Validate that only allowed fields are in the DTO
-    const safeDto = strictUpdate(dto, this.model);
+    const safeDto = strictUpdate(restDto, this.model);
 
     const created = new this.model({
       ...safeDto,
@@ -94,12 +123,18 @@ export class PayGradesService {
       dto.grossSalary !== undefined ||
       false // allowances removed; validation based on allowance service
     ) {
-      const finalBaseSalary = dto.baseSalary ?? doc.baseSalary;
-      const finalGrossSalary = dto.grossSalary ?? doc.grossSalary;
-      await this.validateGrossSalary(finalBaseSalary, finalGrossSalary);
+      const { allowanceIds, ...restDto } = dto;
+      const finalBaseSalary = restDto.baseSalary ?? doc.baseSalary;
+      const finalGrossSalary = restDto.grossSalary ?? doc.grossSalary;
+      await this.validateGrossSalary(
+        finalBaseSalary,
+        finalGrossSalary,
+        allowanceIds,
+      );
     }
 
-    const safeDto = strictUpdate(dto, this.model);
+    const { allowanceIds: _discard, ...restDto } = dto;
+    const safeDto = strictUpdate(restDto, this.model);
 
     const updated = await this.model
       .findByIdAndUpdate(id, safeDto, { new: true })

@@ -16,6 +16,20 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
 
+const statusBadgeColor = (status?: string) => {
+  switch (status) {
+    case "approved":
+      return "bg-green-100 text-green-800";
+    case "rejected":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-yellow-100 text-yellow-800";
+  }
+};
+
+const formatStatus = (status?: string) =>
+  status ? status.charAt(0).toUpperCase() + status.slice(1) : "Draft";
+
 export default function SigningBonuses() {
   const [bonuses, setBonuses] = useState<SigningBonus[]>([]);
   const [positionName, setPositionName] = useState("");
@@ -474,15 +488,11 @@ export default function SigningBonuses() {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          b.status === "approved"
-                            ? "bg-green-100 text-green-700"
-                            : b.status === "rejected"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-slate-100 text-slate-700"
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${statusBadgeColor(
+                          b.status
+                        )}`}
                       >
-                        {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                        {formatStatus(b.status)}
                       </span>
                     </td>
 

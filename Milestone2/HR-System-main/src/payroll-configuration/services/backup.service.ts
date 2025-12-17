@@ -9,7 +9,8 @@ export class BackupService {
   private backupDir = path.join(__dirname, '../../backups');
 
   // Your Atlas connection string
-  private mongoUri = 'mongodb+srv://Team5:GYL2025@cluster0.4mleald.mongodb.net/FullProjectDB?retryWrites=true&w=majority';
+  private mongoUri =
+    'mongodb+srv://Team5:GYL2025@cluster0.4mleald.mongodb.net/FullProjectDB?retryWrites=true&w=majority';
 
   constructor() {
     if (!fs.existsSync(this.backupDir)) {
@@ -23,7 +24,7 @@ export class BackupService {
     const fileName = `backup-${Date.now()}.gz`;
     const filePath = path.join(this.backupDir, fileName);
 
-    const command = `"C:\\Users\\Excellent Store\\Downloads\\mongodb-database-tools-windows-x86_64-100.13.0\\mongodb-database-tools-windows-x86_64-100.13.0\\bin\\mongodump.exe" --uri="${this.mongoUri}" --archive="${filePath}" --gzip`;
+    const command = `"D:\\Documents\\mongodb-database-tools-windows-x86_64-100.14.0\\bin\\mongodump.exe" --uri="${this.mongoUri}" --archive="${filePath}" --gzip`;
 
     exec(command, (error, stdout, stderr) => {
       if (error) {
