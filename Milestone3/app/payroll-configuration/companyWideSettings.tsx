@@ -41,6 +41,9 @@ export default function CompanyWideSettingsPage() {
     "success"
   );
   const [messageOpen, setMessageOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] =
+    useState<CompanyWideSettings | null>(null);
 
   const [formData, setFormData] = useState<CreateCompanyWideSettingsDto>({
     payDate: "",
@@ -65,11 +68,13 @@ export default function CompanyWideSettingsPage() {
 
   // Role checking
   const [isPayrollManager, setIsPayrollManager] = useState(false);
+  const [isSystemAdmin, setIsSystemAdmin] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const roles = useMemo(() => user?.roles || [], [user]);
 
   useEffect(() => {
     setIsPayrollManager(roles.includes("Payroll Manager"));
+    setIsSystemAdmin(roles.includes("System Admin"));
   }, [roles]);
 
   useEffect(() => {
@@ -97,12 +102,36 @@ export default function CompanyWideSettingsPage() {
   };
 
   const openCreate = () => {
+    if (!user) {
+      setMessage("You must be logged in to create company settings.");
+      setMessageType("error");
+      setMessageOpen(true);
+      return;
+    }
+    if (!isSystemAdmin) {
+      setMessage("Only System Admins can create company settings.");
+      setMessageType("error");
+      setMessageOpen(true);
+      return;
+    }
     setSelected(null);
     setFormData({ payDate: "", timeZone: "", currency: "EGP" });
     setIsModalOpen(true);
   };
 
   const openEdit = (item: CompanyWideSettings) => {
+    if (!user) {
+      setMessage("You must be logged in to edit company settings.");
+      setMessageType("error");
+      setMessageOpen(true);
+      return;
+    }
+    if (!isSystemAdmin) {
+      setMessage("Only System Admins can edit company settings.");
+      setMessageType("error");
+      setMessageOpen(true);
+      return;
+    }
     setSelected(item);
     setFormData({
       payDate: item.payDate ? item.payDate.split("T")[0] : "",
@@ -119,6 +148,20 @@ export default function CompanyWideSettingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      setMessage("You must be logged in to modify company settings.");
+      setMessageType("error");
+      setMessageOpen(true);
+      return;
+    }
+    if (!isSystemAdmin) {
+      setMessage("Only System Admins can modify company settings.");
+      setMessageType("error");
+      setMessageOpen(true);
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -151,7 +194,7 @@ export default function CompanyWideSettingsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const requestDelete = (item: CompanyWideSettings) => {
     if (!user) {
       setMessage("You must be logged in to delete company settings.");
       setMessageType("error");
@@ -164,15 +207,26 @@ export default function CompanyWideSettingsPage() {
       setMessageOpen(true);
       return;
     }
-    const res = await deleteCompanySettings(id);
+    setPendingDelete(item);
+    setIsConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!pendingDelete) {
+      setIsConfirmOpen(false);
+      return;
+    }
+    const res = await deleteCompanySettings(pendingDelete._id);
     if (res.success) {
-      setSettings(settings.filter((s) => s._id !== id));
+      setSettings(settings.filter((s) => s._id !== pendingDelete._id));
       setMessage("Deleted successfully");
       setMessageType("success");
     } else {
       setMessage(res.message || "Delete failed");
       setMessageType("error");
     }
+    setPendingDelete(null);
+    setIsConfirmOpen(false);
     setMessageOpen(true);
   };
 
@@ -225,13 +279,15 @@ export default function CompanyWideSettingsPage() {
             Create Backup
           </button>
 
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Add Settings
-          </button>
+          {isSystemAdmin && (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              Add Settings
+            </button>
+          )}
         </div>
       </div>
 
@@ -293,16 +349,18 @@ export default function CompanyWideSettingsPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => openEdit(s)}
-                          className="p-1 text-green-600 hover:bg-green-50 rounded transition"
-                          title="Edit"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                        {isSystemAdmin && (
+                          <button
+                            onClick={() => openEdit(s)}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded transition"
+                            title="Edit"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
                         {isPayrollManager && (
                           <button
-                            onClick={() => handleDelete(s._id)}
+                            onClick={() => requestDelete(s)}
                             className="p-1 text-red-600 hover:bg-red-50 rounded transition"
                             title="Delete"
                           >
@@ -441,6 +499,43 @@ export default function CompanyWideSettingsPage() {
             <AlertCircle className="text-red-600" />
           )}
           <p>{message}</p>
+        </div>
+      </Modal>
+
+      {/* Confirm Delete Modal */}
+      <Modal
+        isOpen={isConfirmOpen}
+        onClose={() => {
+          setIsConfirmOpen(false);
+          setPendingDelete(null);
+        }}
+        title="Confirm Deletion"
+      >
+        <div className="space-y-4">
+          <p>
+            Are you sure you want to delete
+            {pendingDelete?.timeZone
+              ? ` ${pendingDelete.timeZone}`
+              : " this setting"}
+            ? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => {
+                setIsConfirmOpen(false);
+                setPendingDelete(null);
+              }}
+              className="px-4 py-2 border rounded"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

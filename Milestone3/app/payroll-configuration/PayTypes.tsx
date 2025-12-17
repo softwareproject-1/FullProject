@@ -56,6 +56,7 @@ export function PayTypes() {
 
   // Role checking
   const [isPayrollManager, setIsPayrollManager] = useState(false);
+  const [isPayrollSpecialist, setIsPayrollSpecialist] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const roles = useMemo(() => user?.roles || [], [user]);
 
@@ -66,6 +67,7 @@ export function PayTypes() {
 
   useEffect(() => {
     setIsPayrollManager(roles.includes("Payroll Manager"));
+    setIsPayrollSpecialist(roles.includes("Payroll Specialist"));
   }, [roles]);
 
   useEffect(() => {
@@ -93,6 +95,18 @@ export function PayTypes() {
   };
 
   const handleAddPayType = () => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to create pay types.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can create pay types.");
+      setMessageModalOpen(true);
+      return;
+    }
     setSelectedPayType(null);
     setFormData({
       type: "Hourly",
@@ -102,6 +116,19 @@ export function PayTypes() {
   };
 
   const handleEditPayType = (payType: PayType) => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to edit pay types.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can edit pay types.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (payType.status !== "draft") return;
     setSelectedPayType(payType);
     setFormData({
       type: payType.type,
@@ -192,6 +219,18 @@ export function PayTypes() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to modify pay types.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can modify pay types.");
+      setMessageModalOpen(true);
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -281,13 +320,15 @@ export function PayTypes() {
             Manage pay types for different salary components.
           </p>
         </div>
-        <button
-          onClick={handleAddPayType}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Pay Type
-        </button>
+        {isPayrollSpecialist && (
+          <button
+            onClick={handleAddPayType}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Pay Type
+          </button>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -381,13 +422,15 @@ export function PayTypes() {
                       </button>
                       {payType.status === "draft" && (
                         <>
-                          <button
-                            onClick={() => handleEditPayType(payType)}
-                            className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollSpecialist && (
+                            <button
+                              onClick={() => handleEditPayType(payType)}
+                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
                           {isPayrollManager && (
                             <button
                               onClick={() =>
@@ -399,13 +442,15 @@ export function PayTypes() {
                               ✓
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDeletePayType(payType._id)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollManager && (
+                            <button
+                              onClick={() => handleDeletePayType(payType._id)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                       {payType.status === "rejected" && isPayrollManager && (

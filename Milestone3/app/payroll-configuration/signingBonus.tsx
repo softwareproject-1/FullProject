@@ -102,6 +102,22 @@ export default function SigningBonuses() {
     fetchBonuses();
   }, [authLoading, user, fetchBonuses]);
 
+  const openAddBonusModal = () => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to create signing bonuses.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can create signing bonuses.");
+      setMessageModalOpen(true);
+      return;
+    }
+    setIsAddModalOpen(true);
+  };
+
   // ----- CREATE SIGNING BONUS -----
   const createBonus = async () => {
     if (!user) {
@@ -377,13 +393,15 @@ export default function SigningBonuses() {
             Manage signing bonuses for different positions
           </p>
         </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Bonus
-        </button>
+        {isPayrollSpecialist && (
+          <button
+            onClick={openAddBonusModal}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Bonus
+          </button>
+        )}
       </div>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
@@ -478,13 +496,15 @@ export default function SigningBonuses() {
                       </button>
                       {isDraft && (
                         <>
-                          <button
-                            onClick={() => startEditBonus(b)}
-                            className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollSpecialist && (
+                            <button
+                              onClick={() => startEditBonus(b)}
+                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
                           {isPayrollManager && (
                             <button
                               onClick={() => handleChangeStatus(id, b.status)}
@@ -494,13 +514,15 @@ export default function SigningBonuses() {
                               ✓
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDeleteBonus(id)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollManager && (
+                            <button
+                              onClick={() => handleDeleteBonus(id)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                       {isRejected && isPayrollManager && (

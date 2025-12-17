@@ -32,6 +32,7 @@ export default function InsuranceBrackets() {
   const roles = useMemo(() => user?.roles || [], [user]);
   const isPayrollSpecialist = roles.includes("Payroll Specialist");
   const isHRManager = roles.includes("HR Manager");
+  const canEditBrackets = isPayrollSpecialist || isHRManager;
 
   // Message Modal States
   const [messageModalOpen, setMessageModalOpen] = useState(false);
@@ -171,6 +172,22 @@ export default function InsuranceBrackets() {
     }
   };
 
+  const openAddBracketModal = () => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to create insurance brackets.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can create insurance brackets.");
+      setMessageModalOpen(true);
+      return;
+    }
+    setIsAddModalOpen(true);
+  };
+
   const handleViewBracket = (bracket: InsuranceBracket) => {
     setSelectedBracket(bracket);
     setIsViewModalOpen(true);
@@ -183,9 +200,11 @@ export default function InsuranceBrackets() {
       setMessageModalOpen(true);
       return;
     }
-    if (!isPayrollSpecialist) {
+    if (!canEditBrackets) {
       setMessageType("error");
-      setMessageText("You do not have permission to edit insurance brackets.");
+      setMessageText(
+        "Only Payroll Specialists or HR Managers can edit insurance brackets."
+      );
       setMessageModalOpen(true);
       return;
     }
@@ -206,9 +225,11 @@ export default function InsuranceBrackets() {
       setMessageModalOpen(true);
       return;
     }
-    if (!isPayrollSpecialist) {
+    if (!canEditBrackets) {
       setMessageType("error");
-      setMessageText("You do not have permission to edit insurance brackets.");
+      setMessageText(
+        "Only Payroll Specialists or HR Managers can edit insurance brackets."
+      );
       setMessageModalOpen(true);
       return;
     }
@@ -409,13 +430,15 @@ export default function InsuranceBrackets() {
             Manage employee insurance brackets and rates
           </p>
         </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Bracket
-        </button>
+        {isPayrollSpecialist && (
+          <button
+            onClick={openAddBracketModal}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Bracket
+          </button>
+        )}
       </div>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
@@ -517,13 +540,15 @@ export default function InsuranceBrackets() {
                       </button>
                       {isDraft && (
                         <>
-                          <button
-                            onClick={() => startEditBracket(b)}
-                            className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          {canEditBrackets && (
+                            <button
+                              onClick={() => startEditBracket(b)}
+                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
                           {isHRManager && (
                             <button
                               onClick={() =>
@@ -535,13 +560,15 @@ export default function InsuranceBrackets() {
                               ✓
                             </button>
                           )}
-                          <button
-                            onClick={() => deleteBracket(b._id)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isHRManager && (
+                            <button
+                              onClick={() => deleteBracket(b._id)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                       {isRejected && isHRManager && (

@@ -344,11 +344,28 @@ export default function PayGrades() {
   };
 
   const openAddModal = () => {
+    if (!user) {
+      showMessage("error", "You must be logged in to create pay grades.");
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      showMessage("error", "Only Payroll Specialists can create pay grades.");
+      return;
+    }
     resetAddForm();
     setIsAddModalOpen(true);
   };
 
   const openEditModal = (pg: PayGrade) => {
+    if (!user) {
+      showMessage("error", "You must be logged in to edit pay grades.");
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      showMessage("error", "Only Payroll Specialists can edit pay grades.");
+      return;
+    }
+    if (pg.status !== "draft") return;
     setEditPayGradeId(pg._id);
     setEditGrade(pg.grade);
     // Department/Position removed
@@ -393,18 +410,18 @@ export default function PayGrades() {
     const matchesStatus = filterStatus === "all" || pg.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
-// const filteredPayGrades = payGrades.filter((pg) => {
-//   const grade = pg.grade ?? "";
+  // const filteredPayGrades = payGrades.filter((pg) => {
+  //   const grade = pg.grade ?? "";
 
-//   const matchesSearch = grade
-//     .toLowerCase()
-//     .includes(searchTerm.toLowerCase());
+  //   const matchesSearch = grade
+  //     .toLowerCase()
+  //     .includes(searchTerm.toLowerCase());
 
-//   const matchesStatus =
-//     filterStatus === "all" || pg.status === filterStatus;
+  //   const matchesStatus =
+  //     filterStatus === "all" || pg.status === filterStatus;
 
-//   return matchesSearch && matchesStatus;
-// });
+  //   return matchesSearch && matchesStatus;
+  // });
 
   const getStatusBadge = (status: ConfigStatus) => {
     const styles = {
@@ -434,13 +451,15 @@ export default function PayGrades() {
               Manage pay grades (Gross Salary = Base Pay + Allowances)
             </p>
           </div>
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            <Plus className="w-5 h-5" />
-            Add Pay Grade
-          </button>
+          {isPayrollSpecialist && (
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Add Pay Grade
+            </button>
+          )}
         </div>
 
         {/* Controls */}
@@ -535,8 +554,7 @@ export default function PayGrades() {
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap font-semibold text-slate-900">
-                       ${(pg.grossSalary ?? 0).toLocaleString()}
-
+                        ${(pg.grossSalary ?? 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(pg.status)}
@@ -550,16 +568,14 @@ export default function PayGrades() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          {pg.status === "draft" && (
-                            <>
-                              <button
-                                onClick={() => openEditModal(pg)}
-                                className="p-1 text-amber-600 hover:bg-amber-50 rounded"
-                                title="Edit"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                            </>
+                          {pg.status === "draft" && isPayrollSpecialist && (
+                            <button
+                              onClick={() => openEditModal(pg)}
+                              className="p-1 text-amber-600 hover:bg-amber-50 rounded"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
                           )}
                           {isPayrollManager && pg.status === "draft" && (
                             <button

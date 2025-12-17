@@ -94,6 +94,20 @@ export function TerminationBenefits() {
   };
 
   const handleAddBenefit = () => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to create termination benefits.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText(
+        "Only Payroll Specialists can create termination benefits."
+      );
+      setMessageModalOpen(true);
+      return;
+    }
     setSelectedBenefit(null);
     setFormData({
       name: "",
@@ -104,6 +118,19 @@ export function TerminationBenefits() {
   };
 
   const handleEditBenefit = (benefit: TerminationBenefit) => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to edit termination benefits.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can edit termination benefits.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (benefit.status !== "draft") return;
     setSelectedBenefit(benefit);
     setFormData({
       name: benefit.name,
@@ -320,13 +347,15 @@ export function TerminationBenefits() {
             Manage termination and resignation compensation and benefits terms.
           </p>
         </div>
-        <button
-          onClick={handleAddBenefit}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Benefit
-        </button>
+        {isPayrollSpecialist && (
+          <button
+            onClick={handleAddBenefit}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Benefit
+          </button>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -420,23 +449,27 @@ export function TerminationBenefits() {
                       </button>
                       {benefit.status === "draft" && (
                         <>
-                          <button
-                            onClick={() => handleEditBenefit(benefit)}
-                            className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBenefit(benefit)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollSpecialist && (
+                            <button
+                              onClick={() => handleEditBenefit(benefit)}
+                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {isPayrollManager && (
+                            <button
+                              onClick={() => handleDeleteBenefit(benefit)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
-                      {isPayrollManager && benefit.status === "draft" && (
+                      {isPayrollManager && benefit.status !== "approved" && (
                         <button
                           onClick={() =>
                             handleChangeStatus(benefit._id, benefit.status)

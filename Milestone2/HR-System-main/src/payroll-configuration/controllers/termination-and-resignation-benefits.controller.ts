@@ -47,7 +47,7 @@ export class TerminationAndResignationBenefitsController {
   }
 
   @Delete(':id')
-  @Roles('Payroll Specialist') // Only Payroll Specialist can delete
+  @Roles('Payroll Manager') // Only Payroll Manager can delete
   remove(@Param('id') id: string) {
     return this.service.remove(id);
   }

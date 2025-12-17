@@ -59,6 +59,7 @@ export function PayrollPolicies() {
 
   // Role checking
   const [isPayrollManager, setIsPayrollManager] = useState(false);
+  const [isPayrollSpecialist, setIsPayrollSpecialist] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const roles = useMemo(() => user?.roles || [], [user]);
 
@@ -77,6 +78,7 @@ export function PayrollPolicies() {
 
   useEffect(() => {
     setIsPayrollManager(roles.includes("Payroll Manager"));
+    setIsPayrollSpecialist(roles.includes("Payroll Specialist"));
   }, [roles]);
 
   useEffect(() => {
@@ -104,6 +106,18 @@ export function PayrollPolicies() {
   };
 
   const handleAddPolicy = () => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to create payroll policies.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can create payroll policies.");
+      setMessageModalOpen(true);
+      return;
+    }
     setSelectedPolicy(null);
     setFormData({
       policyName: "",
@@ -121,6 +135,19 @@ export function PayrollPolicies() {
   };
 
   const handleEditPolicy = (policy: PayrollPolicy) => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to edit payroll policies.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can edit payroll policies.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (policy.status !== "draft") return;
     setSelectedPolicy(policy);
     setFormData({
       policyName: policy.policyName,
@@ -213,6 +240,18 @@ export function PayrollPolicies() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to modify payroll policies.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isPayrollSpecialist) {
+      setMessageType("error");
+      setMessageText("Only Payroll Specialists can modify payroll policies.");
+      setMessageModalOpen(true);
+      return;
+    }
     setIsSaving(true);
 
     try {
@@ -268,21 +307,21 @@ export function PayrollPolicies() {
       filterStatus === "all" || policy.status === filterStatus;
     return matchesSearch && matchesType && matchesStatus;
   });
-// const filteredPolicies = policies.filter((policy) => {
-//   const policyName = policy.policyName ?? "";
+  // const filteredPolicies = policies.filter((policy) => {
+  //   const policyName = policy.policyName ?? "";
 
-//   const matchesSearch = policyName
-//     .toLowerCase()
-//     .includes(searchTerm.toLowerCase());
+  //   const matchesSearch = policyName
+  //     .toLowerCase()
+  //     .includes(searchTerm.toLowerCase());
 
-//   const matchesType =
-//     filterType === "all" || policy.policyType === filterType;
+  //   const matchesType =
+  //     filterType === "all" || policy.policyType === filterType;
 
-//   const matchesStatus =
-//     filterStatus === "all" || policy.status === filterStatus;
+  //   const matchesStatus =
+  //     filterStatus === "all" || policy.status === filterStatus;
 
-//   return matchesSearch && matchesType && matchesStatus;
-// });
+  //   return matchesSearch && matchesType && matchesStatus;
+  // });
 
   const policyTypes = [
     { value: "Misconduct", label: "Misconduct" },
@@ -317,13 +356,15 @@ export function PayrollPolicies() {
             Manage misconduct penalties and other payroll policies.
           </p>
         </div>
-        <button
-          onClick={handleAddPolicy}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Policy
-        </button>
+        {isPayrollSpecialist && (
+          <button
+            onClick={handleAddPolicy}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Policy
+          </button>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -440,13 +481,15 @@ export function PayrollPolicies() {
                       </button>
                       {policy.status === "draft" && (
                         <>
-                          <button
-                            onClick={() => handleEditPolicy(policy)}
-                            className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollSpecialist && (
+                            <button
+                              onClick={() => handleEditPolicy(policy)}
+                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
                           {isPayrollManager && (
                             <button
                               onClick={() =>
@@ -458,13 +501,15 @@ export function PayrollPolicies() {
                               ✓
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDeletePolicy(policy._id)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollManager && (
+                            <button
+                              onClick={() => handleDeletePolicy(policy._id)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                       {policy.status === "rejected" && isPayrollManager && (
