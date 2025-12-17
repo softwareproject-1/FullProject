@@ -386,13 +386,25 @@ export default function PayGrades() {
     setMessageModalOpen(true);
   };
 
-  const filteredPayGrades = payGrades.filter((pg) => {
-    const matchesSearch = pg.grade
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === "all" || pg.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
+  // const filteredPayGrades = payGrades.filter((pg) => {
+  //   const matchesSearch = pg.grade
+  //     .toLowerCase()
+  //     .includes(searchTerm.toLowerCase());
+  //   const matchesStatus = filterStatus === "all" || pg.status === filterStatus;
+  //   return matchesSearch && matchesStatus;
+  // });
+const filteredPayGrades = payGrades.filter((pg) => {
+  const grade = pg.grade ?? "";
+
+  const matchesSearch = grade
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase());
+
+  const matchesStatus =
+    filterStatus === "all" || pg.status === filterStatus;
+
+  return matchesSearch && matchesStatus;
+});
 
   const getStatusBadge = (status: ConfigStatus) => {
     const styles = {
@@ -523,7 +535,8 @@ export default function PayGrades() {
                           : "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap font-semibold text-slate-900">
-                        ${pg.grossSalary.toLocaleString()}
+                       ${(pg.grossSalary ?? 0).toLocaleString()}
+
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(pg.status)}

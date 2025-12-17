@@ -148,7 +148,7 @@ export interface PayGrade {
   grade: string;
   baseSalary: number;
   grossSalary: number;
-  //allowances?: Allowance[];
+  allowances?: Allowance[];
   status: ConfigStatus;
   createdBy?: string;
   approvedBy?: string;
