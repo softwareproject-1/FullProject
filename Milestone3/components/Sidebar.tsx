@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
   { name: 'Time Management', href: '/time-management', icon: <Clock className="w-5 h-5" /> },
   { name: 'Recruitment', href: '/recruitment', icon: <UserPlus className="w-5 h-5" />, roles: ['System Admin', 'HR Manager', 'Recruiter'] },
   { name: 'Leaves', href: '/leaves', icon: <Calendar className="w-5 h-5" /> },
+  { name: 'Payroll Execution', href: '/payroll-execution', icon: <DollarSign className="w-5 h-5" /> },
   { name: 'Payroll', href: '/payroll', icon: <DollarSign className="w-5 h-5" /> },
 ];
 
