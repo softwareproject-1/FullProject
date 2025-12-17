@@ -134,31 +134,67 @@ export function PayrollPolicies() {
     setIsModalOpen(true);
   };
 
+  // const handleEditPolicy = (policy: PayrollPolicy) => {
+  //   if (!user) {
+  //     setMessageType("error");
+  //     setMessageText("You must be logged in to edit payroll policies.");
+  //     setMessageModalOpen(true);
+  //     return;
+  //   }
+  //   if (!isPayrollSpecialist) {
+  //     setMessageType("error");
+  //     setMessageText("Only Payroll Specialists can edit payroll policies.");
+  //     setMessageModalOpen(true);
+  //     return;
+  //   }
+  //   if (policy.status !== "draft") return;
+  //   setSelectedPolicy(policy);
+  //   setFormData({
+  //     policyName: policy.policyName,
+  //     policyType: policy.policyType,
+  //     description: policy.description,
+  //     effectiveDate: policy.effectiveDate,
+  //     ruleDefinition: policy.ruleDefinition,
+  //     applicability: policy.applicability,
+  //   });
+  //   setIsModalOpen(true);
+  // };
   const handleEditPolicy = (policy: PayrollPolicy) => {
-    if (!user) {
-      setMessageType("error");
-      setMessageText("You must be logged in to edit payroll policies.");
-      setMessageModalOpen(true);
-      return;
-    }
-    if (!isPayrollSpecialist) {
-      setMessageType("error");
-      setMessageText("Only Payroll Specialists can edit payroll policies.");
-      setMessageModalOpen(true);
-      return;
-    }
-    if (policy.status !== "draft") return;
-    setSelectedPolicy(policy);
-    setFormData({
-      policyName: policy.policyName,
-      policyType: policy.policyType,
-      description: policy.description,
-      effectiveDate: policy.effectiveDate,
-      ruleDefinition: policy.ruleDefinition,
-      applicability: policy.applicability,
-    });
-    setIsModalOpen(true);
-  };
+  if (!user) {
+    setMessageType("error");
+    setMessageText("You must be logged in to edit payroll policies.");
+    setMessageModalOpen(true);
+    return;
+  }
+  if (!isPayrollSpecialist) {
+    setMessageType("error");
+    setMessageText("Only Payroll Specialists can edit payroll policies.");
+    setMessageModalOpen(true);
+    return;
+  }
+  if (policy.status !== "draft") return;
+
+  setSelectedPolicy(policy);
+
+  // Map only the fields we care about from ruleDefinition
+  const { percentage, fixedAmount, thresholdAmount } = policy.ruleDefinition;
+
+  setFormData({
+    policyName: policy.policyName,
+    policyType: policy.policyType,
+    description: policy.description,
+    effectiveDate: policy.effectiveDate,
+    ruleDefinition: {
+      percentage,
+      fixedAmount,
+      thresholdAmount,
+    },
+    applicability: policy.applicability,
+  });
+
+  setIsModalOpen(true);
+};
+
 
   const handleViewPolicy = (policy: PayrollPolicy) => {
     setSelectedPolicy(policy);
@@ -238,64 +274,138 @@ export function PayrollPolicies() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      setMessageType("error");
-      setMessageText("You must be logged in to modify payroll policies.");
-      setMessageModalOpen(true);
-      return;
-    }
-    if (!isPayrollSpecialist) {
-      setMessageType("error");
-      setMessageText("Only Payroll Specialists can modify payroll policies.");
-      setMessageModalOpen(true);
-      return;
-    }
-    setIsSaving(true);
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!user) {
+  //     setMessageType("error");
+  //     setMessageText("You must be logged in to modify payroll policies.");
+  //     setMessageModalOpen(true);
+  //     return;
+  //   }
+  //   if (!isPayrollSpecialist) {
+  //     setMessageType("error");
+  //     setMessageText("Only Payroll Specialists can modify payroll policies.");
+  //     setMessageModalOpen(true);
+  //     return;
+  //   }
+  //   setIsSaving(true);
 
-    try {
-      if (selectedPolicy?._id) {
-        const result = await updatePayrollPolicy(selectedPolicy._id, formData);
-        if (result.data) {
-          setPolicies(
-            policies.map((p) =>
-              p._id === selectedPolicy._id ? result.data! : p
-            )
-          );
-          setIsModalOpen(false);
-          setSelectedPolicy(null);
-          setMessageType("success");
-          setMessageText("Policy updated successfully!");
-          setMessageModalOpen(true);
-        } else {
-          setMessageType("error");
-          setMessageText(`Error: ${result.error || "Failed to update policy"}`);
-          setMessageModalOpen(true);
-        }
+  //   try {
+  //     if (selectedPolicy?._id) {
+  //       const result = await updatePayrollPolicy(selectedPolicy._id, formData);
+  //       if (result.data) {
+  //         setPolicies(
+  //           policies.map((p) =>
+  //             p._id === selectedPolicy._id ? result.data! : p
+  //           )
+  //         );
+  //         setIsModalOpen(false);
+  //         setSelectedPolicy(null);
+  //         setMessageType("success");
+  //         setMessageText("Policy updated successfully!");
+  //         setMessageModalOpen(true);
+  //       } else {
+  //         setMessageType("error");
+  //         setMessageText(`Error: ${result.error || "Failed to update policy"}`);
+  //         setMessageModalOpen(true);
+  //       }
+  //     } else {
+  //       const result = await createPayrollPolicy(formData);
+  //       if (result.data) {
+  //         setPolicies([...policies, result.data]);
+  //         setIsModalOpen(false);
+  //         setMessageType("success");
+  //         setMessageText("Policy created successfully!");
+  //         setMessageModalOpen(true);
+  //       } else {
+  //         setMessageType("error");
+  //         setMessageText(`Error: ${result.error || "Failed to create policy"}`);
+  //         setMessageModalOpen(true);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error saving policy:", error);
+  //     setMessageType("error");
+  //     setMessageText("An unexpected error occurred. Please try again.");
+  //     setMessageModalOpen(true);
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!user) {
+    setMessageType("error");
+    setMessageText("You must be logged in to modify payroll policies.");
+    setMessageModalOpen(true);
+    return;
+  }
+  if (!isPayrollSpecialist) {
+    setMessageType("error");
+    setMessageText("Only Payroll Specialists can modify payroll policies.");
+    setMessageModalOpen(true);
+    return;
+  }
+  setIsSaving(true);
+
+  try {
+    // Prepare a clean DTO without extra fields
+    const dto = {
+      policyName: formData.policyName,
+      policyType: formData.policyType,
+      description: formData.description,
+      effectiveDate: formData.effectiveDate,
+      ruleDefinition: {
+        percentage: formData.ruleDefinition.percentage,
+        fixedAmount: formData.ruleDefinition.fixedAmount,
+        thresholdAmount: formData.ruleDefinition.thresholdAmount,
+      },
+      applicability: formData.applicability,
+    };
+
+    if (selectedPolicy?._id) {
+      // Update existing policy
+      const result = await updatePayrollPolicy(selectedPolicy._id, dto);
+      if (result.data) {
+        setPolicies(
+          policies.map((p) =>
+            p._id === selectedPolicy._id ? result.data! : p
+          )
+        );
+        setIsModalOpen(false);
+        setSelectedPolicy(null);
+        setMessageType("success");
+        setMessageText("Policy updated successfully!");
+        setMessageModalOpen(true);
       } else {
-        const result = await createPayrollPolicy(formData);
-        if (result.data) {
-          setPolicies([...policies, result.data]);
-          setIsModalOpen(false);
-          setMessageType("success");
-          setMessageText("Policy created successfully!");
-          setMessageModalOpen(true);
-        } else {
-          setMessageType("error");
-          setMessageText(`Error: ${result.error || "Failed to create policy"}`);
-          setMessageModalOpen(true);
-        }
+        setMessageType("error");
+        setMessageText(`Error: ${result.error || "Failed to update policy"}`);
+        setMessageModalOpen(true);
       }
-    } catch (error) {
-      console.error("Error saving policy:", error);
-      setMessageType("error");
-      setMessageText("An unexpected error occurred. Please try again.");
-      setMessageModalOpen(true);
-    } finally {
-      setIsSaving(false);
+    } else {
+      // Create new policy
+      const result = await createPayrollPolicy(dto);
+      if (result.data) {
+        setPolicies([...policies, result.data]);
+        setIsModalOpen(false);
+        setMessageType("success");
+        setMessageText("Policy created successfully!");
+        setMessageModalOpen(true);
+      } else {
+        setMessageType("error");
+        setMessageText(`Error: ${result.error || "Failed to create policy"}`);
+        setMessageModalOpen(true);
+      }
     }
-  };
+  } catch (error) {
+    console.error("Error saving policy:", error);
+    setMessageType("error");
+    setMessageText("An unexpected error occurred. Please try again.");
+    setMessageModalOpen(true);
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const filteredPolicies = policies.filter((policy) => {
     const matchesSearch = policy.policyName
@@ -598,11 +708,16 @@ export function PayrollPolicies() {
                 Effective Date
               </label>
               <input
-                type="date"
-                value={formData.effectiveDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, effectiveDate: e.target.value })
-                }
+  type="date"
+  value={
+    formData.effectiveDate
+      ? new Date(formData.effectiveDate).toISOString().split("T")[0]
+      : ""
+  }
+  onChange={(e) =>
+    setFormData({ ...formData, effectiveDate: e.target.value })
+  }
+  min={new Date().toISOString().split("T")[0]} // today is always minimum
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />

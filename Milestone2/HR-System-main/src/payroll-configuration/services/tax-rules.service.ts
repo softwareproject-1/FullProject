@@ -37,6 +37,8 @@ export class TaxRulesService {
     });
     return created.save();
   }
+  
+
   async findAll() {
     return this.model.find().exec();
   }
