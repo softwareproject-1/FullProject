@@ -57,7 +57,7 @@ export function TaxRules() {
   const { user, loading: authLoading } = useAuth();
   const roles = useMemo(() => user?.roles || [], [user]);
   const isPayrollManager = roles.includes("Payroll Manager");
-  const isPayrollSpecialist = roles.includes("Payroll Specialist");
+  const isLegalPolicyAdmin = roles.includes("Legal & Policy Admin");
 
   const [formData, setFormData] = useState<CreateTaxRuleDto>({
     name: "",
@@ -68,6 +68,18 @@ export function TaxRules() {
     thresholdAmount: 0,
     brackets: [],
   });
+
+  const rateFieldLabel =
+    formData.taxType === "Progressive Brackets"
+      ? "Base Rate (%) *"
+      : "Rate (%) *";
+  const showExemptionField = formData.taxType === "Flat Rate with Exemption";
+  const showProgressiveFields = formData.taxType === "Progressive Brackets";
+
+  const formatCurrency = (value?: number) =>
+    typeof value === "number" ? `$${value.toLocaleString()}` : "N/A";
+  const formatDateTime = (value?: string) =>
+    value ? new Date(value).toLocaleString() : "N/A";
 
   useEffect(() => {
     if (authLoading) return;
@@ -94,6 +106,18 @@ export function TaxRules() {
   };
 
   const handleAddTaxRule = () => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to manage tax rules.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isLegalPolicyAdmin) {
+      setMessageType("error");
+      setMessageText("Only Legal & Policy Admin can create tax rules.");
+      setMessageModalOpen(true);
+      return;
+    }
     setSelectedTaxRule(null);
     setFormData({
       name: "",
@@ -108,6 +132,18 @@ export function TaxRules() {
   };
 
   const handleEditTaxRule = (taxRule: TaxRule) => {
+    if (!user) {
+      setMessageType("error");
+      setMessageText("You must be logged in to manage tax rules.");
+      setMessageModalOpen(true);
+      return;
+    }
+    if (!isLegalPolicyAdmin) {
+      setMessageType("error");
+      setMessageText("Only Legal & Policy Admin can edit tax rules.");
+      setMessageModalOpen(true);
+      return;
+    }
     setSelectedTaxRule(taxRule);
     setFormData({
       name: taxRule.name,
@@ -233,11 +269,61 @@ export function TaxRules() {
       setMessageModalOpen(true);
       return;
     }
-    if (!isPayrollSpecialist) {
+    if (!isLegalPolicyAdmin) {
       setMessageType("error");
-      setMessageText("You do not have permission to modify tax rules.");
+      setMessageText("Only Legal & Policy Admin can modify tax rules.");
       setMessageModalOpen(true);
       return;
+    }
+
+    if (formData.rate < 0) {
+      setMessageType("error");
+      setMessageText("Rate must be greater than or equal to 0.");
+      setMessageModalOpen(true);
+      return;
+    }
+
+    if (
+      formData.taxType === "Flat Rate with Exemption" &&
+      typeof formData.exemptionAmount === "number" &&
+      formData.exemptionAmount < 0
+    ) {
+      setMessageType("error");
+      setMessageText("Exemption amount must be greater than or equal to 0.");
+      setMessageModalOpen(true);
+      return;
+    }
+
+    if (formData.taxType === "Progressive Brackets") {
+      if (!formData.brackets || formData.brackets.length === 0) {
+        setMessageType("error");
+        setMessageText("Progressive tax rules require at least one bracket.");
+        setMessageModalOpen(true);
+        return;
+      }
+
+      const invalidBracket = formData.brackets.some(
+        (bracket) =>
+          bracket.minIncome < 0 ||
+          bracket.maxIncome <= bracket.minIncome ||
+          bracket.rate < 0
+      );
+
+      if (invalidBracket) {
+        setMessageType("error");
+        setMessageText(
+          "Each bracket must have non-negative values and max income must exceed min income."
+        );
+        setMessageModalOpen(true);
+        return;
+      }
+
+      if ((formData.thresholdAmount || 0) < 0) {
+        setMessageType("error");
+        setMessageText("Threshold amount must be greater than or equal to 0.");
+        setMessageModalOpen(true);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -297,19 +383,18 @@ export function TaxRules() {
       filterStatus === "all" || taxRule.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
-//   const filteredTaxRules = taxRules.filter((taxRule) => {
-//   const name = taxRule.name ?? "";
+  //   const filteredTaxRules = taxRules.filter((taxRule) => {
+  //   const name = taxRule.name ?? "";
 
-//   const matchesSearch = name
-//     .toLowerCase()
-//     .includes(searchTerm.toLowerCase());
+  //   const matchesSearch = name
+  //     .toLowerCase()
+  //     .includes(searchTerm.toLowerCase());
 
-//   const matchesStatus =
-//     filterStatus === "all" || taxRule.status === filterStatus;
+  //   const matchesStatus =
+  //     filterStatus === "all" || taxRule.status === filterStatus;
 
-//   return matchesSearch && matchesStatus;
-// });
-
+  //   return matchesSearch && matchesStatus;
+  // });
 
   const statusBadgeColor = (status: string) => {
     switch (status) {
@@ -334,13 +419,15 @@ export function TaxRules() {
             Manage tax calculation rules and rates.
           </p>
         </div>
-        <button
-          onClick={handleAddTaxRule}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add Tax Rule
-        </button>
+        {isLegalPolicyAdmin && (
+          <button
+            onClick={handleAddTaxRule}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            Add Tax Rule
+          </button>
+        )}
       </div>
 
       {/* Search and Filter */}
@@ -434,13 +521,15 @@ export function TaxRules() {
                       </button>
                       {taxRule.status === "draft" && (
                         <>
-                          <button
-                            onClick={() => handleEditTaxRule(taxRule)}
-                            className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          {isLegalPolicyAdmin && (
+                            <button
+                              onClick={() => handleEditTaxRule(taxRule)}
+                              className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
                           {isPayrollManager && (
                             <button
                               onClick={() =>
@@ -452,13 +541,15 @@ export function TaxRules() {
                               ✓
                             </button>
                           )}
-                          <button
-                            onClick={() => handleDeleteTaxRule(taxRule._id)}
-                            className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isPayrollManager && (
+                            <button
+                              onClick={() => handleDeleteTaxRule(taxRule._id)}
+                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </>
                       )}
                       {taxRule.status === "rejected" && isPayrollManager && (
@@ -545,69 +636,47 @@ export function TaxRules() {
               </select>
             </div>
 
-            {formData.taxType === "Single Rate" && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                {rateFieldLabel}
+              </label>
+              <input
+                type="number"
+                value={formData.rate}
+                onChange={(e) =>
+                  setFormData({ ...formData, rate: Number(e.target.value) })
+                }
+                placeholder="0"
+                step="0.01"
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            {showExemptionField && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Rate (%) *
+                  Exemption Amount
                 </label>
                 <input
                   type="number"
-                  value={formData.rate}
+                  value={formData.exemptionAmount || 0}
                   onChange={(e) =>
-                    setFormData({ ...formData, rate: Number(e.target.value) })
+                    setFormData({
+                      ...formData,
+                      exemptionAmount: Number(e.target.value),
+                    })
                   }
                   placeholder="0"
-                  step="0.01"
                   min="0"
-                  max="100"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
                 />
               </div>
             )}
 
-            {formData.taxType === "Flat Rate with Exemption" && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Rate (%) *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.rate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, rate: Number(e.target.value) })
-                    }
-                    placeholder="0"
-                    step="0.01"
-                    min="0"
-                    max="100"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Exemption Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.exemptionAmount || 0}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        exemptionAmount: Number(e.target.value),
-                      })
-                    }
-                    placeholder="0"
-                    min="0"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </>
-            )}
-
-            {formData.taxType === "Progressive Brackets" && (
+            {showProgressiveFields && (
               <>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -645,6 +714,7 @@ export function TaxRules() {
                             setFormData({ ...formData, brackets: newBrackets });
                           }}
                           placeholder="Min Income"
+                          min="0"
                           className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <input
@@ -658,6 +728,7 @@ export function TaxRules() {
                             setFormData({ ...formData, brackets: newBrackets });
                           }}
                           placeholder="Max Income"
+                          min="0"
                           className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <input
@@ -670,6 +741,8 @@ export function TaxRules() {
                           }}
                           placeholder="Rate %"
                           step="0.01"
+                          min="0"
+                          max="100"
                           className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <button
@@ -753,36 +826,30 @@ export function TaxRules() {
                 {selectedTaxRule.taxType}
               </p>
             </div>
-            {selectedTaxRule.taxType === "Single Rate" && (
+            <div>
+              <p className="text-sm text-slate-600">
+                {selectedTaxRule.taxType === "Progressive Brackets"
+                  ? "Base Rate"
+                  : "Rate"}
+              </p>
+              <p className="font-medium text-slate-900">
+                {selectedTaxRule.rate}%
+              </p>
+            </div>
+            {selectedTaxRule.taxType === "Flat Rate with Exemption" && (
               <div>
-                <p className="text-sm text-slate-600">Rate</p>
+                <p className="text-sm text-slate-600">Exemption Amount</p>
                 <p className="font-medium text-slate-900">
-                  {selectedTaxRule.rate}%
+                  {formatCurrency(selectedTaxRule.exemptionAmount)}
                 </p>
               </div>
-            )}
-            {selectedTaxRule.taxType === "Flat Rate with Exemption" && (
-              <>
-                <div>
-                  <p className="text-sm text-slate-600">Rate</p>
-                  <p className="font-medium text-slate-900">
-                    {selectedTaxRule.rate}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-600">Exemption Amount</p>
-                  <p className="font-medium text-slate-900">
-                    ${selectedTaxRule.exemptionAmount?.toLocaleString() || 0}
-                  </p>
-                </div>
-              </>
             )}
             {selectedTaxRule.taxType === "Progressive Brackets" && (
               <>
                 <div>
                   <p className="text-sm text-slate-600">Threshold Amount</p>
                   <p className="font-medium text-slate-900">
-                    ${selectedTaxRule.thresholdAmount?.toLocaleString() || 0}
+                    {formatCurrency(selectedTaxRule.thresholdAmount)}
                   </p>
                 </div>
                 <div>
@@ -794,8 +861,8 @@ export function TaxRules() {
                         className="bg-slate-50 p-3 rounded-lg text-sm"
                       >
                         <p>
-                          ${bracket.minIncome.toLocaleString()} - $
-                          {bracket.maxIncome.toLocaleString()}: {bracket.rate}%
+                          {formatCurrency(bracket.minIncome)} -{" "}
+                          {formatCurrency(bracket.maxIncome)}: {bracket.rate}%
                         </p>
                       </div>
                     ))}
@@ -813,6 +880,35 @@ export function TaxRules() {
                 {selectedTaxRule.status.charAt(0).toUpperCase() +
                   selectedTaxRule.status.slice(1)}
               </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <p className="text-sm text-slate-600">Created By</p>
+                <p className="text-slate-900">
+                  {selectedTaxRule.createdByName ||
+                    selectedTaxRule.createdBy ||
+                    "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-600">Created At</p>
+                <p className="text-slate-900">
+                  {formatDateTime(selectedTaxRule.createdAt)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-600">Approved By</p>
+                <p className="text-slate-900">
+                  {selectedTaxRule.approvedBy || "N/A"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-600">Approved At</p>
+                <p className="text-slate-900">
+                  {formatDateTime(selectedTaxRule.approvedAt)}
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end pt-4">
