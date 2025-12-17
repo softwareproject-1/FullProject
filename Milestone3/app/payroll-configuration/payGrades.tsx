@@ -386,25 +386,25 @@ export default function PayGrades() {
     setMessageModalOpen(true);
   };
 
-  // const filteredPayGrades = payGrades.filter((pg) => {
-  //   const matchesSearch = pg.grade
-  //     .toLowerCase()
-  //     .includes(searchTerm.toLowerCase());
-  //   const matchesStatus = filterStatus === "all" || pg.status === filterStatus;
-  //   return matchesSearch && matchesStatus;
-  // });
-const filteredPayGrades = payGrades.filter((pg) => {
-  const grade = pg.grade ?? "";
+  const filteredPayGrades = payGrades.filter((pg) => {
+    const matchesSearch = pg.grade
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === "all" || pg.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+// const filteredPayGrades = payGrades.filter((pg) => {
+//   const grade = pg.grade ?? "";
 
-  const matchesSearch = grade
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+//   const matchesSearch = grade
+//     .toLowerCase()
+//     .includes(searchTerm.toLowerCase());
 
-  const matchesStatus =
-    filterStatus === "all" || pg.status === filterStatus;
+//   const matchesStatus =
+//     filterStatus === "all" || pg.status === filterStatus;
 
-  return matchesSearch && matchesStatus;
-});
+//   return matchesSearch && matchesStatus;
+// });
 
   const getStatusBadge = (status: ConfigStatus) => {
     const styles = {

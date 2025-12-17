@@ -390,17 +390,12 @@ export default function InsuranceBrackets() {
 
   // ----- FILTER -----
   const filteredBrackets = brackets.filter((b) => {
-  const name = b.name ?? "";
-
-  const matchesSearch = name
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
-
-  const matchesStatus =
-    filterStatus === "all" || b.status === filterStatus;
-
-  return matchesSearch && matchesStatus;
-});
+    const matchesSearch = b.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === "all" || b.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div className="space-y-6">

@@ -289,26 +289,26 @@ export function TaxRules() {
     }
   };
 
-  // const filteredTaxRules = taxRules.filter((taxRule) => {
-  //   const matchesSearch = taxRule.name
-  //     .toLowerCase()
-  //     .includes(searchTerm.toLowerCase());
-  //   const matchesStatus =
-  //     filterStatus === "all" || taxRule.status === filterStatus;
-  //   return matchesSearch && matchesStatus;
-  // });
   const filteredTaxRules = taxRules.filter((taxRule) => {
-  const name = taxRule.name ?? "";
+    const matchesSearch = taxRule.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      filterStatus === "all" || taxRule.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+//   const filteredTaxRules = taxRules.filter((taxRule) => {
+//   const name = taxRule.name ?? "";
 
-  const matchesSearch = name
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+//   const matchesSearch = name
+//     .toLowerCase()
+//     .includes(searchTerm.toLowerCase());
 
-  const matchesStatus =
-    filterStatus === "all" || taxRule.status === filterStatus;
+//   const matchesStatus =
+//     filterStatus === "all" || taxRule.status === filterStatus;
 
-  return matchesSearch && matchesStatus;
-});
+//   return matchesSearch && matchesStatus;
+// });
 
 
   const statusBadgeColor = (status: string) => {

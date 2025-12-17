@@ -258,31 +258,31 @@ export function PayrollPolicies() {
     }
   };
 
-  // const filteredPolicies = policies.filter((policy) => {
-  //   const matchesSearch = policy.policyName
-  //     .toLowerCase()
-  //     .includes(searchTerm.toLowerCase());
-  //   const matchesType =
-  //     filterType === "all" || policy.policyType === filterType;
-  //   const matchesStatus =
-  //     filterStatus === "all" || policy.status === filterStatus;
-  //   return matchesSearch && matchesType && matchesStatus;
-  // });
-const filteredPolicies = policies.filter((policy) => {
-  const policyName = policy.policyName ?? "";
+  const filteredPolicies = policies.filter((policy) => {
+    const matchesSearch = policy.policyName
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesType =
+      filterType === "all" || policy.policyType === filterType;
+    const matchesStatus =
+      filterStatus === "all" || policy.status === filterStatus;
+    return matchesSearch && matchesType && matchesStatus;
+  });
+// const filteredPolicies = policies.filter((policy) => {
+//   const policyName = policy.policyName ?? "";
 
-  const matchesSearch = policyName
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+//   const matchesSearch = policyName
+//     .toLowerCase()
+//     .includes(searchTerm.toLowerCase());
 
-  const matchesType =
-    filterType === "all" || policy.policyType === filterType;
+//   const matchesType =
+//     filterType === "all" || policy.policyType === filterType;
 
-  const matchesStatus =
-    filterStatus === "all" || policy.status === filterStatus;
+//   const matchesStatus =
+//     filterStatus === "all" || policy.status === filterStatus;
 
-  return matchesSearch && matchesType && matchesStatus;
-});
+//   return matchesSearch && matchesType && matchesStatus;
+// });
 
   const policyTypes = [
     { value: "Misconduct", label: "Misconduct" },
