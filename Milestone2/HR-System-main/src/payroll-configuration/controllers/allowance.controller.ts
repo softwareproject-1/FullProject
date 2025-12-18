@@ -12,12 +12,11 @@ import {
 import { AllowanceService } from '../services/allowance.service';
 import { CreateAllowanceDto } from '../dtos/allowance/create-allowance.dto';
 import { UpdateAllowanceDto } from '../dtos/allowance/update-allowance.dto';
-import { Roles } from '../../auth/decorators/roles.decorator'; // import from auth
-import { RolesGuard } from '../../auth/guards/roles.guard'; // import from auth
-import { AuthGuard } from '@nestjs/passport'; // JWT auth
+import { AuthenticationGuard } from '../../auth/guards/authentication.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
 @Controller('allowances')
-@UseGuards(AuthGuard('jwt'), RolesGuard) // apply auth + roles guard to all routes
-
+@UseGuards(AuthenticationGuard, RolesGuard) // apply auth + roles guard to all routes
 export class AllowanceController {
   constructor(private readonly service: AllowanceService) {}
 
@@ -44,8 +43,17 @@ export class AllowanceController {
   }
 
   @Delete(':id')
-   @Roles('Payroll Specialist')
+  @Roles('Payroll Manager')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+
+  @Patch(':id/status')
+  @Roles('Payroll Manager')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: 'approved' | 'rejected' },
+  ) {
+    return this.service.updateStatus(id, body.status);
   }
 }

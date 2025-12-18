@@ -12,19 +12,17 @@ import {
 import { TaxRulesService } from '../services/tax-rules.service';
 import { CreateTaxRuleDto } from '../dtos/tax-rules/create-tax-rule.dto';
 import { UpdateTaxRuleDto } from '../dtos/tax-rules/update-tax-rule.dto';
-import { Roles } from '../../auth/decorators/roles.decorator'; // import from auth
-import { RolesGuard } from '../../auth/guards/roles.guard'; // import from auth
-import { AuthGuard } from '@nestjs/passport'; // JWT auth
-
+import { AuthenticationGuard } from '../../auth/guards/authentication.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { ConfigStatus } from '../enums/payroll-configuration-enums';
 @Controller('tax-rules')
-@UseGuards(AuthGuard('jwt'), RolesGuard) // apply auth + roles guard to all routes
-
-@UseGuards(AuthGuard('jwt'), RolesGuard) // apply auth + roles guard to all routes
+@UseGuards(AuthenticationGuard, RolesGuard)
 export class TaxRulesController {
   constructor(private readonly service: TaxRulesService) {}
 
   @Post()
-    @Roles('Legal & Policy Admin') // Only Legal Admin can create
+  @Roles('Legal & Policy Admin') // Only Legal Admin can create
   create(@Body() dto: CreateTaxRuleDto) {
     return this.service.create(dto);
   }
@@ -46,8 +44,16 @@ export class TaxRulesController {
   }
 
   @Delete(':id')
-  @Roles('Legal & Policy Admin') // Only Legal Admin can delete
+  @Roles('Payroll Manager') // Only Legal Admin can delete
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+  @Patch(':id/status')
+  @Roles('Payroll Manager')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: ConfigStatus.APPROVED | ConfigStatus.REJECTED },
+  ) {
+    return this.service.updateStatus(id, body.status);
   }
 }

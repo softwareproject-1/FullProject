@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { taxRules } from '../models/taxRules.schema';
@@ -11,6 +15,7 @@ import {
 } from '../helpers/response-message';
 
 export type TaxRuleDocument = Document & any;
+import { ConfigStatus } from '../enums/payroll-configuration-enums';
 
 @Injectable()
 export class TaxRulesService {
@@ -22,13 +27,18 @@ export class TaxRulesService {
   //   const created = new this.model(dto);
   //   return created.save();
   // }
-async create(dto: CreateTaxRuleDto) {
-  // Validate that only allowed fields are in the DTO
-  const safeDto = strictUpdate(dto, this.model);
+  async create(dto: CreateTaxRuleDto) {
+    // Validate that only allowed fields are in the DTO
+    const safeDto = strictUpdate(dto, this.model);
 
-  const created = new this.model(safeDto);
-  return created.save();
-}
+    const created = new this.model({
+      ...safeDto,
+      status: 'draft', // enforce workflow rule
+    });
+    return created.save();
+  }
+  
+
   async findAll() {
     return this.model.find().exec();
   }
@@ -40,6 +50,15 @@ async create(dto: CreateTaxRuleDto) {
   }
 
   async update(id: string, dto: UpdateTaxRuleDto) {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException('tax rule not found');
+
+    // Workflow rule: cannot update if not draft
+    if (doc.status !== 'draft') {
+      throw new BadRequestException(
+        `Cannot update tax rule  because it is already ${doc.status}. Only draft tax rules can be updated.`,
+      );
+    }
     const safeDto = strictUpdate(dto, this.model);
 
     const updated = await this.model
@@ -54,11 +73,42 @@ async create(dto: CreateTaxRuleDto) {
   }
 
   async remove(id: string) {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException('Tax rule not found');
+
+    // Workflow rule: cannot delete if not draft
+    if (doc.status !== 'draft') {
+      throw new BadRequestException(
+        `Cannot delete tax rule because it is already ${doc.status}. Only draft tax rules can be deleted.`,
+      );
+    }
+
     const removed = await this.model.findByIdAndDelete(id).exec();
-    if (!removed) throw new NotFoundException('Tax rule not found');
     return {
       message: buildDeleteMessage('tax rule'),
       data: removed,
     };
+  }
+
+  // STATUS UPDATE → Payroll Manager ONLY
+  async updateStatus(
+    id: string,
+    status: ConfigStatus.APPROVED | ConfigStatus.REJECTED,
+  ) {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException('tax rule not found');
+
+    // Allowed transitions:
+    // draft → approved
+    // draft → rejected
+    // rejected → approved (resubmission scenario)
+    if (![ConfigStatus.DRAFT, ConfigStatus.REJECTED].includes(doc.status)) {
+      throw new BadRequestException(
+        `Cannot change status because tax rule is currently '${doc.status}'. Only draft or rejected tax rules can be modified.`,
+      );
+    }
+
+    doc.status = status;
+    return doc.save();
   }
 }

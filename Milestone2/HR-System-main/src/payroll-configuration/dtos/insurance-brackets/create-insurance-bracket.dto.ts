@@ -12,9 +12,9 @@ export class CreateInsuranceBracketDto {
   @IsString()
   name: string;
 
-  @IsNumber()
-  @Min(0)
-  amount: number;
+  // @IsNumber()
+  // @Min(0)
+  // amount: number;
 
   @IsNumber()
   minSalary: number;
@@ -32,7 +32,7 @@ export class CreateInsuranceBracketDto {
   @Max(100)
   employerRate: number;
 
-  @IsOptional()
-  @IsEnum(ConfigStatus)
-  status?: ConfigStatus;
+  // @IsOptional()
+  // @IsEnum(ConfigStatus)
+  // status?: ConfigStatus;
 }
