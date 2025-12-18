@@ -9,6 +9,7 @@ import { claims } from './models/claims.schema';
 import { disputes } from './models/disputes.schema';
 import { RejectItemDto } from './dto/reject-item.dto';
 import { GenerateReportDto } from './dto/generate-report.dto';
+import { ProcessDisputeRefundDto } from './dto/process-dispute-refund.dto';
 
 @ApiTags('finance')
 @Controller('finance')
@@ -114,9 +115,19 @@ export class FinanceController {
     @Roles(SystemRole.FINANCE_STAFF)
     @ApiOperation({ summary: 'Process refund for an approved dispute' })
     @ApiResponse({ status: 201, description: 'Refund processed successfully' })
+<<<<<<< HEAD
     async processDisputeRefund(@Param('id') id: string, @Body() body: { refundAmount: number }, @Req() req): Promise<disputes> {
         const financeId = req.user.sub;
         return this.trackingService.processDisputeRefund(id, financeId, body.refundAmount);
+=======
+    processDisputeRefund(
+        @Param('id') id: string,
+        @Body() dto: ProcessDisputeRefundDto,
+        @Req() req
+    ): Promise<disputes> {
+        const financeId = req.user.sub;
+        return this.trackingService.processDisputeRefund(id, financeId, dto.refundAmount);
+>>>>>>> 76554a59781ea41f613cfba9294d2c8b6d603d0e
     }
 
     /**

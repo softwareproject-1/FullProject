@@ -90,14 +90,58 @@ export default function ShiftsPage() {
   };
 
   const handleCreate = async () => {
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
+      alert('Please enter a shift name');
+      return;
+    }
+    if (!formData.shiftType) {
+      alert('Please select a shift type');
+      return;
+    }
+    if (!formData.startTime) {
+      alert('Please enter a start time');
+      return;
+    }
+    if (!formData.endTime) {
+      alert('Please enter an end time');
+      return;
+    }
+
     try {
       setLoading(true);
-      await timeManagementApi.createShift(formData);
+      // Clean and prepare data
+      const cleanData: any = {
+        name: formData.name.trim(),
+        shiftType: formData.shiftType,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        punchPolicy: formData.punchPolicy || 'FIRST_LAST',
+        active: formData.active !== false,
+      };
+
+      // Add optional fields only if they have values
+      if (formData.graceInMinutes !== undefined && formData.graceInMinutes !== null) {
+        cleanData.graceInMinutes = Number(formData.graceInMinutes);
+      }
+      if (formData.graceOutMinutes !== undefined && formData.graceOutMinutes !== null) {
+        cleanData.graceOutMinutes = Number(formData.graceOutMinutes);
+      }
+      if (formData.requiresApprovalForOvertime !== undefined) {
+        cleanData.requiresApprovalForOvertime = Boolean(formData.requiresApprovalForOvertime);
+      }
+
+      console.log('Creating shift with data:', cleanData);
+      await timeManagementApi.createShift(cleanData);
       setIsModalOpen(false);
       setFormData({});
       loadShifts();
     } catch (error: any) {
+      console.error('Error creating shift:', error);
       handleTimeManagementError(error, 'creating shift');
+      // Show alert with error message
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create shift';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -105,27 +149,79 @@ export default function ShiftsPage() {
 
   const handleUpdate = async () => {
     if (!selectedItem) return;
+
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
+      alert('Please enter a shift name');
+      return;
+    }
+    if (!formData.shiftType) {
+      alert('Please select a shift type');
+      return;
+    }
+    if (!formData.startTime) {
+      alert('Please enter a start time');
+      return;
+    }
+    if (!formData.endTime) {
+      alert('Please enter an end time');
+      return;
+    }
+
     try {
       setLoading(true);
-      // Clean the form data - remove MongoDB internal fields
-      const cleanData: any = { ...formData };
-      Object.keys(cleanData).forEach(key => {
-        if (key === '_id' || key === '__v' || key === 'id' || key.startsWith('_') || 
-            key === 'createdAt' || key === 'updatedAt') {
-          delete cleanData[key];
-        }
-      });
-      // Handle shiftType if it's an object (populated)
-      if (cleanData.shiftType && typeof cleanData.shiftType === 'object') {
-        cleanData.shiftType = cleanData.shiftType._id || cleanData.shiftType.id || cleanData.shiftType;
+      // Clean and prepare data - only include fields that are being updated
+      const cleanData: any = {};
+      
+      // Required fields
+      if (formData.name !== undefined) {
+        cleanData.name = formData.name.trim();
       }
-      await timeManagementApi.updateShift(selectedItem._id || selectedItem.id, cleanData);
+      if (formData.shiftType !== undefined) {
+        // Handle shiftType if it's an object (populated)
+        if (typeof formData.shiftType === 'object' && formData.shiftType !== null) {
+          cleanData.shiftType = formData.shiftType._id || formData.shiftType.id || formData.shiftType;
+        } else {
+          cleanData.shiftType = formData.shiftType;
+        }
+      }
+      if (formData.startTime !== undefined) {
+        cleanData.startTime = formData.startTime;
+      }
+      if (formData.endTime !== undefined) {
+        cleanData.endTime = formData.endTime;
+      }
+      
+      // Optional fields
+      if (formData.punchPolicy !== undefined) {
+        cleanData.punchPolicy = formData.punchPolicy;
+      }
+      if (formData.active !== undefined) {
+        cleanData.active = Boolean(formData.active);
+      }
+      if (formData.graceInMinutes !== undefined && formData.graceInMinutes !== null && formData.graceInMinutes !== '') {
+        cleanData.graceInMinutes = Number(formData.graceInMinutes);
+      }
+      if (formData.graceOutMinutes !== undefined && formData.graceOutMinutes !== null && formData.graceOutMinutes !== '') {
+        cleanData.graceOutMinutes = Number(formData.graceOutMinutes);
+      }
+      if (formData.requiresApprovalForOvertime !== undefined) {
+        cleanData.requiresApprovalForOvertime = Boolean(formData.requiresApprovalForOvertime);
+      }
+
+      console.log('Updating shift with data:', cleanData);
+      const shiftId = selectedItem._id || selectedItem.id;
+      await timeManagementApi.updateShift(shiftId, cleanData);
       setIsModalOpen(false);
       setSelectedItem(null);
       setFormData({});
       loadShifts();
     } catch (error: any) {
+      console.error('Error updating shift:', error);
       handleTimeManagementError(error, 'updating shift');
+      // Show alert with error message
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update shift';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -144,6 +240,26 @@ export default function ShiftsPage() {
     }
   };
 
+  // Helper function to convert time to HH:MM format for HTML time input
+  const formatTimeForInput = (time: string): string => {
+    if (!time) return '';
+    // If already in HH:MM format, return as is
+    if (/^\d{2}:\d{2}$/.test(time)) return time;
+    // If in HH:MM:SS format, remove seconds
+    if (/^\d{2}:\d{2}:\d{2}/.test(time)) return time.substring(0, 5);
+    // If in 12-hour format (e.g., "08:00 AM"), convert to 24-hour
+    const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (match) {
+      let hours = parseInt(match[1]);
+      const minutes = match[2];
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+    return time;
+  };
+
   const openModal = (item?: any) => {
     setSelectedItem(item || null);
     if (item) {
@@ -151,8 +267,8 @@ export default function ShiftsPage() {
       const cleanItem: any = {
         name: item.name || '',
         shiftType: item.shiftType?._id || item.shiftType?.id || item.shiftType || '',
-        startTime: item.startTime || '',
-        endTime: item.endTime || '',
+        startTime: formatTimeForInput(item.startTime || ''),
+        endTime: formatTimeForInput(item.endTime || ''),
         active: item.active !== undefined ? item.active : true,
         punchPolicy: item.punchPolicy || 'FIRST_LAST',
         graceInMinutes: item.graceInMinutes || 0,
