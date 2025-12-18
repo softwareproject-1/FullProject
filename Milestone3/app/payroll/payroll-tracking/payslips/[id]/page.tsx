@@ -28,7 +28,7 @@ export default function PayslipDetailPage() {
                 console.log('🔍 DEBUG: Fetching payslip from API...');
                 const response = await payrollTrackingApi.getPayslipById(payslipId);
                 console.log('🔍 DEBUG: API response successful');
-                setPayslip(response.data);
+                setPayslip(response.data.data || response.data);
             } catch (err: any) {
                 console.error('🔍 DEBUG: Error fetching payslip:', err);
                 // Use mock data fallback on auth errors AND 404 (backend route not found)
