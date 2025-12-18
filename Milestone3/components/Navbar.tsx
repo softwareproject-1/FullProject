@@ -213,7 +213,7 @@ export default function Navbar() {
             ) : (
               <Button
                 onClick={() => router.push("/auth/login")}
-                variant="primary"
+                variant="default"
                 className="text-sm px-4 py-2"
               >
                 Login

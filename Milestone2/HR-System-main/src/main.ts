@@ -23,16 +23,41 @@ async function bootstrap() {
 
   // Enable CORS with explicit frontend origin
   const frontendUrl = process.env.FRONTEND_URL;
-  const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://humanresource-nu.vercel.app', // Explicitly allow production frontend
+    'https://humanresource-nu.vercel.app/' // Explicitly allow production frontend with trailing slash
+  ];
+  
   if (frontendUrl) {
-    allowedOrigins.push(frontendUrl);
+    // Support comma-separated URLs in env var
+    const urls = frontendUrl.split(',').map(url => url.trim());
+    allowedOrigins.push(...urls);
   }
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (requestOrigin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!requestOrigin) return callback(null, true);
+
+      // Check if origin is in the explicitly allowed list
+      if (allowedOrigins.indexOf(requestOrigin) !== -1) {
+        return callback(null, true);
+      }
+
+      // Check if origin matches Vercel preview URL pattern (*.vercel.app)
+      if (requestOrigin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        return callback(null, true);
+      }
+
+      // Block other origins
+      // console.log(`To fix CORS: Add ${requestOrigin} to allowedOrigins or FRONTEND_URL env var`);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   });
 
   // Global validation pipe

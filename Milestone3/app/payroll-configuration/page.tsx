@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { PayrollPolicies } from "./PayrollPolicies";
 import { PayTypes } from "./PayTypes";
@@ -22,7 +23,7 @@ type TabType =
   | "companyWideSettings"
   | "signingBonus";
 
-export default function PayrollConfigurationPage() {
+function PayrollConfigurationContent() {
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as TabType) || "policies";
 
@@ -77,4 +78,12 @@ export default function PayrollConfigurationPage() {
   };
 
   return <div className="p-8">{renderContent()}</div>;
+}
+
+export default function PayrollConfigurationPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-slate-600">Loading configuration...</div>}>
+      <PayrollConfigurationContent />
+    </Suspense>
+  );
 }

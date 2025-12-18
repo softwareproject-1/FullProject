@@ -368,7 +368,7 @@ export default function CreateAssignmentsPage() {
       // Debug: Log first employee's department data structure
       if (employeeList.length > 0) {
         console.log("Sample employee raw data:", employeeList[0]);
-        console.log("Sample employee primaryDepartmentId:", employeeList[0].primaryDepartmentId);
+        console.log("Sample employee primaryDepartmentId:", (employeeList[0] as any).primaryDepartmentId);
         console.log("Sample employee enriched:", enrichedEmployees[0]);
       }
 

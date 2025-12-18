@@ -114,7 +114,7 @@ export default function SpecialistDashboard() {
                             {pendingDisputes.slice(0, 5).map((dispute) => (
                                 <Link
                                     key={dispute._id}
-                                    href={`/payroll/tracking/specialist/disputes/${dispute._id}`}
+                                    href={`/payroll/payroll-tracking/specialist/disputes/${dispute._id}`}
                                     className="block p-3 border border-slate-200 rounded-lg hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between">

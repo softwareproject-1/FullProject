@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +64,7 @@ interface DraftData {
   totalNetPay: number;
 }
 
-export default function PayrollDraftPage() {
+function PayrollDraftContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const runId = searchParams.get('runId');
@@ -1199,5 +1199,20 @@ export default function PayrollDraftPage() {
         )
       }
     </div >
+  );
+}
+
+export default function PayrollDraftPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <span className="ml-3 text-gray-600">Loading payroll draft...</span>
+        </div>
+      </div>
+    }>
+      <PayrollDraftContent />
+    </Suspense>
   );
 }
