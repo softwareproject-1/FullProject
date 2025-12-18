@@ -23,16 +23,24 @@ async function bootstrap() {
 
   // Enable CORS with explicit frontend origin
   const frontendUrl = process.env.FRONTEND_URL;
-  const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://humanresource-nu.vercel.app', // Explicitly allow production frontend
+    'https://humanresource-nu.vercel.app/' // Explicitly allow production frontend with trailing slash
+  ];
+  
   if (frontendUrl) {
-    allowedOrigins.push(frontendUrl);
+    // Support comma-separated URLs in env var
+    const urls = frontendUrl.split(',').map(url => url.trim());
+    allowedOrigins.push(...urls);
   }
 
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   });
 
   // Global validation pipe
