@@ -1976,21 +1976,49 @@ export class PayrollTrackingService {
         throw new NotFoundException('Employee not found');
       }
 
-      // 3. Get base salary
-      const baseSalary = employee.salary || 3000;
+      // 3. Extract data from payslip document
+      const payslipData = payslip as any;
 
-      // 4. Get itemized allowances
-      const allowances = await this.getAllowanceLineItems();
-      const totalAllowances = allowances.reduce((sum, a) => sum + a.amount, 0);
+      // Get base salary from payslip earnings or fall back to employee salary
+      let baseSalary = payslipData.earningsDetails?.baseSalary || employee.salary || payslipData.totalGrossSalary || 0;
 
-      // 5. Calculate gross pay
-      const grossPay = baseSalary + totalAllowances;
+      // Get allowances from payslip only (do NOT fallback to global config)
+      // Allowances should be employee-specific and stored in payslip
+      let allowances = (payslipData.earningsDetails?.allowances || []).map((a: any) => ({
+        id: a._id?.toString() || `allowance-${Math.random()}`,
+        name: a.name || 'Allowance',
+        amount: a.amount || 0,
+      }));
 
-      // 6. Get time impact data (overtime)
-      const payslipDate = new Date((payslip as any).createdAt || Date.now());
+      const totalAllowances = allowances.reduce((sum: number, a: any) => sum + a.amount, 0);
+
+      // Get bonuses from payslip
+      const bonuses = (payslipData.earningsDetails?.bonuses || []).map((b: any) => ({
+        id: b._id?.toString() || `bonus-${Math.random()}`,
+        name: b.name || 'Bonus',
+        amount: b.amount || 0,
+      }));
+
+      // Get benefits from payslip
+      const benefits = (payslipData.earningsDetails?.benefits || []).map((b: any) => ({
+        id: b._id?.toString() || `benefit-${Math.random()}`,
+        name: b.name || 'Benefit',
+        amount: b.amount || 0,
+      }));
+
+      // Get refunds from payslip
+      const refunds = (payslipData.earningsDetails?.refunds || []).map((r: any) => ({
+        id: r._id?.toString() || `refund-${Math.random()}`,
+        description: r.description || 'Refund',
+        amount: r.amount || 0,
+      }));
+
+      // 4. Get date information
+      const payslipDate = new Date(payslipData.createdAt || Date.now());
       const month = payslipDate.getMonth() + 1;
       const year = payslipDate.getFullYear();
 
+      // 5. Get time impact data (overtime and penalties)
       let overtimeCompensation = 0;
       let timeBasedPenalties = 0;
       try {
@@ -2001,18 +2029,57 @@ export class PayrollTrackingService {
         console.error('Error fetching time impact:', error);
       }
 
-      // 7. Get leave data (mock for now)
+      // 6. Get leave data
       const leaveEncashment = await this.getLeaveEncashment(userId, month, year);
       const leaveDeductions = await this.getUnpaidLeaveDeduction(userId, month, year);
 
-      // 8. Calculate tax with law references
-      const taxDeductions = await this.calculateTaxWithLawReference(grossPay);
-      const totalTax = taxDeductions.reduce((sum, t) => sum + t.amount, 0);
+      // 7. Get tax deductions from payslip (or calculate on-the-fly)
+      let taxDeductions = (payslipData.deductionsDetails?.taxes || []).map((tax: any) => ({
+        id: tax._id?.toString() || `tax-${Math.random()}`,
+        name: tax.name || 'Tax',
+        amount: tax.amount || 0,
+        lawReference: tax.description || tax.lawReference || 'Tax deduction',
+        bracket: tax.bracket,
+      }));
 
-      // 9. Calculate insurance (employee + employer)
-      const insurance = await this.calculateInsuranceBreakdown(grossPay);
-      const totalInsurance = insurance.employee.reduce((sum, i) => sum + i.employeeContribution, 0);
-      const totalEmployerContributions = insurance.employer.reduce((sum, i) => sum + i.employerContribution, 0);
+      // If no tax deductions in payslip and we have a salary, calculate based on BASE SALARY only
+      if ((taxDeductions.length === 0 || taxDeductions.every((t: any) => t.amount === 0)) && baseSalary > 0) {
+        // Tax should be calculated on base salary, not including allowances
+        taxDeductions = await this.calculateTaxWithLawReference(baseSalary);
+      }
+
+      const totalTax = taxDeductions.reduce((sum: number, t: any) => sum + t.amount, 0);
+
+      // 8. Get insurance deductions from payslip (or calculate on-the-fly)
+      let insuranceDeductions = (payslipData.deductionsDetails?.insurances || []).map((ins: any) => ({
+        id: ins._id?.toString() || `insurance-${Math.random()}`,
+        name: ins.name || 'Insurance',
+        employeeContribution: ins.employeeContribution || 0,
+        employerContribution: ins.employerContribution || 0,
+        totalContribution: (ins.employeeContribution || 0) + (ins.employerContribution || 0),
+      }));
+
+      // If no insurance deductions in payslip and we have a salary, calculate based on BASE SALARY only
+      if ((insuranceDeductions.length === 0 || insuranceDeductions.every((i: any) => i.employeeContribution === 0)) && baseSalary > 0) {
+        // Insurance should be calculated on base salary
+        const insurance = await this.calculateInsuranceBreakdown(baseSalary);
+        insuranceDeductions = insurance.employee;
+      }
+
+      const totalInsurance = insuranceDeductions.reduce((sum: number, i: any) => sum + i.employeeContribution, 0);
+
+      // Employer contributions (for display purposes)
+      const employerContributions = insuranceDeductions.map((ins: any) => ({
+        id: ins.id,
+        name: ins.name,
+        employeeContribution: ins.employeeContribution,
+        employerContribution: ins.employerContribution,
+        totalContribution: ins.totalContribution,
+      }));
+      const totalEmployerContributions = employerContributions.reduce((sum: number, i: any) => sum + i.employerContribution, 0);
+
+      // 9. Calculate gross pay
+      const grossPay = baseSalary + totalAllowances;
 
       // 10. Calculate total deductions
       const totalDeductions = totalTax + totalInsurance + timeBasedPenalties + (leaveDeductions?.deductionAmount || 0);
@@ -2028,9 +2095,9 @@ export class PayrollTrackingService {
 
       // 13. Compile dispute-eligible item IDs
       const disputeEligibleItems = [
-        ...allowances.map(a => a.id),
-        ...taxDeductions.map(t => t.id),
-        ...insurance.employee.map(i => i.id),
+        ...allowances.map((a: any) => a.id),
+        ...taxDeductions.map((t: any) => t.id),
+        ...insuranceDeductions.map((i: any) => i.id),
       ];
 
       // 14. Return enhanced payslip data
@@ -2038,8 +2105,8 @@ export class PayrollTrackingService {
         payslipId: payslip._id.toString(),
         month: payslipDate.toLocaleDateString('en-US', { month: 'long' }),
         year,
-        employeeName: `${employee.firstName} ${employee.lastName} `,
-        payGrade: 'N/A',
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        payGrade: employee.payGrade || 'N/A',
 
         // Earnings
         baseSalary,
@@ -2052,7 +2119,7 @@ export class PayrollTrackingService {
         // Deductions
         taxDeductions,
         totalTax,
-        insuranceDeductions: insurance.employee,
+        insuranceDeductions,
         totalInsurance,
         leaveDeductions,
         timeBasedPenalties,
@@ -2066,7 +2133,7 @@ export class PayrollTrackingService {
         minimumWageAlert,
 
         // Employer Contributions
-        employerContributions: insurance.employer,
+        employerContributions,
         totalEmployerContributions,
 
         // Dispute Support

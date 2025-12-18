@@ -528,8 +528,8 @@ export const financeStaffApi = {
     getDispute: (id: string) =>
         axiosInstance.get<{ data: DisputeDto }>(`/finance/disputes/${id}`),
 
-    processDisputeRefund: (id: string) =>
-        axiosInstance.post<{ data: DisputeDto }>(`/finance/disputes/${id}/process`),
+    processDisputeRefund: (id: string, refundAmount: number) =>
+        axiosInstance.post<{ data: DisputeDto }>(`/finance/disputes/${id}/process`, { refundAmount }),
 
     rejectDispute: (id: string, reason: string) =>
         axiosInstance.post<{ data: DisputeDto }>(`/finance/disputes/${id}/reject`, { reason }),
