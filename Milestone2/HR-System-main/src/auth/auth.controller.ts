@@ -19,7 +19,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res) {
+  async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res, @Req() req) {
     try {
       const identifier = signInDto.workEmail || signInDto.personalEmail || signInDto.nationalId;
       
@@ -35,12 +35,17 @@ export class AuthController {
 
       const result = await this.authService.signIn(identifier, signInDto.password);
 
-      const isProduction = process.env.NODE_ENV === 'production';
+      // Determine if we need cross-site cookies (Vercel -> Render)
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+      const requestOrigin = req.headers?.origin || '';
+      const isCrossSite = requestOrigin.includes('vercel.app') || isProduction;
+
+      console.log('Login Cookie Setup:', { isProduction, requestOrigin, isCrossSite });
 
       res.cookie('token', result.access_token, {
         httpOnly: true,
-        secure: isProduction, // True in production, False in dev
-        sameSite: isProduction ? 'none' : 'lax', // None for cross-site (Prod), Lax for same-site (Dev)
+        secure: isCrossSite, // Must be true for SameSite=None
+        sameSite: isCrossSite ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
 
@@ -220,13 +225,16 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthenticationGuard)
-  logout(@Res({ passthrough: true }) res) {
-    const isProduction = process.env.NODE_ENV === 'production';
+  logout(@Res({ passthrough: true }) res, @Req() req) {
+    // Determine if we need cross-site cookies (Vercel -> Render)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+    const requestOrigin = req.headers?.origin || '';
+    const isCrossSite = requestOrigin.includes('vercel.app') || isProduction;
     
     res.cookie('token', '', {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
+      secure: isCrossSite,
+      sameSite: isCrossSite ? 'none' : 'lax',
       expires: new Date(0),
     });
 
