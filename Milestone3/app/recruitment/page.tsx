@@ -393,8 +393,8 @@ export default function Recruitment() {
     try {
       const response = await recruitmentApi.referrals.getApplications();
       console.log('Fetched referral applications:', response.data);
-      // The backend should return applications with isReferral: true already set
-      // No need to store separately - they're included in the main applications fetch
+      // Note: Referral applications are already included in the main applications array
+      // with isReferral: true flag. This endpoint is for validation/debugging.
     } catch (err) {
       console.error('Failed to fetch referrals:', err);
     }
@@ -1790,7 +1790,7 @@ export default function Recruitment() {
                 <Card
                   title="Job Templates"
                   action={
-                    isHRManager() && (
+                    (isHRManager() || isSystemAdmin()) && (
                       <button
                         onClick={() => setIsTemplateModalOpen(true)}
                         className="px-3 py-1.5 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800"

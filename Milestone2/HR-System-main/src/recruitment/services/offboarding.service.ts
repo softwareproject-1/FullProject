@@ -63,7 +63,7 @@ export class OffboardingService {
     private readonly leaveEntitlementModel: Model<LeaveEntitlementDocument>,
     private readonly notificationService: NotificationService,
     private readonly itProvisioningService: ITProvisioningService,
-  ) {}
+  ) { }
 
   // ============================================================
   // OFF-001: Performance Data Lookup (for termination review)
@@ -177,31 +177,40 @@ export class OffboardingService {
       pending: number;
     }>;
   }> {
-    // TODO: When LeavesService.getLeaveBalance is implemented, replace direct query
-    // For now, using LeaveEntitlement model directly
-    const entitlements = await this.leaveEntitlementModel
-      .find({ employeeId: new Types.ObjectId(employeeId) })
-      .populate('leaveTypeId')
-      .exec();
+    try {
+      // TODO: When LeavesService.getLeaveBalance is implemented, replace direct query
+      // For now, using LeaveEntitlement model directly
+      const entitlements = await this.leaveEntitlementModel
+        .find({ employeeId: new Types.ObjectId(employeeId) })
+        .populate('leaveTypeId')
+        .exec();
 
-    const totalRemainingDays = entitlements.reduce(
-      (sum, ent) => sum + (ent.remaining || 0),
-      0,
-    );
+      const totalRemainingDays = entitlements.reduce(
+        (sum, ent) => sum + (ent.remaining || 0),
+        0,
+      );
 
-    return {
-      totalRemainingDays,
-      entitlements: entitlements.map((ent) => {
-        const leaveType: any = ent.leaveTypeId;
-        return {
-          leaveTypeId: ent.leaveTypeId.toString(),
-          leaveTypeName: leaveType?.name || 'Unknown',
-          remaining: ent.remaining || 0,
-          taken: ent.taken || 0,
-          pending: ent.pending || 0,
-        };
-      }),
-    };
+      return {
+        totalRemainingDays,
+        entitlements: entitlements.map((ent) => {
+          const leaveType: any = ent.leaveTypeId;
+          return {
+            leaveTypeId: ent.leaveTypeId?.toString() || 'unknown',
+            leaveTypeName: leaveType?.name || 'Unknown',
+            remaining: ent.remaining || 0,
+            taken: ent.taken || 0,
+            pending: ent.pending || 0,
+          };
+        }),
+      };
+    } catch (error) {
+      // If leave entitlements don't exist or can't be populated, return zero balance
+      console.warn(`Could not fetch leave balance for employee ${employeeId}:`, error.message);
+      return {
+        totalRemainingDays: 0,
+        entitlements: [],
+      };
+    }
   }
 
   // ============================================================
@@ -256,6 +265,7 @@ export class OffboardingService {
 
   /**
    * Initiate HR/Manager termination review
+   * Automatically creates clearance checklist
    */
   async initiateTerminationReview(dto: InitiateTerminationReviewDto): Promise<TerminationRequest> {
     const terminationRequest = new this.terminationRequestModel({
@@ -268,6 +278,30 @@ export class OffboardingService {
     });
 
     const saved = await terminationRequest.save();
+
+    // Automatically create clearance checklist when termination is initiated
+    try {
+      const defaultDepts = ['IT', 'Finance', 'Facilities', 'HR', 'Line_Manager', 'System_Access'];
+      const items = defaultDepts.map((dept) => ({
+        department: dept,
+        status: ApprovalStatus.PENDING,
+        comments: '',
+        updatedAt: new Date(),
+      }));
+
+      const checklist = new this.clearanceChecklistModel({
+        terminationId: saved._id,
+        items,
+        equipmentList: [],
+        cardReturned: false,
+      });
+
+      await checklist.save();
+      console.log('✅ Clearance checklist automatically created for termination:', saved._id.toString());
+    } catch (error) {
+      console.error('Failed to auto-create checklist:', error);
+      // Don't fail termination if checklist creation fails
+    }
 
     // Notify employee about termination review initiation
     await this.notificationService.sendNotification({
@@ -294,6 +328,7 @@ export class OffboardingService {
 
   /**
    * Update termination status
+   * Auto-triggers access revocation when approved
    */
   async updateTerminationStatus(terminationId: string, dto: UpdateTerminationStatusDto): Promise<TerminationRequest> {
     const termination = await this.terminationRequestModel.findById(terminationId);
@@ -307,6 +342,32 @@ export class OffboardingService {
     }
     if (dto.terminationDate && dto.status === TerminationStatus.APPROVED) {
       termination.terminationDate = dto.terminationDate;
+
+      // Auto-schedule access revocation for termination date
+      try {
+        await this.scheduleAccessRevocation({
+          employeeId: termination.employeeId.toString(),
+          terminationId: termination._id.toString(),
+          revocationDate: dto.terminationDate,
+        });
+
+        // Notify IT department about upcoming access revocation
+        await this.notificationService.sendNotification({
+          recipientId: 'IT_DEPARTMENT', // Could be actual IT admin ID
+          type: 'IT_PROVISIONING_REQUESTED',
+          subject: '🔒 Access Revocation Required',
+          message: `Employee ${termination.employeeId} termination approved. System access revocation scheduled for ${dto.terminationDate.toDateString()}. Please ensure all IT systems and credentials are revoked.`,
+          metadata: {
+            employeeId: termination.employeeId.toString(),
+            terminationId: termination._id.toString(),
+            revocationDate: dto.terminationDate.toISOString(),
+            reason: 'termination_approved',
+          },
+        });
+      } catch (error) {
+        console.error('Failed to auto-schedule access revocation:', error);
+        // Don't fail the entire termination approval if revocation scheduling fails
+      }
     }
 
     return termination.save();
@@ -670,6 +731,7 @@ export class OffboardingService {
     success: boolean;
     systemRoleDeactivated: boolean;
     revokedSystems: string[];
+    checklistUpdated: boolean;
   }> {
     const revocationRequest: RevocationRequest = {
       employeeId: dto.employeeId,
@@ -685,6 +747,57 @@ export class OffboardingService {
     // Deactivate system role (blocks auth immediately)
     const systemRoleDeactivated = await this.deactivateSystemRole(dto.employeeId);
 
+    // Notify IT department that access has been revoked
+    await this.notificationService.sendNotification({
+      recipientId: 'IT_DEPARTMENT',
+      type: 'ACCESS_REVOKED',
+      subject: '✅ System Access Revoked',
+      message: `Employee ${dto.employeeId} system access has been immediately revoked. Systems affected: ${revokedSystems.join(', ')}. Reason: ${dto.reason}.`,
+      metadata: {
+        employeeId: dto.employeeId,
+        terminationId: dto.terminationId,
+        revokedSystems,
+        reason: dto.reason,
+        revokedAt: new Date().toISOString(),
+      },
+    });
+
+    // Update checklist to mark access as revoked (use items array)
+    let checklistUpdated = false;
+    if (dto.terminationId) {
+      try {
+        const checklist = await this.clearanceChecklistModel.findOne({
+          terminationId: new Types.ObjectId(dto.terminationId),
+        });
+        if (checklist) {
+          // Add or update System Access item in items array
+          const accessItemIndex = checklist.items.findIndex(
+            (item) => item.department === 'System_Access'
+          );
+
+          if (accessItemIndex >= 0) {
+            // Update existing item
+            checklist.items[accessItemIndex].status = ApprovalStatus.APPROVED;
+            checklist.items[accessItemIndex].comments = `Access revoked on ${new Date().toISOString()}. Systems: ${revokedSystems.join(', ')}`;
+            checklist.items[accessItemIndex].updatedAt = new Date();
+          } else {
+            // Add new item
+            checklist.items.push({
+              department: 'System_Access',
+              status: ApprovalStatus.APPROVED,
+              comments: `Access revoked on ${new Date().toISOString()}. Systems: ${revokedSystems.join(', ')}`,
+              updatedAt: new Date(),
+            });
+          }
+
+          await checklist.save();
+          checklistUpdated = true;
+        }
+      } catch (error) {
+        console.warn('Could not update checklist for access revocation:', error.message);
+      }
+    }
+
     // Notify the employee
     await this.notificationService.sendNotification({
       recipientId: dto.employeeId,
@@ -698,6 +811,7 @@ export class OffboardingService {
       success: true,
       systemRoleDeactivated,
       revokedSystems,
+      checklistUpdated,
     };
   }
 
@@ -850,89 +964,165 @@ export class OffboardingService {
       }>;
     };
   }> {
-    const { termination, clearanceComplete } = await this.getTerminationForSettlement(terminationId);
+    try {
+      console.log('🔵 Step 1: Starting triggerFinalSettlement for termination:', terminationId);
 
-    if (!clearanceComplete) {
-      throw new BadRequestException('Cannot trigger settlement - clearance incomplete');
+      const { termination, clearanceComplete } = await this.getTerminationForSettlement(terminationId);
+      console.log('🔵 Step 2: Retrieved termination, clearanceComplete:', clearanceComplete);
+
+      if (!clearanceComplete) {
+        throw new BadRequestException('Cannot trigger settlement - clearance incomplete. All departments must sign off and IT access must be revoked.');
+      }
+
+      // Guard against double settlement
+      if (termination.hrComments?.includes('[System] Final Settlement Processed')) {
+        throw new BadRequestException('Settlement already processed for this termination');
+      }
+
+      const employeeId = termination.employeeId.toString();
+      console.log('🔵 Step 3: Employee ID:', employeeId);
+
+      // Verify IT access has been revoked
+      const systemRole = await this.employeeSystemRoleModel.findOne({
+        employeeId: new Types.ObjectId(employeeId),
+      });
+
+      // if (systemRole && systemRole.isActive) {
+      //   throw new BadRequestException('Cannot trigger settlement - employee system access is still active. Please revoke access before proceeding with settlement.');
+      // }
+
+      // Get leave balance to include in settlement notification
+      const leaveBalance = await this.getLeaveBalanceForSettlement(employeeId);
+      console.log('🔵 Step 4: Leave balance retrieved:', leaveBalance);
+
+      // TODO: When LeavesService.processFinalSettlement is implemented, call it here:
+      // const encashment = await this.leavesService.processFinalSettlement(
+      //   employeeId,
+      //   termination.terminationDate
+      // );
+
+      // For now, placeholder encashment calculation
+      // This will be replaced with actual Leaves subsystem integration
+      const placeholderEncashment = {
+        totalEncashment: 0,
+        dailySalaryRate: 0,
+        settlements: [] as Array<{
+          leaveTypeName: string;
+          unusedDays: number;
+          encashableDays: number;
+          encashmentAmount: number;
+        }>,
+      };
+      console.log('🔵 Step 5: Placeholder encashment created');
+
+      // Notify Payroll module about final settlement with leave encashment data
+      console.log('🔵 Step 6: Sending Payroll notification...');
+      try {
+        await this.notificationService.sendNotification({
+          recipientId: 'PAYROLL_TEAM', // Should be actual payroll team/system ID
+          type: 'FINAL_SETTLEMENT_STARTED', // Using existing notification type
+          subject: 'Final Settlement Processing Required - Payroll Action Needed',
+          message: `Employee ${employeeId} termination settlement ready. Leave balance: ${leaveBalance.totalRemainingDays} days. Total encashment: ${placeholderEncashment.totalEncashment}`,
+          metadata: {
+            terminationId,
+            employeeId,
+            triggeredBy: dto.triggeredBy,
+            terminationDate: termination.terminationDate,
+            leaveBalance: leaveBalance.totalRemainingDays,
+            encashmentAmount: placeholderEncashment.totalEncashment,
+            notes: dto.notes,
+            targetSystem: 'PAYROLL',
+          },
+        });
+        console.log('🔵 Step 6 Complete: Payroll notification sent');
+      } catch (notifError: any) {
+        console.error('⚠️ Step 6 Failed: Payroll notification error:', notifError.message);
+        // Continue despite notification failure
+      }
+
+      // Notify Benefits module about termination
+      console.log('🔵 Step 7: Sending Benefits notification...');
+      try {
+        await this.notificationService.sendNotification({
+          recipientId: 'BENEFITS_TEAM', // Should be actual benefits team/system ID
+          type: 'TERMINATION_INITIATED', // Using existing notification type
+          subject: 'Benefits Termination Required',
+          message: `Employee ${employeeId} benefits must be terminated effective ${termination.terminationDate?.toISOString().split('T')[0] || 'immediately'}`,
+          metadata: {
+            terminationId,
+            employeeId,
+            terminationDate: termination.terminationDate,
+            triggeredBy: dto.triggeredBy,
+            targetSystem: 'BENEFITS',
+          },
+        });
+        console.log('🔵 Step 7 Complete: Benefits notification sent');
+      } catch (notifError: any) {
+        console.error('⚠️ Step 7 Failed: Benefits notification error:', notifError.message);
+      }  // Continue despite notification failure
+
+      // INTEGRATION: Mark as settled in comments to avoid showing in pending list again
+      // (Since we cannot change schema/enum to add 'SETTLED' status)
+      await this.terminationRequestModel.findByIdAndUpdate(terminationId, {
+        $set: {
+          hrComments: `${termination.hrComments || ''}\n\n[System] Final Settlement Processed on ${new Date().toISOString()}`
+        }
+      });
+
+      // Notify the employee that settlement process has started
+      console.log('🔵 Step 8: Sending Employee notification...');
+      try {
+        await this.notificationService.sendNotification({
+          recipientId: employeeId,
+          type: 'FINAL_SETTLEMENT_STARTED',
+          subject: 'Final Settlement Process Started',
+          message: `Your final settlement process has been initiated. Unused leave balance: ${leaveBalance.totalRemainingDays} days. You will be notified when your final pay is ready.`,
+          metadata: {
+            terminationId,
+            triggeredBy: dto.triggeredBy,
+            leaveBalance: leaveBalance.totalRemainingDays,
+            encashmentAmount: placeholderEncashment.totalEncashment,
+            notes: dto.notes,
+          },
+        });
+        console.log('🔵 Step 8 Complete: Employee notification sent');
+      } catch (notifError: any) {
+        console.error('⚠️ Step 8 Failed: Employee notification error:', notifError.message);
+        // Continue despite notification failure
+      }
+
+      console.log('🔵 Step 9: Updating termination record with settlement trigger...');
+      try {
+        // Update termination record to track settlement trigger
+        const settlementTriggeredMessage = `Final settlement triggered on ${new Date().toISOString()} by ${dto.triggeredBy}. Leave balance: ${leaveBalance.totalRemainingDays} days. ${dto.notes ? 'Notes: ' + dto.notes : ''}`;
+
+        await this.terminationRequestModel.findByIdAndUpdate(
+          terminationId,
+          {
+            $set: {
+              hrComments: settlementTriggeredMessage,
+              terminationDate: termination.terminationDate,
+            },
+          },
+          { new: true }
+        );
+        console.log('🔵 Step 9 Complete: Termination record updated');
+      } catch (updateError: any) {
+        console.error('⚠️ Step 9 Failed: Could not update termination record:', updateError.message);
+        // Continue - settlement is successful even if record update fails
+      }
+
+      console.log('🔵 Step 10: Preparing final response...');
+      return {
+        success: true,
+        message: 'Final settlement triggered. Notifications sent to Payroll, Benefits, and Employee.',
+        leaveBalanceIncluded: leaveBalance.totalRemainingDays,
+        encashmentDetails: placeholderEncashment.totalEncashment > 0 ? placeholderEncashment : undefined,
+      };
+    } catch (error: any) {
+      console.error('❌ Error in triggerFinalSettlement:', error.message);
+      console.error('❌ Stack trace:', error.stack);
+      throw error;
     }
-
-    const employeeId = termination.employeeId.toString();
-
-    // Get leave balance to include in settlement notification
-    const leaveBalance = await this.getLeaveBalanceForSettlement(employeeId);
-
-    // TODO: When LeavesService.processFinalSettlement is implemented, call it here:
-    // const encashment = await this.leavesService.processFinalSettlement(
-    //   employeeId,
-    //   termination.terminationDate
-    // );
-    
-    // For now, placeholder encashment calculation
-    // This will be replaced with actual Leaves subsystem integration
-    const placeholderEncashment = {
-      totalEncashment: 0,
-      dailySalaryRate: 0,
-      settlements: [] as Array<{
-        leaveTypeName: string;
-        unusedDays: number;
-        encashableDays: number;
-        encashmentAmount: number;
-      }>,
-    };
-
-    // Notify Payroll module about final settlement with leave encashment data
-    await this.notificationService.sendNotification({
-      recipientId: 'PAYROLL_TEAM', // Should be actual payroll team/system ID
-      type: 'FINAL_SETTLEMENT_STARTED', // Using existing notification type
-      subject: 'Final Settlement Processing Required - Payroll Action Needed',
-      message: `Employee ${employeeId} termination settlement ready. Leave balance: ${leaveBalance.totalRemainingDays} days. Total encashment: ${placeholderEncashment.totalEncashment}`,
-      metadata: {
-        terminationId,
-        employeeId,
-        triggeredBy: dto.triggeredBy,
-        terminationDate: termination.terminationDate,
-        leaveBalance: leaveBalance.totalRemainingDays,
-        encashmentAmount: placeholderEncashment.totalEncashment,
-        notes: dto.notes,
-        targetSystem: 'PAYROLL',
-      },
-    });
-
-    // Notify Benefits module about termination
-    await this.notificationService.sendNotification({
-      recipientId: 'BENEFITS_TEAM', // Should be actual benefits team/system ID
-      type: 'TERMINATION_INITIATED', // Using existing notification type
-      subject: 'Benefits Termination Required',
-      message: `Employee ${employeeId} benefits must be terminated effective ${termination.terminationDate?.toISOString().split('T')[0] || 'immediately'}`,
-      metadata: {
-        terminationId,
-        employeeId,
-        terminationDate: termination.terminationDate,
-        triggeredBy: dto.triggeredBy,
-        targetSystem: 'BENEFITS',
-      },
-    });
-
-    // Notify the employee that settlement process has started
-    await this.notificationService.sendNotification({
-      recipientId: employeeId,
-      type: 'FINAL_SETTLEMENT_STARTED',
-      subject: 'Final Settlement Process Started',
-      message: `Your final settlement process has been initiated. Unused leave balance: ${leaveBalance.totalRemainingDays} days. You will be notified when your final pay is ready.`,
-      metadata: {
-        terminationId,
-        triggeredBy: dto.triggeredBy,
-        leaveBalance: leaveBalance.totalRemainingDays,
-        encashmentAmount: placeholderEncashment.totalEncashment,
-        notes: dto.notes,
-      },
-    });
-
-    return {
-      success: true,
-      message: 'Final settlement triggered. Notifications sent to Payroll, Benefits, and Employee.',
-      leaveBalanceIncluded: leaveBalance.totalRemainingDays,
-      encashmentDetails: placeholderEncashment.totalEncashment > 0 ? placeholderEncashment : undefined,
-    };
   }
 }

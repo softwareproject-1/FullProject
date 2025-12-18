@@ -33,7 +33,7 @@ import { Candidate, CandidateDocument } from '../../employee-profile/models/cand
 import { EmployeeProfile, EmployeeProfileDocument } from '../../employee-profile/models/employee-profile.schema';
 import { BonusStatus } from '../../payroll-execution/enums/payroll-execution-enum';
 import { ConfigStatus } from '../../payroll-configuration/enums/payroll-configuration-enums';
-import { SystemRole, EmployeeStatus, ContractType } from '../../employee-profile/enums/employee-profile.enums';
+import { SystemRole, EmployeeStatus, ContractType, CandidateStatus } from '../../employee-profile/enums/employee-profile.enums';
 
 // Enums
 import { OnboardingTaskStatus } from '../enums/onboarding-task-status.enum';
@@ -104,16 +104,16 @@ export class OnboardingService {
   constructor(
     @InjectModel(Onboarding.name)
     private readonly onboardingModel: Model<OnboardingDocument>,
-    
+
     @InjectModel(Contract.name)
     private readonly contractModel: Model<ContractDocument>,
-    
+
     @InjectModel(Offer.name)
     private readonly offerModel: Model<OfferDocument>,
-    
+
     @InjectModel(RecruitmentDocument.name)
     private readonly documentModel: Model<DocumentDocument>,
-    
+
     @InjectModel(Application.name)
     private readonly applicationModel: Model<ApplicationDocument>,
 
@@ -134,11 +134,11 @@ export class OnboardingService {
 
     @InjectModel(EmployeeProfile.name)
     private readonly employeeProfileModel: Model<EmployeeProfileDocument>,
-    
+
     private readonly notificationService: NotificationService,
     private readonly employeeProfileService: EmployeeProfileService,
     private readonly itProvisioningService: ITProvisioningService,
-  ) {}
+  ) { }
 
   // ============================================================================
   // ONBOARDING CREATION (Called from RecruitmentService when contract is created)
@@ -157,12 +157,22 @@ export class OnboardingService {
     contractId: string,
   ): Promise<OnboardingDocument> {
     // Check if onboarding already exists for this contract
-    const existing = await this.onboardingModel.findOne({
+    const existingByContract = await this.onboardingModel.findOne({
       contractId: new Types.ObjectId(contractId),
     }).exec();
 
-    if (existing) {
-      return existing;
+    if (existingByContract) {
+      return existingByContract;
+    }
+
+    // Also check if onboarding already exists for this employee (prevent duplicates)
+    const existingByEmployee = await this.onboardingModel.findOne({
+      employeeId: new Types.ObjectId(candidateId),
+    }).exec();
+
+    if (existingByEmployee) {
+      console.log(`[ONBOARDING] Employee ${candidateId} already has an onboarding record. Returning existing.`);
+      return existingByEmployee;
     }
 
     // Get contract details for start date
@@ -310,6 +320,19 @@ export class OnboardingService {
   }
 
   /**
+   * Delete a checklist template by ID
+   */
+  async deleteChecklistTemplate(templateId: string): Promise<{ deleted: boolean; templateId: string }> {
+    const doc = await this.documentModel.findById(templateId).exec();
+    if (!doc || !doc.filePath.startsWith(this.TEMPLATE_PREFIX)) {
+      throw new NotFoundException(`Template with ID ${templateId} not found`);
+    }
+
+    await this.documentModel.findByIdAndDelete(templateId).exec();
+    return { deleted: true, templateId };
+  }
+
+  /**
    * Apply a template to an onboarding
    */
   async applyTemplateToOnboarding(
@@ -409,7 +432,7 @@ export class OnboardingService {
 
     // Generate employee number
     const employeeNumber = `EMP-${Date.now()}`;
-    
+
     // Generate work email
     const workEmail = `${candidate.firstName.toLowerCase()}.${candidate.lastName.toLowerCase()}@company.com`;
 
@@ -486,11 +509,40 @@ export class OnboardingService {
   }
 
   /**
-   * Get all onboardings
+   * Get all onboardings with employee details
    */
   async getAllOnboardings(): Promise<OnboardingTrackerDto[]> {
     const onboardings = await this.onboardingModel.find().exec();
-    return Promise.all(onboardings.map((o) => this.mapToTrackerDto(o)));
+
+    // Get all unique employee IDs
+    const employeeIds = [...new Set(onboardings.map(o => o.employeeId.toString()))];
+
+    // Fetch all employee profiles in one query
+    const employeeProfiles = await this.employeeProfileModel.find({
+      _id: { $in: employeeIds.map(id => new Types.ObjectId(id)) }
+    }).exec();
+
+    // Create a lookup map for quick access
+    const employeeMap = new Map<string, { name: string; number: string }>();
+    for (const profile of employeeProfiles) {
+      const fullName = profile.fullName ||
+        `${profile.firstName || ''} ${profile.middleName || ''} ${profile.lastName || ''}`.trim();
+      employeeMap.set(profile._id.toString(), {
+        name: fullName || 'Unknown',
+        number: profile.employeeNumber || profile._id.toString().slice(-8).toUpperCase()
+      });
+    }
+
+    // Map onboardings with employee details
+    return onboardings.map((o) => {
+      const dto = this.mapToTrackerDto(o);
+      const employeeDetails = employeeMap.get(o.employeeId.toString());
+      if (employeeDetails) {
+        dto.employeeName = employeeDetails.name;
+        dto.employeeNumber = employeeDetails.number;
+      }
+      return dto;
+    });
   }
 
   /**
@@ -670,6 +722,13 @@ export class OnboardingService {
     };
   }
 
+  /**
+   * Get all notifications for a specific recipient
+   */
+  async getNotificationsForRecipient(recipientId: string): Promise<any[]> {
+    return this.notificationService.getNotificationsForRecipient(recipientId);
+  }
+
   // ============================================================================
   // ONB-007: COMPLIANCE DOCUMENTS
   // As a New Hire, I want to upload compliance documents.
@@ -707,6 +766,75 @@ export class OnboardingService {
       uploadedAt: doc.uploadedAt,
       verificationStatus: 'PENDING',
     };
+  }
+
+  /**
+   * Get all documents for an onboarding
+   * Used by HR to view documents uploaded by new hires
+   */
+  async getDocumentsByOnboarding(onboardingId: string): Promise<DocumentRecordDto[]> {
+    const onboarding = await this.onboardingModel.findById(onboardingId).exec();
+    if (!onboarding) {
+      throw new NotFoundException(`Onboarding with ID ${onboardingId} not found`);
+    }
+
+    // Get all documents where ownerId matches the employee in this onboarding
+    const documents = await this.documentModel.find({
+      ownerId: onboarding.employeeId,
+    }).exec();
+
+    // Also get documents linked to tasks
+    const taskDocIds = onboarding.tasks
+      .filter(t => t.documentId)
+      .map(t => t.documentId);
+
+    const taskDocuments = await this.documentModel.find({
+      _id: { $in: taskDocIds }
+    }).exec();
+
+    // Combine and deduplicate
+    const allDocs = [...documents, ...taskDocuments];
+    const uniqueDocs = allDocs.reduce((acc, doc) => {
+      const id = doc._id.toString();
+      if (!acc.has(id)) {
+        acc.set(id, doc);
+      }
+      return acc;
+    }, new Map());
+
+    return Array.from(uniqueDocs.values()).map(doc => {
+      // Parse verification status if present
+      let verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED' = 'PENDING';
+      let verifiedBy: string | undefined;
+      let verifiedAt: Date | undefined;
+      let rejectionReason: string | undefined;
+
+      if (doc.filePath.startsWith(this.VERIFICATION_PREFIX)) {
+        try {
+          const prefixEnd = doc.filePath.indexOf('::');
+          const jsonStr = doc.filePath.substring(this.VERIFICATION_PREFIX.length, prefixEnd);
+          const verification = JSON.parse(jsonStr);
+          verificationStatus = (verification.verificationStatus || 'PENDING') as 'PENDING' | 'VERIFIED' | 'REJECTED';
+          verifiedBy = verification.verifiedBy;
+          verifiedAt = verification.verifiedAt ? new Date(verification.verifiedAt) : undefined;
+          rejectionReason = verification.rejectionReason;
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+
+      return {
+        documentId: doc._id.toString(),
+        documentType: doc.type,
+        documentName: doc.filePath.split('/').pop() || 'Document',
+        filePath: doc.filePath,
+        uploadedAt: doc.uploadedAt,
+        verificationStatus,
+        verifiedBy,
+        verifiedAt,
+        rejectionReason,
+      };
+    });
   }
 
   /**
@@ -796,19 +924,25 @@ export class OnboardingService {
       throw new NotFoundException(`Offer associated with contract not found`);
     }
 
+    // Use filePath or signatureUrl (frontend sends signatureUrl)
+    const filePath = dto.filePath || dto.signatureUrl || 'signed-contract-uploaded';
+
     // Create document record
     const doc = await this.documentModel.create({
       ownerId: offer.candidateId,
       type: DocumentType.CONTRACT,
-      filePath: dto.filePath,
+      filePath: filePath,
       uploadedAt: new Date(),
     });
 
-    // Update contract
+    // Update contract with signature
     contract.documentId = doc._id as Types.ObjectId;
-    if (dto.employeeSignatureUrl) {
-      contract.employeeSignatureUrl = dto.employeeSignatureUrl;
-      contract.employeeSignedAt = new Date();
+    
+    // Use signatureUrl or employeeSignatureUrl as the signature
+    const signatureUrl = dto.signatureUrl || dto.employeeSignatureUrl;
+    if (signatureUrl) {
+      contract.employeeSignatureUrl = signatureUrl;
+      contract.employeeSignedAt = dto.signedAt ? new Date(dto.signedAt) : new Date();
     }
 
     await contract.save();
@@ -835,10 +969,13 @@ export class OnboardingService {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
 
+    // Use filePath or formUrl (frontend sends formUrl)
+    const filePath = dto.filePath || dto.formUrl || 'onboarding-form-uploaded';
+
     const doc = await this.documentModel.create({
       ownerId: onboarding.employeeId,
       type: DocumentType.CERTIFICATE,
-      filePath: dto.filePath,
+      filePath: filePath,
       uploadedAt: new Date(),
     });
 
@@ -935,6 +1072,7 @@ export class OnboardingService {
 
   /**
    * Get provisioning status for an onboarding
+   * ONB-013: Returns both persisted provisioning records and IT service status
    */
   async getProvisioningStatus(onboardingId: string): Promise<ProvisioningStatusDto> {
     const onboarding = await this.onboardingModel.findById(onboardingId).exec();
@@ -942,45 +1080,72 @@ export class OnboardingService {
       throw new NotFoundException(`Onboarding with ID ${onboardingId} not found`);
     }
 
-    // Get provisioning records
+    // Get provisioning records from database
     const docs = await this.documentModel.find({
       ownerId: onboarding.employeeId,
       filePath: { $regex: `^${this.PROVISIONING_PREFIX}` },
     }).exec();
 
-    const systems: SystemProvisioningStatusDto[] = [];
+    const systemsMap = new Map<string, SystemProvisioningStatusDto>();
     let requestedAt: Date | undefined;
+    let hasScheduledProvisioning = false;
 
+    // Process all provisioning records from database
     for (const doc of docs) {
-      const data = JSON.parse(doc.filePath.replace(this.PROVISIONING_PREFIX, ''));
-      requestedAt = new Date(data.requestedAt);
-      for (const system of data.systems) {
-        systems.push({
-          system,
-          status: data.status || 'pending',
-          provisionedAt: data.status === 'provisioned' ? new Date() : undefined,
-        });
+      try {
+        const data = JSON.parse(doc.filePath.replace(this.PROVISIONING_PREFIX, ''));
+        requestedAt = new Date(data.requestedAt);
+        
+        // Track if we have any scheduled provisioning
+        if (data.status === 'scheduled') {
+          hasScheduledProvisioning = true;
+        }
+
+        // Add each system from the record
+        for (const system of data.systems || []) {
+          // Map the status from the record
+          let status = data.status || 'pending';
+          if (status === 'scheduled') {
+            status = 'scheduled';
+          }
+          
+          systemsMap.set(system, {
+            system,
+            status,
+            provisionedAt: data.status === 'provisioned' ? new Date() : undefined,
+            scheduledFor: data.scheduledFor ? new Date(data.scheduledFor) : undefined,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to parse provisioning record:', err);
       }
     }
 
-    // Get status from IT service
-    const itStatus = await this.itProvisioningService.getProvisioningStatus(
-      onboarding.employeeId.toString(),
-    );
+    // Convert map to array
+    const systems = Array.from(systemsMap.values());
+
+    // Determine overall status
+    let overallStatus: 'not_started' | 'scheduled' | 'in_progress' | 'completed' | 'failed' = 'not_started';
+    if (systems.length > 0) {
+      if (systems.every(s => s.status === 'provisioned')) {
+        overallStatus = 'completed';
+      } else if (systems.some(s => s.status === 'scheduled')) {
+        overallStatus = 'scheduled';
+      } else if (systems.some(s => s.status === 'pending')) {
+        overallStatus = 'in_progress';
+      }
+    }
 
     return {
       onboardingId,
       employeeId: onboarding.employeeId.toString(),
-      overallStatus: systems.length > 0 ? 'in_progress' : 'not_started',
-      systems: [
-        { system: 'email', status: itStatus.email },
-        { system: 'laptop', status: itStatus.laptop },
-        { system: 'systemAccess', status: itStatus.systemAccess },
-        { system: 'payroll', status: itStatus.payroll },
-      ],
+      overallStatus,
+      systems,
       requestedAt,
     };
+
   }
+
 
   // ============================================================================
   // ONB-012: EQUIPMENT, DESK, AND ACCESS CARD RESERVATION
@@ -1151,8 +1316,8 @@ export class OnboardingService {
 
     const equipment = equipmentDocs.map((d) => this.mapToReservationDto(d, this.EQUIPMENT_PREFIX));
     const desk = deskDocs.length > 0 ? this.mapToReservationDto(deskDocs[0], this.DESK_PREFIX) : undefined;
-    const accessCard = accessCardDocs.length > 0 
-      ? this.mapToReservationDto(accessCardDocs[0], this.ACCESSCARD_PREFIX) 
+    const accessCard = accessCardDocs.length > 0
+      ? this.mapToReservationDto(accessCardDocs[0], this.ACCESSCARD_PREFIX)
       : undefined;
 
     const allReady = equipment.every((e) => e.status === 'ready' || e.status === 'assigned') &&
@@ -1180,6 +1345,7 @@ export class OnboardingService {
   /**
    * Schedule account provisioning for start date
    * Sends notification to System Admin to set up email for new hire
+   * ONB-013: Persists the scheduled provisioning to the database
    */
   async scheduleProvisioning(dto: ScheduleProvisioningDto): Promise<{
     scheduled: boolean;
@@ -1215,6 +1381,25 @@ export class OnboardingService {
     };
 
     const result = await this.itProvisioningService.scheduleProvisioning(provRequest, dto.systems);
+
+    // ONB-013: Persist the scheduled provisioning to the database
+    const provisioningData = {
+      onboardingId: dto.onboardingId,
+      systems: dto.systems,
+      requestedBy: 'HR Manager',
+      requestedAt: new Date().toISOString(),
+      scheduledFor: startDate.toISOString(),
+      status: 'scheduled', // New status for scheduled provisioning
+      taskId: result.taskId,
+    };
+
+    // Save to documents collection for status tracking
+    await this.documentModel.create({
+      ownerId: onboarding.employeeId,
+      type: DocumentType.CERTIFICATE,
+      filePath: `${this.PROVISIONING_PREFIX}${JSON.stringify(provisioningData)}`,
+      uploadedAt: new Date(),
+    });
 
     // ONB-013: Send notification to System Admin for email setup
     let notificationSent = false;
@@ -1257,6 +1442,7 @@ export class OnboardingService {
       notificationSent,
     };
   }
+
 
   /**
    * Schedule account revocation for exit date
@@ -1340,7 +1526,15 @@ export class OnboardingService {
 
   /**
    * Initiate payroll for a new hire
-   * Simplified: Verifies effective date is provided
+   * ONB-018: Automatically handle payroll initiation based on contract signing day
+   * 
+   * This method:
+   * 1. Derives effective date from contract if not provided
+   * 2. Creates a payroll enrollment record in the documents collection
+   * 3. Updates the employee profile with payroll-effective date
+   * 4. Adds a completed task to the onboarding tracker
+   * 
+   * The payroll enrollment record can be queried by Payroll Module (REQ-PY-23)
    */
   async initiatePayroll(dto: InitiatePayrollDto): Promise<PayrollInitiationResultDto> {
     const onboarding = await this.onboardingModel.findById(dto.onboardingId).exec();
@@ -1353,26 +1547,73 @@ export class OnboardingService {
       throw new NotFoundException(`Contract with ID ${dto.contractId} not found`);
     }
 
-    // Check if payroll task already exists (may have been done in previous phase)
-    const existingPayrollTask = onboarding.tasks.find(
-      (t) => t.name === 'Payroll account setup' && t.status === OnboardingTaskStatus.COMPLETED,
-    );
-    
-    if (existingPayrollTask) {
+    // Derive effective date from contract if not provided
+    // Per ONB-018: "automatically handle payroll initiation based on the contract signing day"
+    let effectiveDate: Date = dto.effectiveDate || new Date();
+    if (!dto.effectiveDate) {
+      // Try to get from contract: employee signed date, start date, or created date
+      if (contract.employeeSignedAt) {
+        effectiveDate = contract.employeeSignedAt;
+      } else if ((contract as any).startDate) {
+        effectiveDate = (contract as any).startDate;
+      } else {
+        effectiveDate = (contract as any).createdAt || new Date();
+      }
+    }
+
+    // Check if payroll enrollment document already exists (more reliable than task check)
+    const existingPayrollDoc = await this.documentModel.findOne({
+      ownerId: onboarding.employeeId,
+      filePath: { $regex: `^${this.PAYROLL_PREFIX}` },
+    }).exec();
+
+    if (existingPayrollDoc) {
       return {
         success: true,
         onboardingId: dto.onboardingId,
-        effectiveDate: dto.effectiveDate,
+        payrollRecordId: (existingPayrollDoc._id as Types.ObjectId).toString(),
+        effectiveDate: effectiveDate,
         firstPayrollCycle: 'current',
         grossSalary: contract.grossSalary,
-        message: 'Payroll already initiated - completed in previous phase',
+        message: 'Payroll already initiated - enrollment document exists',
       };
     }
 
-    // Verify effective date is provided in the DTO
-    if (!dto.effectiveDate) {
-      throw new BadRequestException('Effective date must be provided for payroll initiation');
-    }
+    // Create payroll enrollment record in documents collection
+    // This record links the employee to the payroll system with their salary details
+    const payrollEnrollmentData = {
+      onboardingId: dto.onboardingId,
+      contractId: dto.contractId,
+      employeeId: onboarding.employeeId.toString(),
+      effectiveDate: effectiveDate.toISOString(),
+      grossSalary: contract.grossSalary,
+      signingBonus: contract.signingBonus || 0,
+      benefits: contract.benefits || [],
+      payrollCycle: dto.payrollCycle || 'current',
+      proRateFirstSalary: dto.proRateFirstSalary ?? true,
+      status: 'enrolled',
+      enrolledAt: new Date().toISOString(),
+    };
+
+    // Store in documents collection with PAYROLL_PREFIX for Payroll Module to query
+    const payrollDoc = await this.documentModel.create({
+      ownerId: onboarding.employeeId,
+      type: DocumentType.CONTRACT, // Using CONTRACT type as carrier
+      filePath: `${this.PAYROLL_PREFIX}${JSON.stringify(payrollEnrollmentData)}`,
+      uploadedAt: new Date(),
+    });
+
+    // Update employee profile with payroll-effective date
+    await this.employeeProfileModel.findByIdAndUpdate(
+      onboarding.employeeId,
+      {
+        $set: {
+          dateOfHire: effectiveDate,
+          contractStartDate: effectiveDate,
+        },
+      },
+      { new: true },
+    );
 
     // Add payroll initiation task to onboarding
     onboarding.tasks.push({
@@ -1383,13 +1624,16 @@ export class OnboardingService {
     });
     await onboarding.save();
 
+    console.log(`[ONB-018] Payroll initiated for employee ${onboarding.employeeId}, enrollment doc: ${payrollDoc._id}`);
+
     return {
       success: true,
       onboardingId: dto.onboardingId,
-      effectiveDate: dto.effectiveDate,
+      payrollRecordId: (payrollDoc._id as Types.ObjectId).toString(),
+      effectiveDate: effectiveDate,
       firstPayrollCycle: dto.payrollCycle || 'current',
       grossSalary: contract.grossSalary,
-      message: 'Payroll initiation verified - start date confirmed',
+      message: 'Payroll initiated - employee enrolled in payroll system',
     };
   }
 
@@ -1474,7 +1718,7 @@ export class OnboardingService {
     // Use validated config ID if provided, otherwise create a placeholder reference
     const signingBonusRecord = await this.employeeSigningBonusModel.create({
       employeeId: onboarding.employeeId,
-      signingBonusId: signingBonusConfig 
+      signingBonusId: signingBonusConfig
         ? signingBonusConfig._id
         : new Types.ObjectId(), // Placeholder if no config reference
       givenAmount: bonusAmount,
@@ -1617,4 +1861,165 @@ export class OnboardingService {
       notes: data.notes,
     };
   }
+
+  // ============================================================================
+  // ONBOARDING COMPLETION - Role Transition
+  // When all tasks are completed, transition from Job Candidate to Employee
+  // ============================================================================
+
+  /**
+   * Finalize onboarding completion and transition the new hire to an active employee
+   * 
+   * This method:
+   * 1. Verifies all onboarding tasks are completed
+   * 2. Updates EmployeeProfile status from Onboarding → Active
+   * 3. Updates EmployeeSystemRole from Job Candidate → hired role (from contract)
+   * 4. Updates Candidate status to Hired
+   * 5. Sends completion notification
+   */
+  async finalizeOnboardingCompletion(onboardingId: string): Promise<{
+    success: boolean;
+    employeeId: string;
+    previousRole: string;
+    newRole: string;
+    message: string;
+  }> {
+    const onboarding = await this.onboardingModel.findById(onboardingId).exec();
+    if (!onboarding) {
+      throw new NotFoundException(`Onboarding with ID ${onboardingId} not found`);
+    }
+
+    // Verify all tasks are completed
+    const allCompleted = onboarding.tasks.every(
+      (t) => t.status === OnboardingTaskStatus.COMPLETED,
+    );
+    if (!allCompleted) {
+      throw new BadRequestException('Not all onboarding tasks are completed. Cannot finalize.');
+    }
+
+    // Get the contract to find the hired role (optional - may not exist for test data)
+    let newRole: SystemRole = SystemRole.DEPARTMENT_EMPLOYEE;
+    let candidateId: string | undefined;
+
+    if (onboarding.contractId) {
+      const contract = await this.contractModel.findById(onboarding.contractId).exec();
+      if (contract && contract.offerId) {
+        // Get the offer to find candidate info and role
+        const offer = await this.offerModel.findById(contract.offerId).exec();
+        if (offer) {
+          candidateId = offer.candidateId?.toString();
+          // Determine the new role from the contract/offer
+          if (offer.role) {
+            // Try to match the role string to a SystemRole enum value
+            const roleMatch = Object.values(SystemRole).find(
+              (r) => r.toLowerCase() === offer.role?.toLowerCase()
+            );
+            if (roleMatch) {
+              newRole = roleMatch;
+            }
+          }
+        }
+      }
+    }
+    console.log(`[ONBOARDING] Using role: ${newRole} for employee transition`);
+
+    const employeeId = onboarding.employeeId.toString();
+
+    // 1. Update Employee Profile status to Active
+    const employeeProfile = await this.employeeProfileModel.findById(employeeId).exec();
+    if (employeeProfile) {
+      employeeProfile.status = EmployeeStatus.ACTIVE;
+      employeeProfile.statusEffectiveFrom = new Date();
+      await employeeProfile.save();
+      console.log(`[ONBOARDING] Updated employee ${employeeId} status to ACTIVE`);
+    }
+
+    // 2. Update Employee System Role - remove Job Candidate, add new role
+    const systemRole = await this.employeeSystemRoleModel.findOne({
+      employeeProfileId: new Types.ObjectId(employeeId),
+    }).exec();
+
+    const previousRole = systemRole?.roles?.join(', ') || 'Job Candidate';
+
+    if (systemRole) {
+      // Replace Job Candidate with the new role
+      systemRole.roles = [newRole];
+      systemRole.isActive = true;
+      await systemRole.save();
+      console.log(`[ONBOARDING] Updated system role from [${previousRole}] to [${newRole}]`);
+    } else {
+      // Create new system role if doesn't exist
+      await this.employeeSystemRoleModel.create({
+        employeeProfileId: new Types.ObjectId(employeeId),
+        roles: [newRole],
+        permissions: [],
+        isActive: true,
+      });
+      console.log(`[ONBOARDING] Created new system role [${newRole}] for employee ${employeeId}`);
+    }
+
+    // 3. Update Candidate status to Hired (if we have the candidateId)
+    if (candidateId) {
+      const candidate = await this.candidateModel.findById(candidateId).exec();
+      if (candidate) {
+        candidate.status = CandidateStatus.HIRED;
+        await candidate.save();
+        console.log(`[ONBOARDING] Updated candidate ${candidate._id} status to HIRED`);
+      }
+    }
+
+    // 4. Mark onboarding as finalized
+    onboarding.completed = true;
+    onboarding.completedAt = new Date();
+    await onboarding.save();
+
+    // 5. Send completion notification
+    await this.notificationService.sendOnboardingComplete(
+      employeeId,
+      `Congratulations! Your onboarding is complete. You have been assigned the role: ${newRole}`,
+    );
+
+    console.log(`[ONBOARDING] Finalized onboarding ${onboardingId} - Employee ${employeeId} transitioned to ${newRole}`);
+
+    return {
+      success: true,
+      employeeId,
+      previousRole,
+      newRole,
+      message: `Onboarding completed successfully. Role changed from "${previousRole}" to "${newRole}".`,
+    };
+  }
+
+  /**
+   * Check if onboarding can be finalized (all tasks complete)
+   */
+  async canFinalizeOnboarding(onboardingId: string): Promise<{
+    canFinalize: boolean;
+    completedTasks: number;
+    totalTasks: number;
+    pendingTasks: string[];
+  }> {
+    const onboarding = await this.onboardingModel.findById(onboardingId).exec();
+    if (!onboarding) {
+      throw new NotFoundException(`Onboarding with ID ${onboardingId} not found`);
+    }
+
+    const completedTasks = onboarding.tasks.filter(
+      (t) => t.status === OnboardingTaskStatus.COMPLETED
+    ).length;
+    const totalTasks = onboarding.tasks.length;
+    const pendingTasks = onboarding.tasks
+      .filter((t) => t.status !== OnboardingTaskStatus.COMPLETED)
+      .map((t) => t.name);
+
+    return {
+      canFinalize: completedTasks === totalTasks,
+      completedTasks,
+      totalTasks,
+      pendingTasks,
+    };
+  }
 }
+
+
+// yarab this is working

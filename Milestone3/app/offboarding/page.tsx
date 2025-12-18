@@ -29,7 +29,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { offboardingApi, employeeProfileApi } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   TerminationRequest,
   ClearanceChecklist,

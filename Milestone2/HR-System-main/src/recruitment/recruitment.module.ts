@@ -107,4 +107,4 @@ import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.m
     OnboardingService,
   ],
 })
-export class RecruitmentModule {}
+export class RecruitmentModule { }

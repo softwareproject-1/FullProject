@@ -19,7 +19,7 @@ import { NotificationLog, NotificationLogDocument } from '../../time-management/
 /**
  * Notification types supported by the system
  */
-export type NotificationType = 
+export type NotificationType =
   | 'TASK_REMINDER'
   | 'TASK_ASSIGNED'
   | 'TASK_OVERDUE'
@@ -77,7 +77,7 @@ export class NotificationService {
   constructor(
     @InjectModel(NotificationLog.name)
     private readonly notificationLogModel: Model<NotificationLogDocument>,
-  ) {}
+  ) { }
 
   /**
    * Send a notification (persists to MongoDB)
@@ -135,13 +135,13 @@ export class NotificationService {
     recipientEmail?: string,
   ): Promise<NotificationRecord> {
     const daysUntil = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    
+
     return this.sendNotification({
       recipientId,
       recipientEmail,
       type: isOverdue ? 'TASK_OVERDUE' : 'TASK_REMINDER',
-      subject: isOverdue 
-        ? `⚠️ Overdue Task: ${taskName}` 
+      subject: isOverdue
+        ? `⚠️ Overdue Task: ${taskName}`
         : `📋 Task Reminder: ${taskName}`,
       message: isOverdue
         ? `Your task "${taskName}" is overdue by ${Math.abs(daysUntil)} days. Please complete it as soon as possible.`
@@ -209,13 +209,31 @@ export class NotificationService {
   }
 
   /**
+   * Send onboarding completion notification
+   */
+  async sendOnboardingComplete(
+    recipientId: string,
+    message: string,
+    recipientEmail?: string,
+  ): Promise<NotificationRecord> {
+    return this.sendNotification({
+      recipientId,
+      recipientEmail,
+      type: 'ONBOARDING_COMPLETED',
+      subject: `🎉 Onboarding Complete!`,
+      message,
+      metadata: { completedAt: new Date().toISOString() },
+    });
+  }
+
+  /**
    * Get all notifications for a recipient
    */
   async getNotificationsForRecipient(recipientId: string): Promise<NotificationRecord[]> {
     const logs = await this.notificationLogModel.find({
       to: new Types.ObjectId(recipientId),
     }).exec();
-    
+
     return logs.map((log) => ({
       notificationId: log._id.toString(),
       recipientId: log.to.toString(),
@@ -233,7 +251,7 @@ export class NotificationService {
    */
   async getAllNotifications(): Promise<NotificationRecord[]> {
     const logs = await this.notificationLogModel.find().exec();
-    
+
     return logs.map((log) => ({
       notificationId: log._id.toString(),
       recipientId: log.to.toString(),
