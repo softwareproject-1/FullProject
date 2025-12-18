@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import RouteGuard from '../../components/RouteGuard';
 import { Briefcase, User, FileText, Clock, Search, Shield, ClipboardCheck, Gift } from 'lucide-react';
 import Link from 'next/link';
@@ -14,7 +14,7 @@ export default function CandidateDashboard() {
   // Redirect non-candidates away
   useEffect(() => {
     if (!loading && user) {
-      const isCandidate = user.roles.some(r => r.toLowerCase() === 'job candidate');
+      const isCandidate = user.roles?.some(r => r.toLowerCase() === 'job candidate') ?? false;
       if (!isCandidate) {
         router.replace('/');
       }

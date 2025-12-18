@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import RouteGuard from '../../../components/RouteGuard';
 import { recruitmentApi } from '../../../services/api';
 import { 
@@ -156,9 +156,14 @@ export default function CandidateJobsPage() {
       setResumeFile(file);
       setApplyMessage({ type: 'success', text: 'Uploading resume...' });
 
+      if (!user?.id) {
+        setApplyMessage({ type: 'error', text: 'User not authenticated. Please log in again.' });
+        return;
+      }
+
       try {
         // Upload to backend
-        const response = await recruitmentApi.documents.uploadCV(user!.id, file);
+        const response = await recruitmentApi.documents.uploadCV(user.id, file);
         setResumeUrl(response.data.resumeUrl);
         setApplyMessage({ type: 'success', text: 'Resume uploaded successfully!' });
       } catch (err: any) {

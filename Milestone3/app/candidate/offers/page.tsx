@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import RouteGuard from '../../../components/RouteGuard';
 import { CheckCircle, XCircle, Clock, FileText, PenLine, AlertCircle } from 'lucide-react';
 import { recruitmentApi } from '../../../services/api';

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import RouteGuard from '../../../components/RouteGuard';
 import { recruitmentApi } from '../../../services/api';
 import { 
