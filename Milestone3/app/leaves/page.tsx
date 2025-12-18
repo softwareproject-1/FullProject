@@ -5,7 +5,8 @@ import { Card } from '../../components/Card';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Modal } from '../../components/Modal';
-import { Calendar, Plus, Upload, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Plus, Upload, CheckCircle, XCircle, Settings } from 'lucide-react';
+import Link from 'next/link';
 import { mockLeaveBalances, mockLeaveRequests } from '../../lib/api';
 import type { LeaveRequest } from '../../lib/types';
 
@@ -95,38 +96,43 @@ export default function Leaves() {
           <h1 className="text-slate-900 mb-2">Leave Management</h1>
           <p className="text-slate-600">Manage leave balances and requests</p>
         </div>
-        
+
         <div className="flex gap-2">
           <button
             onClick={() => setCurrentView('balance')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentView === 'balance'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'balance'
+              ? 'bg-slate-900 text-white'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              }`}
           >
             My Balance
           </button>
           <button
             onClick={() => setCurrentView('request')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentView === 'request'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'request'
+              ? 'bg-slate-900 text-white'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              }`}
           >
             My Requests
           </button>
           <button
             onClick={() => setCurrentView('approval')}
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              currentView === 'approval'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-lg transition-colors ${currentView === 'approval'
+              ? 'bg-slate-900 text-white'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              }`}
           >
             Approval Queue
           </button>
+          <Link href="/leaves/configuration">
+            <button
+              className="px-4 py-2 rounded-lg transition-colors bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Settings className="w-4 h-4" />
+              Configuration
+            </button>
+          </Link>
         </div>
       </div>
 
@@ -139,7 +145,7 @@ export default function Leaves() {
                   <h3 className="text-slate-900">{balance.leaveType} Leave</h3>
                   <Calendar className="w-5 h-5 text-blue-600" />
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center">
                     <p className="text-slate-600 mb-1">Accrued</p>
