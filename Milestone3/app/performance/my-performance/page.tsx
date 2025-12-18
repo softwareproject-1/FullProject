@@ -458,7 +458,7 @@ export default function MyPerformancePage() {
                   <div className="flex gap-4 pt-4 border-t border-slate-300">
                     {!isViewingStatusOnly && (
                       <Button
-                        variant="primary"
+                        variant="default"
                         onClick={() => {
                           const id = selectedRecord._id || selectedRecord.id || "";
                           if (id) {

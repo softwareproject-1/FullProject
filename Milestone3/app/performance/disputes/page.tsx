@@ -452,7 +452,7 @@ function DisputesPageContent() {
       const response = await PerformanceApi.createDispute(disputePayload);
       
       // Get dispute ID from response if available
-      const disputeId = response?.data?._id || response?.data?.id || response?._id || response?.id || "N/A";
+      const disputeId = response?.data?._id || response?.data?.id || (response as any)?._id || (response as any)?.id || "N/A";
       
       // Show success message with dispute ID
       setSuccessMessage(`Dispute submitted successfully! Your dispute has been recorded (ID: ${disputeId.substring(0, 8)}...) and will be reviewed by HR.`);
@@ -858,7 +858,7 @@ function DisputesPageContent() {
               {canSubmitDisputes && !canResolveDisputes ? "My Disputes" : "Disputes"}
               {items.length > 0 ? ` (${items.filter((dsp) => {
                 if (canSubmitDisputes && !canResolveDisputes && user?._id) {
-                  const disputeEmployeeId = String(dsp.raisedByEmployeeId || dsp.raisedByEmployeeId?._id || '');
+                  const disputeEmployeeId = String(dsp.raisedByEmployeeId || (dsp.raisedByEmployeeId as any)?._id || '');
                   const currentUserId = String(user._id);
                   return disputeEmployeeId === currentUserId;
                 }
@@ -886,7 +886,7 @@ function DisputesPageContent() {
                   .filter((dsp) => {
                     // For employees, only show their own disputes
                     if (canSubmitDisputes && !canResolveDisputes && user?._id) {
-                      const disputeEmployeeId = String(dsp.raisedByEmployeeId || dsp.raisedByEmployeeId?._id || '');
+                      const disputeEmployeeId = String(dsp.raisedByEmployeeId || (dsp.raisedByEmployeeId as any)?._id || '');
                       const currentUserId = String(user._id);
                       return disputeEmployeeId === currentUserId;
                     }
@@ -896,7 +896,7 @@ function DisputesPageContent() {
                   .map((dsp, idx) => {
                   const id = dsp._id || dsp.id || idx.toString();
                   const isMyDispute = canSubmitDisputes && !canResolveDisputes && user?._id && 
-                    String(dsp.raisedByEmployeeId || dsp.raisedByEmployeeId?._id || '') === String(user._id);
+                    String(dsp.raisedByEmployeeId || (dsp.raisedByEmployeeId as any)?._id || '') === String(user._id);
                   return (
                     <div
                       key={id}

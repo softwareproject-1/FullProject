@@ -193,7 +193,7 @@ export default function StructureChangeRequestsPage() {
                     setError("Please enter a request ID");
                   }
                 }}
-                variant="primary"
+                variant="default"
                 disabled={!requestId}
               >
                 Manage Request
@@ -229,7 +229,7 @@ export default function StructureChangeRequestsPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => handleApprove(showApprovalModal)}
-                  variant="primary"
+                  variant="default"
                   isLoading={processingId === showApprovalModal}
                   disabled={processingId !== null}
                 >

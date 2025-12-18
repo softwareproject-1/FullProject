@@ -2,8 +2,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function MainPage() {
   const router = useRouter();
@@ -50,7 +50,7 @@ export default function MainPage() {
           </p>
           <Button 
             onClick={() => router.push("/auth/login")} 
-            variant="primary"
+            variant="default"
             className="w-full"
           >
             Go to Login
