@@ -144,6 +144,76 @@ export interface InsuranceCertificateDto {
     documentUrl?: string;
 }
 
+// ==================== TIME MANAGEMENT INTEGRATION ====================
+export enum PenaltyType {
+    UNAPPROVED_ABSENCE = 'UNAPPROVED_ABSENCE',
+    LATE = 'LATE',
+    EARLY_LEAVE = 'EARLY_LEAVE',
+    MISCONDUCT = 'MISCONDUCT',
+}
+
+export enum TimeItemStatus {
+    FINALIZED = 'FINALIZED',
+    DISPUTED = 'DISPUTED',
+    PENDING_CORRECTION = 'PENDING_CORRECTION',
+}
+
+export enum OvertimeRateType {
+    DAYTIME = 'DAYTIME',
+    NIGHTTIME = 'NIGHTTIME',
+    WEEKLY_REST = 'WEEKLY_REST',
+    OFFICIAL_HOLIDAY = 'OFFICIAL_HOLIDAY',
+}
+
+export interface PenaltyItemDto {
+    id: string;
+    date: string;
+    type: PenaltyType;
+    reason: string;
+    amount: number;
+    minutesLate?: number;
+    status: TimeItemStatus;
+    attendanceRecordId: string;
+    exceptionId?: string;
+}
+
+export interface OvertimeItemDto {
+    id: string;
+    date: string;
+    hoursWorked: number;
+    rate: number;
+    rateType: OvertimeRateType;
+    compensation: number;
+    status: string;
+}
+
+export interface PermissionItemDto {
+    id: string;
+    date: string;
+    hours: number;
+    type: 'PAID' | 'UNPAID';
+    reason?: string;
+    limitExceeded: boolean;
+}
+
+export interface TimeImpactDataDto {
+    employeeId: string;
+    month: number;
+    year: number;
+    penalties: PenaltyItemDto[];
+    totalPenalties: number;
+    overtime: OvertimeItemDto[];
+    totalOvertimeCompensation: number;
+    permissions: PermissionItemDto[];
+    paidPermissions: number;
+    unpaidPermissions: number;
+    minimumWageAlert: boolean;
+    projectedNetPay: number;
+    minimumWage: number;
+    hasDisputedItems: boolean;
+    disputedItemIds: string[];
+}
+
 // ============================================================
 // API ENDPOINTS
 // ============================================================
@@ -165,10 +235,16 @@ export const payrollTrackingApi = {
     /**
      * Download payslip as PDF
      */
-    downloadPayslip: (id: string) =>
-        axiosInstance.get(`/payroll-tracking/payslips/${id}/download`, {
+    downloadPayslipPDF: (id: string) =>
+        axiosInstance.get(`/payroll-tracking/payslips/${id}/download-pdf`, {
             responseType: 'blob'
         }),
+
+    /**
+     * Get time-related financial impact for a specific pay period
+     */
+    getTimeImpactData: (month: number, year: number) =>
+        axiosInstance.get<{ data: TimeImpactDataDto }>(`/payroll-tracking/time-impact/${month}/${year}`),
 
     // ==================== SALARY HISTORY ====================
     /**

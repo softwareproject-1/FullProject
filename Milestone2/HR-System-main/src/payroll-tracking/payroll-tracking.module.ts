@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { PayrollTrackingController } from './payroll-tracking.controller';
 import { FinanceController } from './finance.controller';
 import { PayrollTrackingService } from './payroll-tracking.service';
@@ -23,6 +24,7 @@ import { NotificationLog, NotificationLogSchema } from '../time-management/model
 @Module({
 
   imports: [
+    HttpModule,  // For calling Time Management APIs
     PayrollConfigurationModule,
     forwardRef(() => PayrollExecutionModule),
     AuthModule,

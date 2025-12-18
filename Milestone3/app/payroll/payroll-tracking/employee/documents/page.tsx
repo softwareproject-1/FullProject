@@ -19,8 +19,13 @@ export default function DocumentsPage() {
             link.click();
             window.URL.revokeObjectURL(url);
             toast.success('Tax certificate downloaded successfully');
-        } catch (err) {
-            toast.error('Failed to download tax certificate');
+        } catch (err: any) {
+            console.error('Tax certificate download error:', err);
+            if (err.response?.status === 404) {
+                toast.error('Certificate generation is not yet available. Please contact HR for manual certificates.');
+            } else {
+                toast.error('Failed to download tax certificate. Please try again later.');
+            }
         }
     };
 
@@ -35,8 +40,13 @@ export default function DocumentsPage() {
             link.click();
             window.URL.revokeObjectURL(url);
             toast.success('Insurance certificate downloaded successfully');
-        } catch (err) {
-            toast.error('Failed to download insurance certificate');
+        } catch (err: any) {
+            console.error('Insurance certificate download error:', err);
+            if (err.response?.status === 404) {
+                toast.error('Certificate generation is not yet available. Please contact HR for manual certificates.');
+            } else {
+                toast.error('Failed to download insurance certificate. Please try again later.');
+            }
         }
     };
 

@@ -18,7 +18,8 @@ export default function SalaryHistoryPage() {
     const fetchSalaryHistory = async () => {
         try {
             const response = await payrollTrackingApi.getMyPayslips();
-            setPayslips(response.data.sort((a: PayslipDto, b: PayslipDto) =>
+            const payslipsData = response.data.data || response.data || [];
+            setPayslips(payslipsData.sort((a: PayslipDto, b: PayslipDto) =>
                 new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             ));
         } catch (err) {

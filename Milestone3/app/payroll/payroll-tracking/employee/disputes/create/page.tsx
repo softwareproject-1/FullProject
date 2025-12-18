@@ -17,7 +17,7 @@ export default function CreateDisputePage() {
     const [submitting, setSubmitting] = useState(false);
     const [formData, setFormData] = useState<CreateDisputeDto>({
         payslipId: '',
-        reason: '',
+        description: '',
         expectedAmount: undefined,
     });
 
@@ -84,21 +84,21 @@ export default function CreateDisputePage() {
                             <Input
                                 id="reason"
                                 placeholder="e.g., Incorrect Tax Deduction, Missing Allowance"
-                                value={formData.reason}
-                                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 required
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="description">
-                                Description <span className="text-red-600">*</span>
+                            <Label htmlFor="detailedDescription">
+                                Detailed Explanation <span className="text-red-600">*</span>
                             </Label>
                             <Textarea
-                                id="description"
+                                id="detailedDescription"
                                 placeholder="Provide detailed explanation of the issue..."
-                                value={(formData as any).description || ''}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value } as any)}
+                                value={formData.category || ''}
+                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                 rows={5}
                                 required
                             />

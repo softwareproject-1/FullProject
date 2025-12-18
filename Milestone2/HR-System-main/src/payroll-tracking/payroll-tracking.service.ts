@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
 import { claims, claimsDocument } from './models/claims.schema';
 import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
 import { CreateClaimDto } from './dto/create-claim.dto';
@@ -16,9 +18,14 @@ import { DisputeStatus } from './enums/payroll-tracking-enum';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
+import { TimeImpactDataDto, PenaltyItemDto, OvertimeItemDto, PermissionItemDto, PenaltyType, TimeItemStatus, OvertimeRateType } from './dto/time-impact.dto';
+import PDFDocument = require('pdfkit');
 
 @Injectable()
 export class PayrollTrackingService {
+  private readonly MINIMUM_WAGE = 3000; // Egyptian minimum wage (BR 60)
+  private readonly TIME_MANAGEMENT_BASE_URL = 'http://localhost:3000'; // Same server
+
   constructor(
     // === FATMA'S INJECTION ===
     @InjectModel(claims.name) private claimModel: Model<claimsDocument>,
@@ -39,6 +46,9 @@ export class PayrollTrackingService {
 
     // === EMPLOYEE PROFILE SERVICE ===
     private readonly employeeProfileService: EmployeeProfileService,
+
+    // === HTTP SERVICE FOR TIME MANAGEMENT INTEGRATION ===
+    private readonly httpService: HttpService,
   ) { }
 
   // === FATMA START ===
@@ -443,6 +453,210 @@ export class PayrollTrackingService {
   }
 
   /**
+   * Get a specific payslip by ID for the logged-in employee
+   * Ensures the payslip belongs to the requesting user
+   */
+  async getPayslipById(userId: string, payslipId: string): Promise<any> {
+    const payslip = await this.payslipModel
+      .findOne({
+        _id: new Types.ObjectId(payslipId),
+        employeeId: new Types.ObjectId(userId),
+      })
+      .exec();
+
+    if (!payslip) {
+      throw new NotFoundException(`Payslip with ID ${payslipId} not found or access denied`);
+    }
+
+    // Transform to match the format expected by frontend
+    return {
+      _id: payslip._id,
+      employeeId: payslip.employeeId,
+      payrollRunId: payslip.payrollRunId,
+      createdAt: (payslip as any).createdAt,
+      // Earnings breakdown
+      earnings: {
+        baseSalary: payslip.earningsDetails?.baseSalary || 0,
+        allowances: payslip.earningsDetails?.allowances || [],
+        bonuses: payslip.earningsDetails?.bonuses || [],
+        benefits: payslip.earningsDetails?.benefits || [],
+        refunds: payslip.earningsDetails?.refunds || [],
+      },
+      // Deductions breakdown
+      deductions: {
+        taxes: payslip.deductionsDetails?.taxes || [],
+        insurance: payslip.deductionsDetails?.insurances || [],
+        penalties: payslip.deductionsDetails?.penalties || null,
+      },
+      // Summary totals
+      totalGrossSalary: payslip.totalGrossSalary,
+      totalDeductions: payslip.totaDeductions || 0,
+      netPay: payslip.netPay,
+      paymentStatus: payslip.paymentStatus,
+    };
+  }
+
+  /**
+   * Generate payslip PDF for download
+   * Returns formatted PDF with full payslip details
+   */
+  async generatePayslipPDF(userId: string, payslipId: string): Promise<Buffer> {
+    const payslip = await this.payslipModel
+      .findOne({
+        _id: new Types.ObjectId(payslipId),
+        employeeId: new Types.ObjectId(userId),
+      })
+      .exec();
+
+    if (!payslip) {
+      throw new NotFoundException(`Payslip with ID ${payslipId} not found or access denied`);
+    }
+
+    // Fetch employee details
+    const employee = await this.employeeProfileService.getProfileById(userId);
+    const employeeName = `${employee.firstName} ${employee.lastName}`;
+
+    // Extract data
+    const baseSalary = payslip.earningsDetails?.baseSalary || 0;
+    const allowances = payslip.earningsDetails?.allowances || [];
+    const bonuses = payslip.earningsDetails?.bonuses || [];
+    const benefits = payslip.earningsDetails?.benefits || [];
+    const refunds = payslip.earningsDetails?.refunds || [];
+    const taxes = payslip.deductionsDetails?.taxes || [];
+    const insurances = payslip.deductionsDetails?.insurances || [];
+    const penalties = payslip.deductionsDetails?.penalties || null;
+
+    // Generate PDF
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Header
+      doc.fontSize(22).text('PAYSLIP', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(10).text(`Pay Period: ${new Date((payslip as any).createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, {
+        align: 'center',
+      });
+      doc.moveDown(0.3);
+      doc.fontSize(10).text(`Status: ${payslip.paymentStatus}`, { align: 'center' });
+      doc.moveDown(2);
+
+      // Employee Information
+      doc.fontSize(12).text('Employee Information', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(10);
+      doc.text(`Name: ${employeeName}`);
+      doc.text(`Employee ID: ${userId}`);
+      doc.text(`Payslip ID: ${payslipId}`);
+      doc.moveDown(1.5);
+
+      // Summary Box
+      doc.fontSize(12).text('Payment Summary', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      doc.text(`Gross Salary: EGP ${payslip.totalGrossSalary.toFixed(2)}`);
+      doc.text(`Total Deductions: EGP ${(payslip.totaDeductions || 0).toFixed(2)}`);
+      doc.fontSize(14).fillColor('blue').text(`Net Pay: EGP ${payslip.netPay.toFixed(2)} `);
+      doc.fillColor('black').fontSize(10);
+      doc.moveDown(1.5);
+
+      // Earnings Breakdown
+      doc.fontSize(12).text('Earnings Breakdown', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(10);
+      doc.text(`Base Salary: EGP ${baseSalary.toFixed(2)} `);
+
+      if (refunds.length > 0) {
+        doc.moveDown(0.3);
+        doc.fontSize(11).text('Leave Compensation & Refunds:', { underline: true });
+        doc.fontSize(9);
+        refunds.forEach((refund: any) => {
+          doc.text(`  • ${refund.description}: EGP ${refund.amount.toFixed(2)} `);
+        });
+      }
+
+      if (allowances.length > 0) {
+        doc.moveDown(0.3);
+        doc.fontSize(11).text('Allowances:', { underline: true });
+        doc.fontSize(9);
+        allowances.forEach((allowance: any) => {
+          doc.text(`  • ${allowance.name}: EGP ${allowance.amount.toFixed(2)} `);
+        });
+      }
+
+      if (bonuses.length > 0) {
+        doc.moveDown(0.3);
+        doc.fontSize(11).text('Bonuses:', { underline: true });
+        doc.fontSize(9);
+        bonuses.forEach((bonus: any) => {
+          doc.text(`  • ${bonus.name}: EGP ${bonus.amount.toFixed(2)} `);
+        });
+      }
+
+      if (benefits.length > 0) {
+        doc.moveDown(0.3);
+        doc.fontSize(11).text('Benefits:', { underline: true });
+        doc.fontSize(9);
+        benefits.forEach((benefit: any) => {
+          doc.text(`  • ${benefit.name}: EGP ${benefit.amount.toFixed(2)} `);
+        });
+      }
+
+      doc.moveDown(1.5);
+
+      // Deductions Breakdown
+      doc.fontSize(12).text('Deductions Breakdown', { underline: true });
+      doc.moveDown(0.5);
+
+      if (taxes.length > 0) {
+        doc.fontSize(11).text('Tax Deductions:', { underline: true });
+        doc.fontSize(9);
+        taxes.forEach((tax: any) => {
+          const taxAmount = (baseSalary * tax.rate) / 100;
+          doc.text(`  • ${tax.name} (${tax.rate}%): EGP ${taxAmount.toFixed(2)} `);
+          if (tax.description) {
+            doc.fontSize(8).fillColor('gray').text(`    ${tax.description} `);
+            doc.fillColor('black').fontSize(9);
+          }
+        });
+        doc.moveDown(0.3);
+      }
+
+      if (insurances.length > 0) {
+        doc.fontSize(11).text('Insurance Deductions:', { underline: true });
+        doc.fontSize(9);
+        insurances.forEach((ins: any) => {
+          const empAmount = (baseSalary * ins.employeeRate) / 100;
+          doc.text(`  • ${ins.name}: EGP ${empAmount.toFixed(2)} (Employee: ${ins.employeeRate}%, Employer: ${ins.employerRate}%)`);
+        });
+        doc.moveDown(0.3);
+      }
+
+      if (penalties && penalties.penalties && penalties.penalties.length > 0) {
+        doc.fontSize(11).fillColor('red').text('Penalties & Deductions:', { underline: true });
+        doc.fontSize(9);
+        penalties.penalties.forEach((penalty: any) => {
+          doc.text(`  • ${penalty.reason}: EGP ${penalty.amount.toFixed(2)} `);
+        });
+        doc.fillColor('black');
+        doc.moveDown(0.3);
+      }
+
+      // Footer
+      doc.moveDown(2);
+      doc.fontSize(8).fillColor('gray');
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} `, { align: 'center' });
+      doc.text('This is an automatically generated document.', { align: 'center' });
+
+      doc.end();
+    });
+  }
+
+  /**
    * REQ-PY-6: Get salary history with year-over-year comparison
    * Returns historical salary records grouped by year with percentage changes
    * @param userId - Employee ID from JWT
@@ -467,7 +681,7 @@ export class PayrollTrackingService {
     if (!payslips || payslips.length === 0) {
       return {
         employeeId: userId,
-        yearRange: `${startDate.getFullYear()}-${endDate.getFullYear()}`,
+        yearRange: `${startDate.getFullYear()} -${endDate.getFullYear()} `,
         totalPayslips: 0,
         yearlyData: [],
         message: 'No salary history found for the specified period',
@@ -517,10 +731,10 @@ export class PayrollTrackingService {
         yoyGrossChange = avgGross - prevAvgGross;
         yoyNetChange = avgNet - prevAvgNet;
         yoyGrossPercentage = prevAvgGross > 0
-          ? `${((yoyGrossChange / prevAvgGross) * 100).toFixed(2)}%`
+          ? `${((yoyGrossChange / prevAvgGross) * 100).toFixed(2)}% `
           : 'N/A';
         yoyNetPercentage = prevAvgNet > 0
-          ? `${((yoyNetChange / prevAvgNet) * 100).toFixed(2)}%`
+          ? `${((yoyNetChange / prevAvgNet) * 100).toFixed(2)}% `
           : 'N/A';
       }
 
@@ -543,12 +757,12 @@ export class PayrollTrackingService {
 
     // Get employee details for display
     const employee = await this.employeeProfileService.getProfileById(userId);
-    const employeeName = employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+    const employeeName = employee ? `${employee.firstName} ${employee.lastName} ` : 'Unknown';
 
     return {
       employeeId: userId,
       employeeName,
-      yearRange: `${startDate.getFullYear()}-${endDate.getFullYear()}`,
+      yearRange: `${startDate.getFullYear()} -${endDate.getFullYear()} `,
       totalPayslips: payslips.length,
       yearlyData,
       generatedAt: new Date(),
@@ -556,13 +770,16 @@ export class PayrollTrackingService {
   }
 
   /**
-   * Generate Tax Certificate on-demand for an employee
-   * Returns downloadable URL with tax certificate details
+   * Generate Tax Certificate PDF for an employee
+   * Returns PDF buffer for download
    */
-  async generateTaxCertificate(userId: string, taxYear: number): Promise<any> {
+  async generateTaxCertificate(userId: string, taxYear: number): Promise<Buffer> {
+    // Use current year if not provided
+    const year = taxYear || new Date().getFullYear();
+
     // Find all payslips for the employee in the given tax year
-    const startDate = new Date(`${taxYear}-01-01`);
-    const endDate = new Date(`${taxYear}-12-31`);
+    const startDate = new Date(`${year}-01-01`);
+    const endDate = new Date(`${year} -12 - 31`);
 
     const payslips = await this.payslipModel
       .find({
@@ -572,12 +789,12 @@ export class PayrollTrackingService {
       .exec();
 
     if (!payslips || payslips.length === 0) {
-      throw new NotFoundException(`No payslips found for tax year ${taxYear}`);
+      throw new NotFoundException(`No payslips found for tax year ${year} `);
     }
 
     // Fetch employee details
     const employee = await this.employeeProfileService.getProfileById(userId);
-    const employeeName = `${employee.firstName} ${employee.lastName}`;
+    const employeeName = `${employee.firstName} ${employee.lastName} `;
 
     // Calculate total taxable income and tax deducted
     let totalTaxableIncome = 0;
@@ -594,30 +811,66 @@ export class PayrollTrackingService {
       }
     });
 
-    // Generate certificate data
-    const certificate = {
-      certificateType: 'Tax Certificate',
-      employeeId: userId,
-      employeeName,
-      taxId: `TAX-${userId}-${taxYear}`, // Generate tax ID
-      taxYear,
-      totalTaxableIncome,
-      totalTaxDeducted,
-      generatedDate: new Date(),
-      downloadUrl: `https://mock-storage.system/certificates/tax/${userId}-${taxYear}.pdf`,
-    };
+    // Generate PDF
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks: Buffer[] = [];
 
-    return certificate;
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Header
+      doc.fontSize(20).text('TAX CERTIFICATE', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Tax Year: ${year} `, { align: 'center' });
+      doc.moveDown(2);
+
+      // Employee Information
+      doc.fontSize(14).text('Employee Information', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      doc.text(`Name: ${employeeName} `);
+      doc.text(`Employee ID: ${userId} `);
+      doc.text(`Tax ID: TAX - ${userId} -${year} `);
+      doc.moveDown(1.5);
+
+      // Tax Summary
+      doc.fontSize(14).text('Tax Summary', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      doc.text(`Total Taxable Income: EGP ${totalTaxableIncome.toFixed(2)} `);
+      doc.text(`Total Tax Deducted: EGP ${totalTaxDeducted.toFixed(2)} `);
+      doc.text(`Number of Payslips: ${payslips.length} `);
+      doc.moveDown(1.5);
+
+      // Legal Notice
+      doc.fontSize(10);
+      doc.text('This certificate is generated according to Egyptian Tax Law and shows all income tax deductions for the specified fiscal year.', {
+        align: 'justify',
+      });
+      doc.moveDown();
+
+      // Footer
+      doc.fontSize(9);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} `, { align: 'center' });
+      doc.text('This is an automatically generated document.', { align: 'center' });
+
+      doc.end();
+    });
   }
 
   /**
-   * Generate Insurance Certificate on-demand for an employee
-   * Returns downloadable URL with insurance certificate details
+   * Generate Insurance Certificate PDF for an employee
+   * Returns PDF buffer for download
    */
-  async generateInsuranceCertificate(userId: string, year: number): Promise<any> {
+  async generateInsuranceCertificate(userId: string, year: number): Promise<Buffer> {
+    // Use current year if not provided
+    const certificateYear = year || new Date().getFullYear();
+
     // Find all payslips for the employee in the given year
-    const startDate = new Date(`${year}-01-01`);
-    const endDate = new Date(`${year}-12-31`);
+    const startDate = new Date(`${certificateYear}-01-01`);
+    const endDate = new Date(`${certificateYear} -12 - 31`);
 
     const payslips = await this.payslipModel
       .find({
@@ -627,12 +880,12 @@ export class PayrollTrackingService {
       .exec();
 
     if (!payslips || payslips.length === 0) {
-      throw new NotFoundException(`No payslips found for year ${year}`);
+      throw new NotFoundException(`No payslips found for year ${certificateYear}`);
     }
 
     // Fetch employee details
     const employee = await this.employeeProfileService.getProfileById(userId);
-    const employeeName = `${employee.firstName} ${employee.lastName}`;
+    const employeeName = `${employee.firstName} ${employee.lastName} `;
 
     // Calculate total employee and employer contributions
     let totalEmployeeContribution = 0;
@@ -647,23 +900,65 @@ export class PayrollTrackingService {
       }
     });
 
-    // Generate certificate data
-    const certificate = {
-      certificateType: 'Insurance Certificate',
-      employeeId: userId,
-      employeeName,
-      insurancePolicyNumber: `INS-${userId}-${year}`,
-      coveragePeriod: {
-        startDate,
-        endDate,
-      },
-      totalEmployeeContribution,
-      totalEmployerContribution,
-      generatedDate: new Date(),
-      downloadUrl: `https://mock-storage.system/certificates/insurance/${userId}-${year}.pdf`,
-    };
+    // Generate PDF
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks: Buffer[] = [];
 
-    return certificate;
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Header
+      doc.fontSize(20).text('INSURANCE CERTIFICATE', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Coverage Period: ${certificateYear} `, { align: 'center' });
+      doc.moveDown(2);
+
+      // Employee Information
+      doc.fontSize(14).text('Employee Information', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      doc.text(`Name: ${employeeName} `);
+      doc.text(`Employee ID: ${userId} `);
+      doc.text(`Policy Number: INS - ${userId} -${certificateYear} `);
+      doc.moveDown(1.5);
+
+      // Coverage Period
+      doc.fontSize(14).text('Coverage Period', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      doc.text(`Start Date: ${startDate.toLocaleDateString()} `);
+      doc.text(`End Date: ${endDate.toLocaleDateString()} `);
+      doc.moveDown(1.5);
+
+      // Contribution Summary
+      doc.fontSize(14).text('Contribution Summary', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(11);
+      doc.text(`Employee Contributions: EGP ${totalEmployeeContribution.toFixed(2)} `);
+      doc.text(`Employer Contributions: EGP ${totalEmployerContribution.toFixed(2)} `);
+      doc.text(`Total Contributions: EGP ${(totalEmployeeContribution + totalEmployerContribution).toFixed(2)} `);
+      doc.text(`Number of Payslips: ${payslips.length} `);
+      doc.moveDown(1.5);
+
+      // Insurance Details
+      doc.fontSize(10);
+      doc.text('This certificate shows all social insurance, health insurance, and pension contributions made during the coverage period.', {
+        align: 'justify',
+      });
+      doc.moveDown();
+      doc.text('Employee Rate: 11% (Social Insurance) + 1% (Health Insurance)', { align: 'justify' });
+      doc.text('Employer Rate: 18.75% (Social Insurance) + 4% (Health Insurance)', { align: 'justify' });
+      doc.moveDown(1.5);
+
+      // Footer
+      doc.fontSize(9);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} `, { align: 'center' });
+      doc.text('This is an automatically generated document.', { align: 'center' });
+
+      doc.end();
+    });
   }
 
   /**
@@ -989,7 +1284,7 @@ export class PayrollTrackingService {
   async submitDispute(userId: Types.ObjectId, dto: CreateDisputeDto): Promise<Dispute> {
     // NOTE: We use your schema's property names: employeeId, payslipId, status
     const newDispute = new this.disputeModel({
-      disputeId: `DISP-${Date.now()}`, // Generate unique ID
+      disputeId: `DISP - ${Date.now()} `, // Generate unique ID
       employeeId: userId,
       payslipId: new Types.ObjectId(dto.payslipId),
       description: dto.description,
@@ -1054,7 +1349,7 @@ export class PayrollTrackingService {
     // Verify dispute is in the correct state
     if (dispute.status !== DisputeStatus.PENDING_MANAGER_APPROVAL) {
       throw new BadRequestException(
-        `Dispute must be in PENDING_MANAGER_APPROVAL status. Current status: ${dispute.status}`,
+        `Dispute must be in PENDING_MANAGER_APPROVAL status.Current status: ${dispute.status} `,
       );
     }
 
@@ -1081,7 +1376,7 @@ export class PayrollTrackingService {
     ).exec();
 
     if (!updatedDispute) {
-      throw new NotFoundException(`Failed to update dispute with ID ${disputeId}`);
+      throw new NotFoundException(`Failed to update dispute with ID ${disputeId} `);
     }
 
     return updatedDispute;
@@ -1172,7 +1467,7 @@ export class PayrollTrackingService {
     }
 
     if (dispute.status !== DisputeStatus.APPROVED) {
-      throw new BadRequestException(`Dispute must be in APPROVED status. Current status: ${dispute.status}`);
+      throw new BadRequestException(`Dispute must be in APPROVED status.Current status: ${dispute.status} `);
     }
 
     // Create refund
@@ -1223,4 +1518,292 @@ export class PayrollTrackingService {
   }
 
   // === MAYA END ===
+
+  // ===========================
+  // TIME MANAGEMENT INTEGRATION
+  // ===========================
+  /**
+   * Get time-related financial impact for a specific pay period
+   * Calls Time Management APIs and processes data for payroll display
+   * @param userId - Employee ID
+   * @param month - Month (1-12)
+   * @param year - Year
+   * @returns Time impact data with penalties, overtime, and compliance checks
+   */
+  async getTimeImpactData(userId: string, month: number, year: number): Promise<TimeImpactDataDto> {
+    try {
+      // Calculate date range for the month
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0, 23, 59, 59);
+
+      // Fetch employee profile for calculations
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      if (!employee) {
+        throw new NotFoundException('Employee not found');
+      }
+
+      const baseSalary = employee.baseSalary || 0;
+      const workingDaysPerMonth = 26;
+      const hoursPerDay = 8;
+      const dailySalary = baseSalary / workingDaysPerMonth;
+      const hourlyRate = baseSalary / (workingDaysPerMonth * hoursPerDay);
+
+      // === CALL TIME MANAGEMENT APIs (READ-ONLY) ===
+      const [timeExceptions, correctionRequests, holidays] = await Promise.all([
+        this.fetchTimeExceptions(userId, startDate, endDate),
+        this.fetchCorrectionRequests(userId, startDate, endDate),
+        this.fetchHolidays(startDate, endDate),
+      ]);
+
+      // === CALCULATE PENALTIES ===
+      const penalties = await this.calculatePenalties(
+        timeExceptions,
+        correctionRequests,
+        dailySalary,
+      );
+
+      // === CALCULATE OVERTIME ===
+      const overtime = await this.calculateOvertime(
+        timeExceptions,
+        hourlyRate,
+        holidays,
+      );
+
+      // === CALCULATE PERMISSIONS (PLACEHOLDER) ===
+      const permissions: PermissionItemDto[] = [];
+      const paidPermissions = 0;
+      const unpaidPermissions = 0;
+
+      // === CALCULATE TOTALS ===
+      const totalPenalties = penalties.reduce((sum, p) => sum + p.amount, 0);
+      const totalOvertimeCompensation = overtime.reduce((sum, o) => sum + o.compensation, 0);
+
+      // === MINIMUM WAGE COMPLIANCE CHECK ===
+      const projectedNetPay = baseSalary + totalOvertimeCompensation - totalPenalties;
+      const minimumWageAlert = projectedNetPay < this.MINIMUM_WAGE;
+
+      if (minimumWageAlert) {
+        await this.sendMinimumWageAlert(userId, projectedNetPay, this.MINIMUM_WAGE);
+      }
+
+      // === CHECK FOR DISPUTES ===
+      const disputedItemIds = penalties
+        .filter(p => p.status === TimeItemStatus.DISPUTED)
+        .map(p => p.id);
+      const hasDisputedItems = disputedItemIds.length > 0;
+
+      return {
+        employeeId: userId,
+        month,
+        year,
+        penalties,
+        totalPenalties,
+        overtime,
+        totalOvertimeCompensation,
+        permissions,
+        paidPermissions,
+        unpaidPermissions,
+        minimumWageAlert,
+        projectedNetPay,
+        minimumWage: this.MINIMUM_WAGE,
+        hasDisputedItems,
+        disputedItemIds,
+      };
+    } catch (error) {
+      console.error('Error calculating time impact:', error);
+      throw new InternalServerErrorException('Failed to calculate time impact data');
+    }
+  }
+
+  private async fetchTimeExceptions(userId: string, startDate: Date, endDate: Date): Promise<any[]> {
+    try {
+      const url = `${this.TIME_MANAGEMENT_BASE_URL}/time-management/time-exceptions`;
+      const response = await lastValueFrom(
+        this.httpService.get(url, {
+          params: { employeeId: userId, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+        })
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching time exceptions:', error.message);
+      return [];
+    }
+  }
+
+  private async fetchCorrectionRequests(userId: string, startDate: Date, endDate: Date): Promise<any[]> {
+    try {
+      const url = `${this.TIME_MANAGEMENT_BASE_URL}/time-management/attendance-correction-requests`;
+      const response = await lastValueFrom(
+        this.httpService.get(url, {
+          params: { employeeId: userId, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+        })
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching correction requests:', error.message);
+      return [];
+    }
+  }
+
+  private async fetchHolidays(startDate: Date, endDate: Date): Promise<any[]> {
+    try {
+      const url = `${this.TIME_MANAGEMENT_BASE_URL}/time-management/holidays`;
+      const response = await lastValueFrom(
+        this.httpService.get(url, {
+          params: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+        })
+      );
+      return response.data || [];
+    } catch (error) {
+      console.error('Error fetching holidays:', error.message);
+      return [];
+    }
+  }
+
+  private async calculatePenalties(
+    timeExceptions: any[],
+    correctionRequests: any[],
+    dailySalary: number,
+  ): Promise<PenaltyItemDto[]> {
+    const penalties: PenaltyItemDto[] = [];
+    const DEDUCTION_PER_MINUTE = 1; // EGP per minute late
+    const GRACE_PERIOD_MINUTES = 15;
+
+    for (const exception of timeExceptions) {
+      const penalty: Partial<PenaltyItemDto> = {
+        id: exception._id || exception.id,
+        date: exception.date || (exception.createdAt ? new Date(exception.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+        attendanceRecordId: exception.attendanceRecordId,
+        exceptionId: exception._id || exception.id,
+      };
+
+      const relatedCorrection = correctionRequests.find(
+        cr => cr.attendanceRecordId?.toString() === exception.attendanceRecordId?.toString()
+      );
+
+      if (relatedCorrection && ['SUBMITTED', 'IN_REVIEW', 'ESCALATED'].includes(relatedCorrection.status)) {
+        penalty.status = TimeItemStatus.DISPUTED;
+      } else if (exception.status === 'RESOLVED') {
+        penalty.status = TimeItemStatus.FINALIZED;
+      } else {
+        penalty.status = TimeItemStatus.PENDING_CORRECTION;
+      }
+
+      switch (exception.type) {
+        case 'LATE':
+          const minutesLate = exception.minutesLate || 45;
+          if (minutesLate > GRACE_PERIOD_MINUTES) {
+            const deductibleMinutes = minutesLate - GRACE_PERIOD_MINUTES;
+            penalty.type = PenaltyType.LATE;
+            penalty.minutesLate = minutesLate;
+            penalty.amount = deductibleMinutes * DEDUCTION_PER_MINUTE;
+            const penaltyDate = penalty.date || new Date().toISOString().split('T')[0];
+            penalty.reason = `Late arrival by ${minutesLate} minutes on ${new Date(penaltyDate).toLocaleDateString()}`;
+            penalties.push(penalty as PenaltyItemDto);
+          }
+          break;
+
+        case 'EARLY_LEAVE':
+          const minutesEarly = exception.minutesEarly || 30;
+          penalty.type = PenaltyType.EARLY_LEAVE;
+          penalty.amount = minutesEarly * DEDUCTION_PER_MINUTE;
+          const earlyDate = penalty.date || new Date().toISOString().split('T')[0];
+          penalty.reason = `Early departure by ${minutesEarly} minutes on ${new Date(earlyDate).toLocaleDateString()}`;
+          penalties.push(penalty as PenaltyItemDto);
+          break;
+
+        case 'MISSED_PUNCH':
+          if (!exception.finalisedForPayroll) {
+            penalty.type = PenaltyType.UNAPPROVED_ABSENCE;
+            penalty.amount = dailySalary;
+            const absenceDate = penalty.date || new Date().toISOString().split('T')[0];
+            penalty.reason = `Unapproved absence due to missed punch on ${new Date(absenceDate).toLocaleDateString()}`;
+            penalties.push(penalty as PenaltyItemDto);
+          }
+          break;
+      }
+    }
+
+    return penalties;
+  }
+
+  private async calculateOvertime(
+    timeExceptions: any[],
+    hourlyRate: number,
+    holidays: any[],
+  ): Promise<OvertimeItemDto[]> {
+    const overtimeItems: OvertimeItemDto[] = [];
+
+    const isHoliday = (date: Date): boolean => {
+      return holidays.some(h => {
+        const holidayDate = new Date(h.date);
+        return holidayDate.toDateString() === date.toString() && h.type === 'OFFICIAL';
+      });
+    };
+
+    const isWeeklyRest = (date: Date): boolean => {
+      return holidays.some(h => {
+        const holidayDate = new Date(h.date);
+        return holidayDate.toDateString() === date.toDateString() && h.type === 'WEEKLY_REST';
+      });
+    };
+
+    const isNighttime = (time: Date): boolean => {
+      const hour = time.getHours();
+      return hour >= 21 || hour < 6;
+    };
+
+    for (const exception of timeExceptions) {
+      if (exception.type === 'OVERTIME_REQUEST' && exception.status === 'APPROVED') {
+        const overtimeDate = new Date(exception.date || exception.createdAt);
+        const hoursWorked = exception.hoursWorked || 2;
+
+        const overtime: OvertimeItemDto = {
+          id: exception._id || exception.id,
+          date: overtimeDate.toISOString().split('T')[0],
+          hoursWorked,
+          rate: 1.35,
+          rateType: OvertimeRateType.DAYTIME,
+          compensation: 0,
+          status: 'APPROVED',
+        };
+
+        // Egyptian Labor Law 2025 rates
+        if (isHoliday(overtimeDate)) {
+          overtime.rate = 3.00;
+          overtime.rateType = OvertimeRateType.OFFICIAL_HOLIDAY;
+        } else if (isWeeklyRest(overtimeDate)) {
+          overtime.rate = 2.00;
+          overtime.rateType = OvertimeRateType.WEEKLY_REST;
+        } else if (isNighttime(overtimeDate)) {
+          overtime.rate = 1.70;
+          overtime.rateType = OvertimeRateType.NIGHTTIME;
+        }
+
+        overtime.compensation = hoursWorked * hourlyRate * overtime.rate;
+        overtimeItems.push(overtime);
+      }
+    }
+
+    return overtimeItems;
+  }
+
+  private async sendMinimumWageAlert(employeeId: string, projectedNetPay: number, minimumWage: number): Promise<void> {
+    try {
+      const employee = await this.employeeProfileService.getProfileById(employeeId);
+      const employeeName = `${employee.firstName} ${employee.lastName}`;
+
+      const notification = new this.notificationLogModel({
+        recipientId: 'HR_ADMIN',
+        message: `MINIMUM WAGE ALERT: ${employeeName} (${employeeId}) projected net pay (${projectedNetPay.toFixed(2)} EGP) is below minimum wage (${minimumWage} EGP). Shortfall: ${(minimumWage - projectedNetPay).toFixed(2)} EGP.`,
+        type: 'ALERT',
+        relatedEntityId: employeeId,
+        createdAt: new Date(),
+      });
+
+      await notification.save();
+    } catch (error) {
+      console.error('Error sending minimum wage alert:', error);
+    }
+  }
 }

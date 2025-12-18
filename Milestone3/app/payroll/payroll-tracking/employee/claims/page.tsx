@@ -208,7 +208,7 @@ export default function MyClaimsPage() {
                                                         {claim.receipts.map((receipt, idx) => (
                                                             <a
                                                                 key={idx}
-                                                                href={receipt}
+                                                                href={typeof receipt === 'string' ? receipt : receipt.url}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="text-sm text-blue-600 hover:underline"

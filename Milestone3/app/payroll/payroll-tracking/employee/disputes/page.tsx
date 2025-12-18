@@ -21,10 +21,10 @@ export default function MyDisputesPage() {
     const fetchDisputes = async () => {
         try {
             const response = await payrollTrackingApi.getMyDisputes();
-            setDisputes(response.data);
+            setDisputes(response.data.data || response.data || []);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            setDisputes(MOCK_DISPUTES as any);
+            // Mock data fallback if needed
+            setDisputes([]);
         } finally {
             setLoading(false);
         }
@@ -112,7 +112,7 @@ export default function MyDisputesPage() {
                                             </div>
                                             <p className="text-sm text-slate-600 mb-2">{dispute.description}</p>
                                             <div className="flex items-center gap-4 text-sm text-slate-500">
-                                                <span>Submitted: {new Date(dispute.submittedAt).toLocaleDateString()}</span>
+                                                <span>Submitted: {dispute.submittedAt ? new Date(dispute.submittedAt).toLocaleDateString() : new Date(dispute.createdAt).toLocaleDateString()}</span>
                                                 {dispute.amount && <span>Amount: ${dispute.amount.toLocaleString()}</span>}
                                                 <span>Payslip ID: {dispute.payslipId}</span>
                                             </div>
@@ -123,11 +123,56 @@ export default function MyDisputesPage() {
                                     {selectedDispute?._id === dispute._id && (
                                         <div className="mt-6 pt-6 border-t border-slate-200">
                                             <ApprovalTimeline
-                                                status={dispute.status}
-                                                specialistDecision={dispute.specialistDecision}
-                                                specialistReviewedAt={dispute.specialistReviewedAt}
-                                                managerReviewedAt={dispute.managerReviewedAt}
-                                                processedAt={dispute.processedAt}
+                                                steps={[
+                                                    {
+                                                        title: 'Dispute Submitted',
+                                                        status: 'completed',
+                                                        date: dispute.submittedAt ? new Date(dispute.submittedAt).toLocaleDateString() : new Date(dispute.createdAt).toLocaleDateString(),
+                                                        description: 'Your dispute was submitted for investigation'
+                                                    },
+                                                    {
+                                                        title: 'Specialist Review',
+                                                        status: dispute.specialistReviewedAt
+                                                            ? (dispute.specialistDecision === 'REJECTED' ? 'rejected' : 'completed')
+                                                            : (dispute.status === 'PENDING' ? 'current' : 'pending'),
+                                                        date: dispute.specialistReviewedAt ? new Date(dispute.specialistReviewedAt).toLocaleDateString() : undefined,
+                                                        description: dispute.specialistDecision === 'REJECTED'
+                                                            ? 'Dispute was rejected by specialist'
+                                                            : dispute.specialistReviewedAt
+                                                                ? 'Reviewed and approved by payroll specialist'
+                                                                : 'Awaiting specialist review'
+                                                    },
+                                                    {
+                                                        title: 'Manager Approval',
+                                                        status: dispute.status === 'REJECTED'
+                                                            ? 'rejected'
+                                                            : dispute.managerReviewedAt
+                                                                ? 'completed'
+                                                                : dispute.specialistReviewedAt && dispute.specialistDecision !== 'REJECTED'
+                                                                    ? 'current'
+                                                                    : 'pending',
+                                                        date: dispute.managerReviewedAt ? new Date(dispute.managerReviewedAt).toLocaleDateString() : undefined,
+                                                        description: dispute.status === 'REJECTED'
+                                                            ? 'Dispute was rejected by manager'
+                                                            : dispute.managerReviewedAt
+                                                                ? 'Approved by payroll manager'
+                                                                : 'Awaiting manager approval'
+                                                    },
+                                                    {
+                                                        title: 'Refund Processing',
+                                                        status: dispute.status === 'RESOLVED' || dispute.processedAt
+                                                            ? 'completed'
+                                                            : dispute.status === 'APPROVED'
+                                                                ? 'current'
+                                                                : 'pending',
+                                                        date: dispute.processedAt ? new Date(dispute.processedAt).toLocaleDateString() : undefined,
+                                                        description: dispute.status === 'RESOLVED'
+                                                            ? 'Refund has been processed'
+                                                            : dispute.status === 'APPROVED'
+                                                                ? 'Processing refund for next payslip'
+                                                                : 'Awaiting approval before processing'
+                                                    }
+                                                ]}
                                             />
                                             {dispute.specialistComments && (
                                                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">

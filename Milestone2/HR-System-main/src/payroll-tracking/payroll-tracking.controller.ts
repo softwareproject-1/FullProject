@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, Query, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Get, Patch, Body, Param, Req, Query, UsePipes, ValidationPipe, UseGuards, Res, Header } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { PayrollTrackingService } from './payroll-tracking.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { UpdateClaimDto } from './dto/update-claim.dto';
@@ -335,6 +335,45 @@ export class PayrollTrackingController {
   }
 
   /**
+   * Get a specific payslip by ID
+   * GET /payroll-tracking/payslips/:id
+   */
+  @Get('payslips/:id')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get payslip by ID' })
+  @ApiResponse({ status: 200, description: 'Payslip retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Payslip not found' })
+  async getPayslipById(@Req() req, @Param('id') payslipId: string) {
+    const userId = req.user.sub;
+    return this.trackingService.getPayslipById(userId, payslipId);
+  }
+
+  /**
+   * Download payslip as PDF
+   * GET /payroll-tracking/payslips/:id/download-pdf
+   */
+  @Get('payslips/:id/download-pdf')
+  @ApiBearerAuth('JWT-auth')
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({ summary: 'Download payslip as PDF' })
+  @ApiResponse({ status: 200, description: 'Payslip PDF generated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Payslip not found' })
+  async downloadPayslipPDF(@Req() req, @Param('id') payslipId: string, @Res() res) {
+    const userId = req.user.sub;
+    const pdfBuffer = await this.trackingService.generatePayslipPDF(userId, payslipId);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=payslip-${payslipId.slice(-6)}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
+  }
+
+  /**
    * REQ-PY-6: View Salary History with Year-over-Year Comparison
    * GET /payroll-tracking/salary-history
    * Query: ?years=3 (default 3 years)
@@ -352,33 +391,86 @@ export class PayrollTrackingController {
   }
 
   /**
-   * Generate Tax Certificate for Employee
-   * POST /payroll-tracking/certificates/tax
-   * Body: { taxYear: number }
+   * Get Time Management Impact on Payroll
+   * GET /payroll-tracking/time-impact/:month/:year
+   * Returns penalties, overtime, and permission data affecting payroll
    */
-  @Post('certificates/tax')
+  @Get('time-impact/:month/:year')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Generate tax certificate' })
-  @ApiResponse({ status: 201, description: 'Tax certificate generated successfully' })
+  @ApiOperation({ summary: 'Get time-related financial impact for a pay period' })
+  @ApiParam({ name: 'month', description: 'Month (1-12)', example: '12' })
+  @ApiParam({ name: 'year', description: 'Year', example: '2024' })
+  @ApiResponse({ status: 200, description: 'Time impact data retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async generateTaxCertificate(@Req() req, @Body('taxYear') taxYear: number) {
+  async getTimeImpactData(
+    @Req() req,
+    @Param('month') month: string,
+    @Param('year') year: string,
+  ) {
     const userId = req.user.sub;
-    return this.trackingService.generateTaxCertificate(userId, taxYear);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    return this.trackingService.getTimeImpactData(userId, monthNum, yearNum);
   }
 
   /**
-   * Generate Insurance Certificate for Employee
+   * Generate Tax Certificate PDF for Employee
+   * POST /payroll-tracking/certificates/tax
+   * Body: { year?: number } - Optional, defaults to current year
+   */
+  @Post('certificates/tax')
+  @ApiBearerAuth('JWT-auth')
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({ summary: 'Generate and download tax certificate PDF' })
+  @ApiResponse({ status: 201, description: 'Tax certificate PDF generated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'No payslips found for specified year' })
+  async generateTaxCertificate(
+    @Req() req,
+    @Body('year') year: number,
+    @Res() res,
+  ) {
+    const userId = req.user.sub;
+    const pdfBuffer = await this.trackingService.generateTaxCertificate(userId, year);
+
+    const currentYear = year || new Date().getFullYear();
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=tax-certificate-${currentYear}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
+  }
+
+  /**
+   * Generate Insurance Certificate PDF for Employee
    * POST /payroll-tracking/certificates/insurance
-   * Body: { year: number }
+   * Body: { year?: number } - Optional, defaults to current year
    */
   @Post('certificates/insurance')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Generate insurance certificate' })
-  @ApiResponse({ status: 201, description: 'Insurance certificate generated successfully' })
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({ summary: 'Generate and download insurance certificate PDF' })
+  @ApiResponse({ status: 201, description: 'Insurance certificate PDF generated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async generateInsuranceCertificate(@Req() req, @Body('year') year: number) {
+  @ApiResponse({ status: 404, description: 'No payslips found for specified year' })
+  async generateInsuranceCertificate(
+    @Req() req,
+    @Body('year') year: number,
+    @Res() res,
+  ) {
     const userId = req.user.sub;
-    return this.trackingService.generateInsuranceCertificate(userId, year);
+    const pdfBuffer = await this.trackingService.generateInsuranceCertificate(userId, year);
+
+    const currentYear = year || new Date().getFullYear();
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=insurance-certificate-${currentYear}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
   }
 
   /**

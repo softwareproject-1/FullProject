@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { payrollTrackingApi, PayslipDto } from '@/services/api';
+import { payrollTrackingApi, PayslipDto, TimeImpactDataDto } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, Download, Printer } from 'lucide-react';
+import TimeToPayWidget from '@/components/payroll/TimeToPayWidget';
 
 export default function PayslipDetailPage() {
     const params = useParams();
@@ -16,6 +17,9 @@ export default function PayslipDetailPage() {
     const [payslip, setPayslip] = useState<PayslipDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [downloading, setDownloading] = useState(false);
+    const [timeImpactData, setTimeImpactData] = useState<TimeImpactDataDto | null>(null);
+    const [timeLoading, setTimeLoading] = useState(false);
 
     useEffect(() => {
         const fetchPayslip = async () => {
@@ -57,6 +61,65 @@ export default function PayslipDetailPage() {
             fetchPayslip();
         }
     }, [payslipId]);
+
+    // Fetch time impact data
+    useEffect(() => {
+        const fetchTimeImpact = async () => {
+            if (!payslip) return;
+
+            try {
+                setTimeLoading(true);
+                const payslipDate = new Date(payslip.createdAt);
+                const month = payslipDate.getMonth() + 1;
+                const year = payslipDate.getFullYear();
+
+                console.log('🕐 Fetching time impact data for:', { month, year });
+                const response = await payrollTrackingApi.getTimeImpactData(month, year);
+                console.log('🕐 Time impact response:', response);
+                setTimeImpactData(response.data.data || response.data);
+                console.log('🕐 Time impact data set:', response.data.data || response.data);
+            } catch (error: any) {
+                console.error('🕐 Error fetching time impact data:', error);
+                console.error('🕐 Error details:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data,
+                    url: error.config?.url
+                });
+                // API error - widget will not show
+            } finally {
+                setTimeLoading(false);
+            }
+        };
+
+        if (payslip) {
+            fetchTimeImpact();
+        }
+    }, [payslip]);
+
+    const handleDownloadPDF = async () => {
+        try {
+            setDownloading(true);
+            const response = await payrollTrackingApi.downloadPayslipPDF(payslipId);
+
+            // Create blob and download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const payPeriod = payslip?.createdAt ? new Date(payslip.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }).replace(' ', '-').toLowerCase() : payslipId.slice(-6);
+            link.setAttribute('download', `payslip-${payPeriod}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            alert('Failed to download PDF. Please try again.');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -127,16 +190,28 @@ export default function PayslipDetailPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4 mr-2" />
-                        Download PDF
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadPDF}
+                        disabled={downloading}
+                    >
+                        {downloading ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                            <Download className="w-4 h-4 mr-2" />
+                        )}
+                        {downloading ? 'Downloading...' : 'Download PDF'}
                     </Button>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => window.print()}>
                         <Printer className="w-4 h-4 mr-2" />
                         Print
                     </Button>
                 </div>
             </div>
+
+            {/* Time-to-Pay Impact Widget */}
+            <TimeToPayWidget data={timeImpactData} loading={timeLoading} />
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

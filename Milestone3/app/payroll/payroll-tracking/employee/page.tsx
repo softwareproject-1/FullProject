@@ -287,7 +287,7 @@ export default function MyPayrollPage() {
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-3 mb-2">
-                                                        <h3 className="font-semibold text-slate-900">{claim.category || claim.claimType || 'Expense Claim'}</h3>
+                                                        <h3 className="font-semibold text-slate-900">{claim.claimType || 'Expense Claim'}</h3>
                                                         <StatusBadge status={claim.status} />
                                                     </div>
                                                     <p className="text-sm text-slate-600 mb-2">{claim.description}</p>

@@ -23,7 +23,7 @@ export default function PayrollTracking() {
         try {
             setLoading(true);
             const response = await payrollTrackingApi.getMyPayslips();
-            setPayslips(response.data);
+            setPayslips(response.data.data || response.data || []);
         } catch (err: any) {
             console.error('Error fetching payslips:', err);
             // TEMPORARY: Use mock data for testing when auth fails
