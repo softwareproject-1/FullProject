@@ -35,10 +35,12 @@ export class AuthController {
 
       const result = await this.authService.signIn(identifier, signInDto.password);
 
+      const isProduction = process.env.NODE_ENV === 'production';
+
       res.cookie('token', result.access_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProduction, // True in production, False in dev
+        sameSite: isProduction ? 'none' : 'lax', // None for cross-site (Prod), Lax for same-site (Dev)
         maxAge: 24 * 60 * 60 * 1000,
       });
 
@@ -219,10 +221,12 @@ export class AuthController {
   @Post('logout')
   @UseGuards(AuthenticationGuard)
   logout(@Res({ passthrough: true }) res) {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     res.cookie('token', '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       expires: new Date(0),
     });
 
