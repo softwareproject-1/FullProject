@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { signingBonus } from '../models/signingBonus.schema';
@@ -11,6 +15,7 @@ import {
 } from '../helpers/response-message';
 
 export type SigningBonusDocument = Document & any;
+import { ConfigStatus } from '../enums/payroll-configuration-enums';
 
 @Injectable()
 export class SigningBonusService {
@@ -23,13 +28,16 @@ export class SigningBonusService {
   //   const created = new this.model(dto);
   //   return created.save();
   // }
-async create(dto: CreateSigningBonusDto) {
-  // Validate that only allowed fields are in the DTO
-  const safeDto = strictUpdate(dto, this.model);
+  async create(dto: CreateSigningBonusDto) {
+    // Validate that only allowed fields are in the DTO
+    const safeDto = strictUpdate(dto, this.model);
 
-  const created = new this.model(safeDto);
-  return created.save();
-}
+    const created = new this.model({
+      ...safeDto,
+      status: 'draft', // enforce workflow rule
+    });
+    return created.save();
+  }
   async findAll() {
     return this.model.find().exec();
   }
@@ -41,6 +49,16 @@ async create(dto: CreateSigningBonusDto) {
   }
 
   async update(id: string, dto: UpdateSigningBonusDto) {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException('signingBonus not found');
+
+    // Workflow rule: cannot update if not draft
+    if (doc.status !== 'draft') {
+      throw new BadRequestException(
+        `Cannot update signing bonus because it is already ${doc.status}. Only draft signing bonuses can be updated.`,
+      );
+    }
+
     const safeDto = strictUpdate(dto, this.model);
 
     const updated = await this.model
@@ -55,11 +73,42 @@ async create(dto: CreateSigningBonusDto) {
   }
 
   async remove(id: string) {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException('Signing bonus not found');
+
+    // Workflow rule: cannot delete if not draft
+    if (doc.status !== 'draft') {
+      throw new BadRequestException(
+        `Cannot delete signing bonus because it is already ${doc.status}. Only draft signing bonuses can be deleted.`,
+      );
+    }
+
     const removed = await this.model.findByIdAndDelete(id).exec();
-    if (!removed) throw new NotFoundException('Signing bonus not found');
     return {
       message: buildDeleteMessage('signing bonus'),
       data: removed,
     };
+  }
+
+  // STATUS UPDATE → Payroll Manager ONLY
+  async updateStatus(
+    id: string,
+    status: ConfigStatus.APPROVED | ConfigStatus.REJECTED,
+  ) {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException('signingBonus not found');
+
+    // Allowed transitions:
+    // draft → approved
+    // draft → rejected
+    // rejected → approved (resubmission scenario)
+    if (![ConfigStatus.DRAFT, ConfigStatus.REJECTED].includes(doc.status)) {
+      throw new BadRequestException(
+        `Cannot change status because signingBonus is currently '${doc.status}'. Only draft or rejected signing bonuses can be modified.`,
+      );
+    }
+
+    doc.status = status;
+    return doc.save();
   }
 }
