@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { canAccessRoute, getCombinedAccess, hasRole, SystemRole } from "@/utils/roleAccess";
 import {
@@ -145,7 +145,7 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+function SidebarContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -368,6 +368,24 @@ export function Sidebar() {
         </p>
       </div>
     </aside>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <Suspense fallback={
+      <aside className="w-64 bg-[#1e293b] text-white h-screen flex flex-col fixed left-0 top-0 z-20">
+        <div className="p-6 border-b border-slate-700">
+          <h1 className="text-2xl font-bold text-white">HR</h1>
+          <h1 className="text-2xl font-bold text-white">Management</h1>
+        </div>
+        <div className="flex-1 p-4 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white opacity-20"></div>
+        </div>
+      </aside>
+    }>
+      <SidebarContent />
+    </Suspense>
   );
 }
 
