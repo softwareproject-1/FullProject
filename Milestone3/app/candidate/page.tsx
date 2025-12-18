@@ -1,248 +1,183 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import RouteGuard from "@/components/RouteGuard";
-import { candidateApi, Candidate } from "@/utils/candidateApi";
-import { canAccessRoute, hasRole, SystemRole } from "@/utils/roleAccess";
+'use client'
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import RouteGuard from '../../components/RouteGuard';
+import { Briefcase, User, FileText, Clock, Search, Shield, ClipboardCheck, Gift } from 'lucide-react';
+import Link from 'next/link';
 
 export default function CandidateDashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [loadingData, setLoadingData] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const canAccess = user ? canAccessRoute(user.roles, "/candidate") : false;
-  const isCandidate = user ? hasRole(user.roles, SystemRole.JOB_CANDIDATE) : false;
-
+  // Redirect non-candidates away
   useEffect(() => {
-    if (!loading && user && canAccess) {
-      // For now, we'll need to get candidate ID from user
-      // In a real scenario, candidates would have their candidate ID in their profile
-      // For now, we'll try to get it from the user's nationalId or create a way to link
-      loadCandidateProfile();
+    if (!loading && user) {
+      const isCandidate = user.roles?.some(r => r.toLowerCase() === 'job candidate') ?? false;
+      if (!isCandidate) {
+        router.replace('/');
+      }
     }
-  }, [user, loading, canAccess]);
+  }, [user, loading, router]);
 
-  const loadCandidateProfile = async () => {
-    try {
-      setLoadingData(true);
-      setError(null);
-      
-      if (!user || !user._id) {
-        setError("User not found");
-        return;
-      }
-
-      // Try to get candidate profile by employee profile ID first
-      let candidateData = null;
-      
-      try {
-        candidateData = await candidateApi.getMyCandidateProfileByEmployeeId(user._id);
-      } catch (err: any) {
-        // If not found by employee ID, try by email
-        if (user.personalEmail) {
-          try {
-            candidateData = await candidateApi.getMyCandidateProfileByEmail(user.personalEmail);
-          } catch (err2: any) {
-            // If not found by email, try nationalId
-            if (user.nationalId) {
-              try {
-                candidateData = await candidateApi.getMyCandidateProfileByNationalId(user.nationalId);
-              } catch (err3: any) {
-                // All methods failed
-              }
-            }
-          }
-        } else if (user.nationalId) {
-          try {
-            candidateData = await candidateApi.getMyCandidateProfileByNationalId(user.nationalId);
-          } catch (err2: any) {
-            // Failed
-          }
-        }
-      }
-
-      if (candidateData) {
-        setCandidate(candidateData);
-      } else {
-        setError("Candidate profile not found. Please contact HR to set up your candidate profile.");
-      }
-    } catch (err: any) {
-      console.error("Error loading candidate profile:", err);
-      setError(err.response?.data?.message || "Failed to load candidate profile. Please contact HR.");
-    } finally {
-      setLoadingData(false);
-    }
-  };
-
-  if (loading || loadingData) {
+  if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-text-muted text-lg">Loading candidate dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-slate-500 text-lg">Loading...</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <RouteGuard 
-      requiredRoute="/candidate" 
-      requiredRoles={["Job Candidate"]}
-    >
-      {!user || !canAccess ? null : (
-        <main className="min-h-screen bg-gradient-to-br from-background via-background-light to-background p-4 md:p-8">
-          <div className="max-w-6xl mx-auto space-y-8">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-text mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
-                  Candidate Portal
-                </h1>
-                <p className="text-text-muted text-lg">
-                  Manage your candidate profile and track your applications
-                </p>
+    <RouteGuard requiredRoles={['Job Candidate']}>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">
+            Welcome, {user?.firstName || 'Candidate'}!
+          </h1>
+          <p className="text-slate-500 mt-1">
+            Track your job applications and manage your profile
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          {/* Browse Jobs Card (REC-007) */}
+          <Link
+            href="/candidate/jobs"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                <Search className="w-6 h-6 text-purple-600" />
               </div>
-            </header>
+              <div>
+                <h3 className="font-semibold text-slate-900">Browse Jobs</h3>
+                <p className="text-sm text-slate-500">Find and apply for positions</p>
+              </div>
+            </div>
+          </Link>
 
-            {error && (
-              <Card>
-                <CardContent>
-                  <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400">
-                    <p className="font-semibold mb-2">⚠️ {error}</p>
-                    <p className="text-sm">
-                      To access your candidate profile, please contact HR or use the link provided in your application email.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          {/* My Applications Card (REC-017) */}
+          <Link
+            href="/candidate/applications"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                <Briefcase className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">My Applications</h3>
+                <p className="text-sm text-slate-500">Track your application status</p>
+              </div>
+            </div>
+          </Link>
 
-            {!error && candidate && (
-              <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Application Status</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                    <div>
-                      <label className="text-text-muted text-sm">Current Status</label>
-                      <p className="text-text font-semibold text-lg">
-                        {candidate.status || "APPLIED"}
-                      </p>
-                    </div>
-                    {candidate.applicationDate && (
-                      <div>
-                        <label className="text-text-muted text-sm">Application Date</label>
-                        <p className="text-text font-medium">
-                          {new Date(candidate.applicationDate).toLocaleDateString()}
-                        </p>
-                      </div>
-                    )}
-                    {candidate.positionId && (
-                      <div>
-                        <label className="text-text-muted text-sm">Applied Position</label>
-                        <p className="text-text font-medium">
-                          {typeof candidate.positionId === 'object' 
-                            ? candidate.positionId.title || candidate.positionId.name 
-                            : candidate.positionId}
-                        </p>
-                      </div>
-                    )}
-                    {candidate.departmentId && (
-                      <div>
-                        <label className="text-text-muted text-sm">Department</label>
-                        <p className="text-text font-medium">
-                          {typeof candidate.departmentId === 'object' 
-                            ? candidate.departmentId.name 
-                            : candidate.departmentId}
-                        </p>
-                      </div>
-                    )}
-                    </div>
-                  </CardContent>
-                </Card>
+          {/* My Offers Card (REC-018) */}
+          <Link
+            href="/candidate/offers"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <Gift className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">My Offers</h3>
+                <p className="text-sm text-slate-500">Review and accept offers</p>
+              </div>
+            </div>
+          </Link>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Quick Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                      <Button
-                        onClick={() => router.push("/candidate/profile")}
-                        variant="default"
-                        className="w-full"
-                      >
-                        View/Edit Profile
-                      </Button>
-                      <Button
-                        onClick={() => router.push("/candidate/applications")}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        View Applications
-                      </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+          {/* My Profile Card */}
+          <Link
+            href="/candidate/profile"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                <User className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">My Profile</h3>
+                <p className="text-sm text-slate-500">Update your profile and resume</p>
+              </div>
+            </div>
+          </Link>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Profile Information</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                      <p className="text-text font-semibold">
-                        {candidate.firstName} {candidate.middleName} {candidate.lastName}
-                      </p>
-                      <p className="text-text-muted text-sm">
-                        Candidate Number: {candidate.candidateNumber}
-                      </p>
-                      {candidate.personalEmail && (
-                        <p className="text-text-muted text-sm">
-                          Email: {candidate.personalEmail}
-                        </p>
-                      )}
-                      {candidate.mobilePhone && (
-                        <p className="text-text-muted text-sm">
-                          Phone: {candidate.mobilePhone}
-                        </p>
-                      )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </>
-            )}
+          {/* My Onboarding Card (ONB-004, ONB-005, ONB-007) */}
+          <Link
+            href="/candidate/onboarding"
+            className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
+                <ClipboardCheck className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-900">My Onboarding</h3>
+                <p className="text-sm text-slate-500">View and complete onboarding tasks</p>
+              </div>
+            </div>
+          </Link>
+        </div>
 
-            {!error && !candidate && (
-              <Card>
-                <CardContent>
-                  <div className="text-center py-8">
-                  <p className="text-text-muted mb-4">
-                    No candidate profile found. Please contact HR to set up your candidate profile.
-                  </p>
-                  <Button
-                    onClick={() => router.push("/")}
-                    variant="outline"
-                  >
-                    Go to Home
-                  </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+        {/* Quick Tips */}
+        <div className="mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="font-semibold text-slate-900 mb-4">Quick Tips</h2>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Search className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-900">Browse open positions</p>
+                <p className="text-sm text-slate-500">Check out available job openings and apply with your resume (REC-007)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <FileText className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-900">Keep your profile updated</p>
+                <p className="text-sm text-slate-500">Make sure your resume and contact information are current</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Clock className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-900">Track your application status</p>
+                <p className="text-sm text-slate-500">View real-time updates and history of your applications (REC-017)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Shield className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-900">Your data is protected</p>
+                <p className="text-sm text-slate-500">We require consent before processing your personal data (REC-028, GDPR compliant)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <ClipboardCheck className="w-4 h-4 text-orange-600" />
+              </div>
+              <div>
+                <p className="font-medium text-slate-900">Complete onboarding tasks</p>
+                <p className="text-sm text-slate-500">View your onboarding tracker, upload documents, and receive task reminders (ONB-004, ONB-005, ONB-007)</p>
+              </div>
+            </div>
           </div>
-        </main>
-      )}
+        </div>
+      </div>
     </RouteGuard>
   );
 }
-

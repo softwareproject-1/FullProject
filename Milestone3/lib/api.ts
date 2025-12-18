@@ -928,6 +928,261 @@ export const organizationApi = {
     axiosInstance.get(`/organization-structure/positions/${id}`),
 };
 
+// ==================== RECRUITMENT API ====================
+// Real backend API calls for recruitment module
+
+export const recruitmentApi = {
+  // Job Templates (REC-003)
+  createJobTemplate: (data: any) => axiosInstance.post("/recruitment/templates", data),
+  getAllJobTemplates: () => axiosInstance.get("/recruitment/templates"),
+  getJobTemplateById: (id: string) => axiosInstance.get(`/recruitment/templates/${id}`),
+  updateJobTemplate: (id: string, data: any) => axiosInstance.patch(`/recruitment/templates/${id}`, data),
+  deleteJobTemplate: (id: string) => axiosInstance.delete(`/recruitment/templates/${id}`),
+
+  // Job Requisitions (REC-023)
+  createJobRequisition: (data: any) => axiosInstance.post("/recruitment/jobs", data),
+  getAllJobRequisitions: (status?: string) => {
+    if (status) {
+      return axiosInstance.get("/recruitment/jobs", { params: { status } });
+    }
+    return axiosInstance.get("/recruitment/jobs");
+  },
+  getPublishedJobs: () => axiosInstance.get("/recruitment/jobs/published"),
+  getJobRequisitionById: (id: string) => axiosInstance.get(`/recruitment/jobs/${id}`),
+  previewJobPosting: (id: string) => axiosInstance.get(`/recruitment/jobs/${id}/preview`),
+  publishJob: (id: string) => axiosInstance.post(`/recruitment/jobs/${id}/publish`),
+  closeJob: (id: string) => axiosInstance.post(`/recruitment/jobs/${id}/close`),
+  updateJobRequisition: (id: string, data: any) => axiosInstance.patch(`/recruitment/jobs/${id}`, data),
+
+  // Applications (REC-007, REC-008, REC-017, REC-022)
+  createApplication: (data: any) => axiosInstance.post("/recruitment/applications", data),
+  getApplications: (filters?: { requisitionId?: string; candidateId?: string }) => {
+    return axiosInstance.get("/recruitment/applications", { params: filters });
+  },
+  getApplicationById: (id: string) => axiosInstance.get(`/recruitment/applications/${id}`),
+  getApplicationProgress: (id: string) => axiosInstance.get(`/recruitment/applications/${id}/progress`),
+  updateApplicationStatus: (id: string, data: any) => axiosInstance.patch(`/recruitment/applications/${id}/status`, data),
+  getApplicationHistory: (id: string) => axiosInstance.get(`/recruitment/applications/${id}/history`),
+  rejectApplication: (id: string, data: { changedBy: string; reason?: string }) =>
+    axiosInstance.post(`/recruitment/applications/${id}/reject`, data),
+  // Consent (REC-028)
+  submitConsent: (applicationId: string, data: any) => axiosInstance.post(`/recruitment/applications/${applicationId}/consent`, data),
+  getConsentByApplication: (applicationId: string) => axiosInstance.get(`/recruitment/applications/${applicationId}/consent`),
+  verifyConsent: (applicationId: string) => axiosInstance.get(`/recruitment/applications/${applicationId}/consent/verify`),
+  getConsentsByCandidate: (candidateId: string) => axiosInstance.get(`/recruitment/candidates/${candidateId}/consents`),
+
+  // Interviews (REC-010, REC-011, REC-020, REC-021)
+  scheduleInterview: (data: any) => axiosInstance.post("/recruitment/interviews", data),
+  getInterviews: (applicationId?: string) => {
+    if (applicationId) {
+      return axiosInstance.get("/recruitment/interviews", { params: { applicationId } });
+    }
+    return axiosInstance.get("/recruitment/interviews");
+  },
+  getInterviewById: (id: string) => axiosInstance.get(`/recruitment/interviews/${id}`),
+  updateInterview: (id: string, data: any) => axiosInstance.patch(`/recruitment/interviews/${id}`, data),
+  submitFeedback: (id: string, data: any) => axiosInstance.post(`/recruitment/interviews/${id}/feedback`, data),
+  getFeedback: (id: string) => axiosInstance.get(`/recruitment/interviews/${id}/feedback`),
+  getAverageScore: (id: string) => axiosInstance.get(`/recruitment/interviews/${id}/score`),
+  cancelInterview: (id: string) => axiosInstance.post(`/recruitment/interviews/${id}/cancel`),
+  completeInterview: (id: string) => axiosInstance.post(`/recruitment/interviews/${id}/complete`),
+  assignPanel: (id: string, panelIds: string[]) => axiosInstance.patch(`/recruitment/interviews/${id}/panel`, { panelIds }),
+
+  // Referrals (REC-030)
+  createReferral: (data: any) => axiosInstance.post("/recruitment/referrals", data),
+  getReferralApplications: (requisitionId?: string) => {
+    if (requisitionId) {
+      return axiosInstance.get("/recruitment/referrals/applications", { params: { requisitionId } });
+    }
+    return axiosInstance.get("/recruitment/referrals/applications");
+  },
+  checkApplicationReferral: (applicationId: string) => axiosInstance.get(`/recruitment/applications/${applicationId}/referral`),
+  getReferralByCandidate: (candidateId: string) => axiosInstance.get(`/recruitment/candidates/${candidateId}/referral`),
+
+  // Offers (REC-014, REC-018)
+  createOffer: (data: any) => axiosInstance.post("/recruitment/offers", data),
+  getOffers: () => axiosInstance.get("/recruitment/offers"),
+  getOfferById: (id: string) => axiosInstance.get(`/recruitment/offers/${id}`),
+  getOfferByApplication: (applicationId: string) =>
+    axiosInstance.get(`/recruitment/applications/${applicationId}/offer`),
+  updateOffer: (id: string, data: any) => axiosInstance.patch(`/recruitment/offers/${id}`, data),
+  approveOffer: (id: string, data: any) => axiosInstance.post(`/recruitment/offers/${id}/approve`, data),
+  getOfferApprovalStatus: (id: string) => axiosInstance.get(`/recruitment/offers/${id}/approval-status`),
+  respondToOffer: (id: string, data: any) => axiosInstance.post(`/recruitment/offers/${id}/respond`, data),
+  signOffer: (id: string, data: any) => axiosInstance.post(`/recruitment/offers/${id}/sign`, data),
+  getOfferSignatureStatus: (id: string) => axiosInstance.get(`/recruitment/offers/${id}/signature-status`),
+
+  // Contracts (REC-029)
+  createContract: (offerId: string) => axiosInstance.post("/recruitment/contracts", { offerId }),
+  getAllContracts: () => axiosInstance.get("/recruitment/contracts"),
+  getContractById: (id: string) => axiosInstance.get(`/recruitment/contracts/${id}`),
+  getContractByOffer: (offerId: string) => axiosInstance.get(`/recruitment/offers/${offerId}/contract`),
+
+  // Hiring Stages (REC-004)
+  getHiringStages: () => axiosInstance.get("/recruitment/stages"),
+  getStageProgress: (stage: string) => axiosInstance.get(`/recruitment/stages/${stage}/progress`),
+
+  // Available Positions & Validation
+  getAvailablePositions: () => axiosInstance.get("/recruitment/positions"),
+  validateDepartment: (name: string) => axiosInstance.get(`/recruitment/departments/${name}/validate`),
+  validatePosition: (name: string) => axiosInstance.get(`/recruitment/positions/${name}/validate`),
+
+  // Progress/Analytics (REC-009)
+  getRecruitmentProgress: (requisitionId: string) =>
+    axiosInstance.get(`/recruitment/analytics/progress/${requisitionId}`),
+  getAllRequisitionsProgress: () => axiosInstance.get("/recruitment/analytics/progress"),
+
+  // Interview Status (separate controller)
+  getInterviewerStatus: (employeeId: string) => axiosInstance.get(`/interview-status/${employeeId}`),
+};
+
+// ==================== ONBOARDING API ====================
+// Real backend API calls for onboarding module
+
+export const onboardingApi = {
+  // Checklist Templates (ONB-001)
+  createChecklistTemplate: (data: any) => axiosInstance.post("/onboarding/templates", data),
+  getChecklistTemplates: () => axiosInstance.get("/onboarding/templates"),
+  getChecklistTemplateById: (templateId: string) =>
+    axiosInstance.get(`/onboarding/templates/${templateId}`),
+  applyTemplateToOnboarding: (onboardingId: string, data: { templateId: string; startDate: Date }) =>
+    axiosInstance.post(`/onboarding/tracker/${onboardingId}/apply-template`, data),
+
+  // Contract & Employee Profile (ONB-002)
+  getSignedContractDetails: (contractId: string) =>
+    axiosInstance.get(`/onboarding/contracts/${contractId}`),
+  createEmployeeFromContract: (contractId: string, data: any) =>
+    axiosInstance.post(`/onboarding/contracts/${contractId}/create-employee`, data),
+  uploadSignedContract: (contractId: string, data: any) =>
+    axiosInstance.post(`/onboarding/contracts/${contractId}/upload-signed`, data),
+
+  // Onboarding Tracker (ONB-004)
+  getOnboardingTrackerByEmployee: (employeeId: string) =>
+    axiosInstance.get(`/onboarding/tracker/employee/${employeeId}`),
+  getOnboardingTracker: (onboardingId: string) =>
+    axiosInstance.get(`/onboarding/tracker/${onboardingId}`),
+  getAllOnboardings: () => axiosInstance.get("/onboarding/all"),
+
+  // Task Management
+  updateTaskStatus: (onboardingId: string, taskIndex: number, data: any) =>
+    axiosInstance.put(`/onboarding/${onboardingId}/tasks/${taskIndex}/status`, data),
+  completeTask: (onboardingId: string, taskIndex: number, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/tasks/${taskIndex}/complete`, data),
+  sendTaskReminder: (onboardingId: string, taskIndex: number) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/tasks/${taskIndex}/remind`),
+  getOverdueTasks: () => axiosInstance.get("/onboarding/overdue-tasks"),
+  sendBulkReminders: () => axiosInstance.post("/onboarding/reminders/send-bulk"),
+
+  // Document Management (ONB-007)
+  uploadComplianceDocument: (data: any) => axiosInstance.post("/onboarding/documents/upload", data),
+  verifyDocument: (documentId: string, data: any) =>
+    axiosInstance.post(`/onboarding/documents/${documentId}/verify`, data),
+  getComplianceStatus: (onboardingId: string) =>
+    axiosInstance.get(`/onboarding/compliance/${onboardingId}`),
+
+  // Form Uploads
+  uploadOnboardingForm: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/forms/upload`, data),
+
+  // System Access Provisioning (ONB-009)
+  provisionSystemAccess: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/provision-access`, data),
+  getProvisioningStatus: (onboardingId: string) =>
+    axiosInstance.get(`/onboarding/${onboardingId}/provisioning-status`),
+
+  // Resource Reservations (ONB-012)
+  reserveEquipment: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/reserve-equipment`, data),
+  reserveDesk: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/reserve-desk`, data),
+  reserveAccessCard: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/reserve-access-card`, data),
+  getResourceReservations: (onboardingId: string) =>
+    axiosInstance.get(`/onboarding/${onboardingId}/reservations`),
+
+  // Automated Provisioning (ONB-013)
+  scheduleProvisioning: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/schedule-provisioning`, data),
+  scheduleRevocation: (data: any) =>
+    axiosInstance.post("/onboarding/schedule-revocation", data),
+  cancelOnboarding: (onboardingId: string, data: any) =>
+    axiosInstance.delete(`/onboarding/${onboardingId}`, { data }),
+
+  // Payroll Integration (ONB-018, ONB-019)
+  initiatePayroll: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/initiate-payroll`, data),
+  processSigningBonus: (onboardingId: string, data: any) =>
+    axiosInstance.post(`/onboarding/${onboardingId}/process-signing-bonus`, data),
+};
+
+// ==================== OFFBOARDING API ====================
+// Real backend API calls for offboarding module
+
+export const offboardingApi = {
+  // Termination Reviews (OFF-001)
+  initiateTerminationReview: (data: any) =>
+    axiosInstance.post("/recruitment/offboarding/termination/review", data),
+  updateTerminationStatus: (terminationId: string, data: any) =>
+    axiosInstance.patch(`/recruitment/offboarding/termination/${terminationId}/status`, data),
+  getPendingTerminations: () => axiosInstance.get("/recruitment/offboarding/termination/pending"),
+  getTerminationsByEmployee: (employeeId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/termination/employee/${employeeId}`),
+  getTerminationRequest: (terminationId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/termination/${terminationId}`),
+  getEmployeePerformanceData: (employeeId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/termination/employee/${employeeId}/performance`),
+
+  // Resignation Requests (OFF-018, OFF-019)
+  createResignationRequest: (data: any) =>
+    axiosInstance.post("/recruitment/offboarding/resignation", data),
+  getMyResignations: (employeeId: string) =>
+    axiosInstance.get("/recruitment/offboarding/resignation/my", { params: { employeeId } }),
+  getResignationStatus: (resignationId: string, employeeId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/resignation/${resignationId}`, { params: { employeeId } }),
+  reviewResignation: (resignationId: string, data: any) =>
+    axiosInstance.patch(`/recruitment/offboarding/resignation/${resignationId}/review`, data),
+
+  // Offboarding Checklist (OFF-006)
+  createOffboardingChecklist: (data: any) =>
+    axiosInstance.post("/recruitment/offboarding/checklist", data),
+  addEquipmentToChecklist: (checklistId: string, data: any) =>
+    axiosInstance.post(`/recruitment/offboarding/checklist/${checklistId}/equipment`, data),
+  getChecklistByTermination: (terminationId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/checklist/termination/${terminationId}`),
+
+  // Department Sign-offs (OFF-010)
+  departmentSignOff: (checklistId: string, userId: string, data: any) =>
+    axiosInstance.patch(`/recruitment/offboarding/checklist/${checklistId}/signoff`, data, { params: { userId } }),
+  updateEquipmentReturn: (checklistId: string, data: any) =>
+    axiosInstance.patch(`/recruitment/offboarding/checklist/${checklistId}/equipment`, data),
+  updateAccessCardReturn: (checklistId: string, data: any) =>
+    axiosInstance.patch(`/recruitment/offboarding/checklist/${checklistId}/access-card`, data),
+  isClearanceComplete: (checklistId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/checklist/${checklistId}/complete`),
+
+  // Access Revocation (OFF-007)
+  scheduleAccessRevocation: (data: any) =>
+    axiosInstance.post("/recruitment/offboarding/access/schedule-revocation", data),
+  revokeAccessImmediately: (data: any) =>
+    axiosInstance.post("/recruitment/offboarding/access/revoke-immediate", data),
+  getScheduledRevocations: () =>
+    axiosInstance.get("/recruitment/offboarding/access/scheduled-revocations"),
+
+  // Final Settlement (OFF-013)
+  getTerminationForSettlement: (terminationId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/settlement/termination/${terminationId}`),
+  getTerminationsPendingSettlement: () =>
+    axiosInstance.get("/recruitment/offboarding/settlement/pending"),
+  getLeaveBalanceForSettlement: (employeeId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/settlement/employee/${employeeId}/leave-balance`),
+  getEmployeeOffboardingContext: (employeeId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/settlement/employee/${employeeId}/context`),
+  getCompleteSettlementData: (terminationId: string) =>
+    axiosInstance.get(`/recruitment/offboarding/settlement/${terminationId}/complete`),
+  triggerFinalSettlement: (terminationId: string, data: any) =>
+    axiosInstance.post(`/recruitment/offboarding/settlement/${terminationId}/trigger`, data),
+};
+
 // ==================== PAYROLL POLICIES ====================
 
 const API_BASE_URL =

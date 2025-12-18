@@ -2,10 +2,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axiosInstance from "@/utils/ApiClient";
 import { useRouter } from "next/navigation";
-import { getDefaultRoute } from "@/utils/roleAccess";
+import { getDefaultRoute, hasFeature as checkFeature } from "@/utils/roleAccess";
 
 interface User {
   _id: string;
+  id?: string;  // Alias for _id for compatibility
   firstName: string;
   lastName: string;
   employeeNumber: string;
@@ -21,12 +22,21 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAuthenticated: boolean;
   login: (password: string, identifier?: string, workEmail?: string, personalEmail?: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   hasRole: (role: string) => boolean;
-  hasPermission: (permission: string) => boolean;
+  hasPermission: (feature: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
+  // Role convenience helpers
+  isHRManager: () => boolean;
+  isHREmployee: () => boolean;
+  isCandidate: () => boolean;
+  isRecruiter: () => boolean;
+  isSystemAdmin: () => boolean;
+  isNewHire: () => boolean;
+  isHRAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,10 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await axiosInstance.get("/auth/me");
       const roles = response.data.roles || [];
-      
+
       // Ensure roles is always an array and log for debugging
       const rolesArray = Array.isArray(roles) ? roles : [];
-      
+
       console.log("=== AUTH CHECK DEBUG ===");
       console.log("Raw response.data:", response.data);
       console.log("Profile Picture URL from backend:", response.data.profilePictureUrl);
@@ -73,9 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Has 'System Admin' (exact match):", rolesArray.includes("System Admin"));
       console.log("Has 'system admin' (lowercase):", rolesArray.map((r: string) => r?.toLowerCase()).includes("system admin"));
       console.log("========================");
-      
+
       const userData: User = {
         _id: response.data.id || response.data._id,
+        id: response.data.id || response.data._id,  // Alias for compatibility
         firstName: response.data.firstName,
         lastName: response.data.lastName,
         employeeNumber: response.data.employeeNumber,
@@ -116,12 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("API Base URL:", axiosInstance.defaults.baseURL);
 
       const response = await axiosInstance.post("/auth/login", loginData);
-      
+
       console.log("Login response:", response.data);
-      
+
       if (response.data.user) {
         const userData: User = {
           _id: response.data.user.id || response.data.user._id || response.data.user.sub,
+          id: response.data.user.id || response.data.user._id || response.data.user.sub,  // Alias
           firstName: response.data.user.firstName,
           lastName: response.data.user.lastName,
           employeeNumber: response.data.user.employeeNumber,
@@ -133,27 +145,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           permissions: response.data.user.permissions || [],
           status: response.data.user.status,
         };
-        
+
         console.log("Login - User profilePictureUrl:", userData.profilePictureUrl);
-        
+
         // Ensure roles is always an array
         const rolesArray = Array.isArray(userData.roles) ? userData.roles : [];
         userData.roles = rolesArray;
-        
+
         // Set user state first
         setUser(userData);
         if (typeof window !== "undefined") {
           localStorage.setItem("user", JSON.stringify(userData));
         }
-        
+
         console.log("Login successful - User data:", userData);
         console.log("User roles (raw):", response.data.user.roles);
         console.log("User roles (processed):", rolesArray);
-        
+
         // Get default route based on user roles
         const defaultRoute = getDefaultRoute(rolesArray);
         console.log("Default route for user roles:", defaultRoute);
-        
+
         // Use router.replace for better navigation (replaces history entry)
         // Small delay to ensure state is set and React has updated
         setTimeout(() => {
@@ -171,10 +183,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      
+
       // Enhanced error handling for network issues
       let errorMessage = "Login failed. Please check your credentials.";
-      
+
       if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK' || error.code === 'ETIMEDOUT' || !error.response) {
         const baseURL = axiosInstance.defaults.baseURL || 'http://localhost:3001/api';
         errorMessage = `Network Error: Cannot connect to backend server.\n\n` +
@@ -191,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (error.response?.status >= 500) {
         errorMessage = "Server error. Please try again later.";
       }
-      
+
       throw new Error(errorMessage);
     }
   };
@@ -206,14 +218,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set flag to prevent auto-login on next page load
         sessionStorage.setItem("clearSessionOnLoad", "true");
       }
-      
+
       // Try to call logout endpoint (but don't wait if it fails)
       try {
         await axiosInstance.post("/auth/logout");
       } catch (error) {
         console.error("Logout endpoint error (non-critical):", error);
       }
-      
+
       // Redirect to login
       router.push("/auth/login");
     } catch (error) {
@@ -229,32 +241,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Case-insensitive role check
   const hasRole = (role: string): boolean => {
     if (!user || !user.roles) return false;
-    return user.roles.includes(role);
+    return user.roles.some(r => r?.toLowerCase() === role?.toLowerCase());
   };
 
-  const hasPermission = (permission: string): boolean => {
-    if (!user || !user.permissions) return false;
-    return user.permissions.includes(permission);
+  // Feature-based permission check using roleAccess utility
+  const hasPermission = (feature: string): boolean => {
+    if (!user) return false;
+    return checkFeature(user.roles || [], feature);
   };
 
   const hasAnyRole = (roles: string[]): boolean => {
     if (!user || !user.roles) return false;
-    return roles.some((role) => user.roles?.includes(role));
+    return roles.some((role) => hasRole(role));
   };
+
+  // Role convenience helpers
+  const isHRManager = (): boolean => hasRole('HR Manager');
+  const isHREmployee = (): boolean => hasRole('HR Employee');
+  const isCandidate = (): boolean => hasRole('Job Candidate');
+  const isRecruiter = (): boolean => hasRole('Recruiter');
+  const isSystemAdmin = (): boolean => hasRole('System Admin');
+  const isNewHire = (): boolean => hasRole('New Hire');
+  const isHRAdmin = (): boolean => hasRole('HR Admin');
 
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
+        isAuthenticated: !!user,
         login,
         logout,
         checkAuth,
         hasRole,
         hasPermission,
         hasAnyRole,
+        isHRManager,
+        isHREmployee,
+        isCandidate,
+        isRecruiter,
+        isSystemAdmin,
+        isNewHire,
+        isHRAdmin,
       }}
     >
       {children}

@@ -15,7 +15,23 @@
  * - Unnamed: Candidate document uploads
  */
 
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { OnboardingService } from '../services/onboarding.service';
 import { AuthenticationGuard } from '../../auth/guards/authentication.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -70,7 +86,7 @@ import {
 @Controller('onboarding')
 @UseGuards(AuthenticationGuard, RolesGuard)
 export class OnboardingController {
-  constructor(private readonly onboardingService: OnboardingService) {}
+  constructor(private readonly onboardingService: OnboardingService) { }
 
   // ============================================================================
   // ONB-001: CHECKLIST TEMPLATE ENDPOINTS
@@ -87,7 +103,7 @@ export class OnboardingController {
    * @returns ChecklistTemplateDto - Created template
    */
   @Post('templates')
-  @Roles(SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async createChecklistTemplate(
     @Body() dto: CreateChecklistTemplateDto,
   ): Promise<ChecklistTemplateDto> {
@@ -102,7 +118,7 @@ export class OnboardingController {
    * @returns ChecklistTemplateDto[] - All templates
    */
   @Get('templates')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getChecklistTemplates(): Promise<ChecklistTemplateDto[]> {
     return this.onboardingService.getChecklistTemplates();
   }
@@ -116,11 +132,27 @@ export class OnboardingController {
    * @returns ChecklistTemplateDto | null - The template or null
    */
   @Get('templates/:templateId')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getChecklistTemplateById(
     @Param('templateId') templateId: string,
   ): Promise<ChecklistTemplateDto | null> {
     return this.onboardingService.getChecklistTemplateById(templateId);
+  }
+
+  /**
+   * DELETE /onboarding/templates/:templateId
+   * 
+   * Delete a checklist template.
+   * 
+   * @param templateId - The template ID to delete
+   * @returns { deleted: boolean, templateId: string }
+   */
+  @Delete('templates/:templateId')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
+  async deleteChecklistTemplate(
+    @Param('templateId') templateId: string,
+  ): Promise<{ deleted: boolean; templateId: string }> {
+    return this.onboardingService.deleteChecklistTemplate(templateId);
   }
 
   /**
@@ -134,7 +166,7 @@ export class OnboardingController {
    * @returns OnboardingTrackerDto - Updated onboarding
    */
   @Post('tracker/:onboardingId/apply-template')
-  @Roles(SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async applyTemplateToOnboarding(
     @Param('onboardingId') onboardingId: string,
     @Body() body: { templateId: string; startDate: Date },
@@ -161,7 +193,7 @@ export class OnboardingController {
    * @returns SignedContractDetailsDto - Contract details
    */
   @Get('contracts/:contractId')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getSignedContractDetails(
     @Param('contractId') contractId: string,
   ): Promise<SignedContractDetailsDto> {
@@ -179,7 +211,7 @@ export class OnboardingController {
    * @returns EmployeeProfileCreatedDto - Result of creation
    */
   @Post('contracts/:contractId/create-employee')
-  @Roles(SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async createEmployeeFromContract(
     @Param('contractId') contractId: string,
     @Body() dto: Omit<CreateEmployeeFromContractDto, 'contractId'>,
@@ -207,7 +239,7 @@ export class OnboardingController {
    * @returns OnboardingTrackerDto | null - Tracker or null if not found
    */
   @Get('tracker/employee/:employeeId')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getOnboardingTrackerByEmployee(
     @Param('employeeId') employeeId: string,
   ): Promise<OnboardingTrackerDto> {
@@ -223,7 +255,7 @@ export class OnboardingController {
    * @returns OnboardingTrackerDto - The tracker
    */
   @Get('tracker/:onboardingId')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async getOnboardingTracker(
     @Param('onboardingId') onboardingId: string,
   ): Promise<OnboardingTrackerDto> {
@@ -238,7 +270,7 @@ export class OnboardingController {
    * @returns OnboardingTrackerDto[] - All onboardings
    */
   @Get('all')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getAllOnboardings(): Promise<OnboardingTrackerDto[]> {
     return this.onboardingService.getAllOnboardings();
   }
@@ -254,7 +286,7 @@ export class OnboardingController {
    * @returns OnboardingTrackerDto - Updated tracker
    */
   @Put(':onboardingId/tasks/:taskIndex/status')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async updateTaskStatus(
     @Param('onboardingId') onboardingId: string,
     @Param('taskIndex') taskIndex: string,
@@ -278,7 +310,7 @@ export class OnboardingController {
    * @returns OnboardingTrackerDto - Updated tracker
    */
   @Post(':onboardingId/tasks/:taskIndex/complete')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async completeTask(
     @Param('onboardingId') onboardingId: string,
     @Param('taskIndex') taskIndex: string,
@@ -307,7 +339,7 @@ export class OnboardingController {
    * @returns Result of reminder send
    */
   @Post(':onboardingId/tasks/:taskIndex/remind')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async sendTaskReminder(
     @Param('onboardingId') onboardingId: string,
     @Param('taskIndex') taskIndex: string,
@@ -326,7 +358,7 @@ export class OnboardingController {
    * @returns Overdue task information
    */
   @Get('overdue-tasks')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getOverdueTasks(): Promise<{
     onboardingId: string;
     employeeId: string;
@@ -348,12 +380,28 @@ export class OnboardingController {
    * @returns Bulk reminder results
    */
   @Post('reminders/send-bulk')
-  @Roles(SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async sendBulkReminders(): Promise<{
     remindersSent: number;
     tasksReminded: { onboardingId: string; taskIndex: number; taskName: string }[];
   }> {
     return this.onboardingService.sendBulkReminders();
+  }
+
+  /**
+   * GET /onboarding/notifications/:recipientId
+   * 
+   * Get all notifications for a specific recipient (new hire/candidate).
+   * 
+   * @param recipientId - The recipient's employee/candidate ID
+   * @returns NotificationRecord[] - List of notifications
+   */
+  @Get('notifications/:recipientId')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
+  async getNotificationsForRecipient(
+    @Param('recipientId') recipientId: string,
+  ): Promise<any[]> {
+    return this.onboardingService.getNotificationsForRecipient(recipientId);
   }
 
   // ============================================================================
@@ -365,17 +413,84 @@ export class OnboardingController {
   /**
    * POST /onboarding/documents/upload
    * 
-   * Upload a compliance document.
+   * Upload a compliance document (URL-based - for backward compatibility).
    * 
    * @param dto - Upload data
    * @returns DocumentRecordDto - Uploaded document record
    */
   @Post('documents/upload')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
   async uploadComplianceDocument(
     @Body() dto: UploadDocumentDto,
   ): Promise<DocumentRecordDto> {
     return this.onboardingService.uploadComplianceDocument(dto);
+  }
+
+  /**
+   * POST /onboarding/documents/upload-file
+   * 
+   * Upload a compliance document file using Multer.
+   * This is the preferred method for new hires to upload actual files.
+   * 
+   * @param file - The uploaded file
+   * @param onboardingId - The onboarding ID
+   * @param documentType - Type of document (ID, CONTRACT, CERTIFICATE, etc.)
+   * @returns DocumentRecordDto - Uploaded document record
+   */
+  @Post('documents/upload-file')
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/onboarding-docs',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `doc-${uniqueSuffix}${ext}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        // Allow PDF, DOC, DOCX, images
+        const allowedMimes = [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+        ];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Only PDF, DOC, DOCX, and image files are allowed'), false);
+        }
+      },
+      limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+      },
+    }),
+  )
+  async uploadComplianceDocumentFile(
+    @UploadedFile() file: any,
+    @Body('onboardingId') onboardingId: string,
+    @Body('documentType') documentType: string,
+    @Body('documentName') documentName?: string,
+  ): Promise<DocumentRecordDto> {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    if (!onboardingId) {
+      throw new BadRequestException('onboardingId is required');
+    }
+
+    // Use the service to save the document
+    return this.onboardingService.uploadComplianceDocument({
+      onboardingId,
+      documentType: (documentType || 'OTHER') as 'ID' | 'CONTRACT' | 'CERTIFICATION' | 'TAX_FORM' | 'OTHER',
+      documentName: documentName || file.originalname,
+      filePath: file.path,
+    });
   }
 
   /**
@@ -388,12 +503,29 @@ export class OnboardingController {
    * @returns DocumentRecordDto - Updated document
    */
   @Post('documents/:documentId/verify')
-  @Roles(SystemRole.HR_MANAGER)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async verifyDocument(
     @Param('documentId') documentId: string,
     @Body() dto: VerifyDocumentDto,
   ): Promise<DocumentRecordDto> {
     return this.onboardingService.verifyDocument(documentId, dto);
+  }
+
+  /**
+   * GET /onboarding/:onboardingId/documents
+   * 
+   * Get all documents uploaded for an onboarding.
+   * Used by HR to view documents submitted by new hires.
+   * 
+   * @param onboardingId - The onboarding ID
+   * @returns DocumentRecordDto[] - List of documents
+   */
+  @Get(':onboardingId/documents')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN, SystemRole.JOB_CANDIDATE)
+  async getDocumentsByOnboarding(
+    @Param('onboardingId') onboardingId: string,
+  ): Promise<DocumentRecordDto[]> {
+    return this.onboardingService.getDocumentsByOnboarding(onboardingId);
   }
 
   /**
@@ -406,7 +538,7 @@ export class OnboardingController {
    * @returns ComplianceStatusDto - Compliance status
    */
   @Get('compliance/:onboardingId')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async getComplianceStatus(
     @Param('onboardingId') onboardingId: string,
   ): Promise<ComplianceStatusDto> {
@@ -429,7 +561,7 @@ export class OnboardingController {
    * @returns SignedContractUploadResultDto - Upload result
    */
   @Post('contracts/:contractId/upload-signed')
-  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_MANAGER)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_MANAGER, SystemRole.SYSTEM_ADMIN)
   async uploadSignedContract(
     @Param('contractId') contractId: string,
     @Body() dto: Omit<UploadSignedContractDto, 'contractId'>,
@@ -451,7 +583,7 @@ export class OnboardingController {
    * @returns FormUploadResultDto - Upload result
    */
   @Post(':onboardingId/forms/upload')
-  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE)
+  @Roles(SystemRole.JOB_CANDIDATE, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.SYSTEM_ADMIN)
   async uploadOnboardingForm(
     @Param('onboardingId') onboardingId: string,
     @Body() dto: Omit<UploadOnboardingFormDto, 'onboardingId'>,
@@ -524,7 +656,7 @@ export class OnboardingController {
    * @returns ReservationResultDto - Reservation result
    */
   @Post(':onboardingId/reserve-equipment')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async reserveEquipment(
     @Param('onboardingId') onboardingId: string,
     @Body() dto: Omit<ReserveEquipmentDto, 'onboardingId'>,
@@ -545,7 +677,7 @@ export class OnboardingController {
    * @returns ReservationResultDto - Reservation result
    */
   @Post(':onboardingId/reserve-desk')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async reserveDesk(
     @Param('onboardingId') onboardingId: string,
     @Body() dto: Omit<ReserveDeskDto, 'onboardingId'>,
@@ -566,7 +698,7 @@ export class OnboardingController {
    * @returns ReservationResultDto - Reservation result
    */
   @Post(':onboardingId/reserve-access-card')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async reserveAccessCard(
     @Param('onboardingId') onboardingId: string,
     @Body() dto: Omit<ReserveAccessCardDto, 'onboardingId'>,
@@ -586,7 +718,7 @@ export class OnboardingController {
    * @returns AllReservationsDto - All reservations
    */
   @Get(':onboardingId/reservations')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.HR_ADMIN, SystemRole.SYSTEM_ADMIN)
   async getResourceReservations(
     @Param('onboardingId') onboardingId: string,
   ): Promise<AllReservationsDto> {
@@ -679,7 +811,7 @@ export class OnboardingController {
    * @returns PayrollInitiationResultDto - Initiation result
    */
   @Post(':onboardingId/initiate-payroll')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.PAYROLL_SPECIALIST)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.PAYROLL_SPECIALIST, SystemRole.SYSTEM_ADMIN)
   async initiatePayroll(
     @Param('onboardingId') onboardingId: string,
     @Body() dto: Omit<InitiatePayrollDto, 'onboardingId'>,
@@ -707,7 +839,7 @@ export class OnboardingController {
    * @returns SigningBonusResultDto - Processing result
    */
   @Post(':onboardingId/process-signing-bonus')
-  @Roles(SystemRole.HR_MANAGER, SystemRole.PAYROLL_SPECIALIST)
+  @Roles(SystemRole.HR_MANAGER, SystemRole.PAYROLL_SPECIALIST, SystemRole.SYSTEM_ADMIN)
   async processSigningBonus(
     @Param('onboardingId') onboardingId: string,
     @Body() dto: Omit<ProcessSigningBonusDto, 'onboardingId'>,
@@ -716,5 +848,61 @@ export class OnboardingController {
       ...dto,
       onboardingId,
     });
+  }
+
+  // ============================================================================
+  // ONBOARDING COMPLETION - Role Transition
+  // Transition new hire from Job Candidate to active Employee
+  // ============================================================================
+
+  /**
+   * GET /onboarding/:onboardingId/can-finalize
+   * 
+   * Check if an onboarding can be finalized.
+   * Returns completion status and any pending tasks.
+   * 
+   * @param onboardingId - The onboarding ID
+   * @returns Finalization status
+   */
+  @Get(':onboardingId/can-finalize')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
+  async canFinalizeOnboarding(
+    @Param('onboardingId') onboardingId: string,
+  ): Promise<{
+    canFinalize: boolean;
+    completedTasks: number;
+    totalTasks: number;
+    pendingTasks: string[];
+  }> {
+    return this.onboardingService.canFinalizeOnboarding(onboardingId);
+  }
+
+  /**
+   * POST /onboarding/:onboardingId/finalize
+   * 
+   * Finalize onboarding and transition the new hire to an active employee.
+   * 
+   * This endpoint:
+   * 1. Verifies all tasks are complete
+   * 2. Updates EmployeeProfile status to Active
+   * 3. Updates role from Job Candidate to the hired position
+   * 4. Updates Candidate status to Hired
+   * 5. Sends completion notification
+   * 
+   * @param onboardingId - The onboarding ID
+   * @returns Transition result with new role
+   */
+  @Post(':onboardingId/finalize')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
+  async finalizeOnboarding(
+    @Param('onboardingId') onboardingId: string,
+  ): Promise<{
+    success: boolean;
+    employeeId: string;
+    previousRole: string;
+    newRole: string;
+    message: string;
+  }> {
+    return this.onboardingService.finalizeOnboardingCompletion(onboardingId);
   }
 }
