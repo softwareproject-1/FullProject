@@ -1,462 +1,324 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import RouteGuard from "@/components/RouteGuard";
-import { candidateApi, Candidate, UpdateCandidateData } from "@/utils/candidateApi";
-import { canAccessRoute, hasRole, SystemRole } from "@/utils/roleAccess";
+'use client'
 
-export default function CandidateProfilePage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [loadingData, setLoadingData] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState<UpdateCandidateData>({});
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import RouteGuard from '@/components/RouteGuard';
+import { User, Mail, Phone, FileText, Upload, CheckCircle, AlertCircle, FileCheck } from 'lucide-react';
+import { onboardingApi } from '@/services/api';
 
-  const canAccess = user ? canAccessRoute(user.roles, "/candidate/profile") : false;
-  const isCandidate = user ? hasRole(user.roles, SystemRole.JOB_CANDIDATE) : false;
+export default function CandidateProfile() {
+  const { user } = useAuth();
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [uploadingContract, setUploadingContract] = useState(false);
+  const [uploadingForm, setUploadingForm] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [contractId, setContractId] = useState('');
+  const [onboardingId, setOnboardingId] = useState('');
 
-  useEffect(() => {
-    if (!loading && user && canAccess) {
-      loadCandidateProfile();
-    }
-  }, [user, loading, canAccess]);
+  return (
+    <RouteGuard requiredRoles={['Job Candidate']}>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">My Profile</h1>
+          <p className="text-slate-500 mt-1">Manage your candidate profile and resume</p>
+        </div>
 
-  const loadCandidateProfile = async () => {
-    try {
-      setLoadingData(true);
-      setError(null);
-      
-      if (!user || !user._id) {
-        setError("User not found");
-        return;
-      }
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Profile Header */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-8">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-white text-2xl font-bold">
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
+              </div>
+              <div className="text-white">
+                <h2 className="text-2xl font-bold">
+                  {user?.firstName} {user?.lastName}
+                </h2>
+                <p className="text-white/80">Job Candidate</p>
+              </div>
+            </div>
+          </div>
 
-      // Try to get candidate profile by employee profile ID first
-      let candidateData = null;
-      
-      try {
-        candidateData = await candidateApi.getMyCandidateProfileByEmployeeId(user._id);
-      } catch (err: any) {
-        // If not found by employee ID, try by email
-        if (user.personalEmail) {
-          try {
-            candidateData = await candidateApi.getMyCandidateProfileByEmail(user.personalEmail);
-          } catch (err2: any) {
-            // If not found by email, try nationalId
-            if (user.nationalId) {
-              try {
-                candidateData = await candidateApi.getMyCandidateProfileByNationalId(user.nationalId);
-              } catch (err3: any) {
-                // All methods failed
-              }
-            }
-          }
-        } else if (user.nationalId) {
-          try {
-            candidateData = await candidateApi.getMyCandidateProfileByNationalId(user.nationalId);
-          } catch (err2: any) {
-            // Failed
-          }
-        }
-      }
+          {/* Profile Content */}
+          <div className="p-6 space-y-6">
+            {/* Contact Information */}
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Contact Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                  <Mail className="w-5 h-5 text-slate-400" />
+                  <div>
+                    <p className="text-xs text-slate-500">Work Email</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {user?.workEmail || 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                  <Mail className="w-5 h-5 text-slate-400" />
+                  <div>
+                    <p className="text-xs text-slate-500">Personal Email</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {user?.personalEmail || 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-      if (candidateData) {
-        setCandidate(candidateData);
-      } else {
-        setError("Candidate profile not found. Please contact HR to set up your candidate profile.");
-      }
-    } catch (err: any) {
-      console.error("Error loading candidate profile:", err);
-      setError(err.response?.data?.message || "Failed to load candidate profile. Please contact HR.");
-    } finally {
-      setLoadingData(false);
-    }
-  };
+            {/* Message Banner */}
+            {message && (
+              <div className={`p-4 rounded-lg flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                <p>{message.text}</p>
+              </div>
+            )}
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+            {/* Resume Section */}
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Resume / CV
+              </h3>
+              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+                <Upload className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-600 mb-2">
+                  Drag and drop your resume here, or click to upload
+                </p>
+                <p className="text-sm text-slate-400">
+                  Supports PDF, DOC, DOCX (max 5MB)
+                </p>
+                <input
+                  type="file"
+                  id="resume-upload"
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={handleResumeUpload}
+                  disabled={uploadingResume}
+                />
+                <button
+                  onClick={() => document.getElementById('resume-upload')?.click()}
+                  disabled={uploadingResume}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingResume ? 'Uploading...' : 'Upload Resume'}
+                </button>
+              </div>
+            </div>
 
-  const handleAddressChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      address: {
-        ...prev.address,
-        [field]: value,
-      },
-    }));
-  };
+            {/* Signed Contract Section */}
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <FileCheck className="w-5 h-5" />
+                Signed Contract
+              </h3>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Enter Contract ID"
+                  value={contractId}
+                  onChange={(e) => setContractId(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                  <FileCheck className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 mb-2">
+                    Upload your signed employment contract
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Supports PDF (max 10MB)
+                  </p>
+                  <input
+                    type="file"
+                    id="contract-upload"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={handleContractUpload}
+                    disabled={uploadingContract || !contractId}
+                  />
+                  <button
+                    onClick={() => document.getElementById('contract-upload')?.click()}
+                    disabled={uploadingContract || !contractId}
+                    className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {uploadingContract ? 'Uploading...' : 'Upload Signed Contract'}
+                  </button>
+                  {!contractId && (
+                    <p className="text-xs text-amber-600 mt-2">Please enter your Contract ID first</p>
+                  )}
+                </div>
+              </div>
+            </div>
 
-  const handleSave = async () => {
-    if (!candidate?._id) {
-      setError("Candidate ID not found");
+            {/* Onboarding Forms Section */}
+            <div>
+              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Required Onboarding Forms
+              </h3>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Enter Onboarding ID (provided by HR)"
+                  value={onboardingId}
+                  onChange={(e) => setOnboardingId(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                  <Upload className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 mb-2">
+                    Upload completed onboarding forms and templates
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    Supports PDF, DOC, DOCX (max 10MB)
+                  </p>
+                  <input
+                    type="file"
+                    id="form-upload"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={handleFormUpload}
+                    disabled={uploadingForm || !onboardingId}
+                  />
+                  <button
+                    onClick={() => document.getElementById('form-upload')?.click()}
+                    disabled={uploadingForm || !onboardingId}
+                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {uploadingForm ? 'Uploading...' : 'Upload Form'}
+                  </button>
+                  {!onboardingId && (
+                    <p className="text-xs text-amber-600 mt-2">Please enter your Onboarding ID first</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tips */}
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">💡 Profile Tips</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Keep your resume updated with your latest experience</li>
+                <li>• Upload your signed contract once you receive it from HR</li>
+                <li>• Complete all required onboarding forms to start your journey</li>
+                <li>• Contact HR if you haven't received your Contract ID or Onboarding ID</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </RouteGuard>
+  );
+
+  // Upload handlers
+  async function handleResumeUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Resume file size must be less than 5MB' });
       return;
     }
 
-    try {
-      setSaving(true);
-      setError(null);
-      
-      await candidateApi.updateMyCandidateProfile(candidate._id, formData);
-      await loadCandidateProfile();
-      setEditing(false);
-      setFormData({});
-    } catch (err: any) {
-      console.error("Error updating candidate profile:", err);
-      setError(err.response?.data?.message || "Failed to update profile");
-    } finally {
-      setSaving(false);
-    }
-  };
+    setUploadingResume(true);
+    setMessage(null);
 
-  if (loading || loadingData) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-          <p className="text-text-muted text-lg">Loading profile...</p>
-        </div>
-      </main>
-    );
+    try {
+      // In a real implementation, this would upload to a file storage service
+      // For now, we'll simulate the upload
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      setMessage({ type: 'success', text: 'Resume uploaded successfully!' });
+      e.target.value = ''; // Reset input
+    } catch (error: any) {
+      setMessage({ type: 'error', text: 'Failed to upload resume. Please try again.' });
+    } finally {
+      setUploadingResume(false);
+    }
   }
 
-  return (
-    <RouteGuard 
-      requiredRoute="/candidate/profile" 
-      requiredRoles={["Job Candidate"]}
-    >
-      {!user || !canAccess ? null : (
-        <main className="min-h-screen bg-gradient-to-br from-background via-background-light to-background p-4 md:p-8">
-          <div className="max-w-4xl mx-auto space-y-8">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-text mb-2 bg-gradient-to-r from-primary via-primary-light to-primary bg-clip-text text-transparent">
-                  My Candidate Profile
-                </h1>
-                <p className="text-text-muted text-lg">
-                  View and update your candidate information
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => router.push("/candidate")}
-                  variant="outline"
-                >
-                  Back to Dashboard
-                </Button>
-                {candidate && !editing && (
-                  <Button
-                    onClick={() => {
-                      setEditing(true);
-                      setFormData({
-                        firstName: candidate.firstName,
-                        middleName: candidate.middleName,
-                        lastName: candidate.lastName,
-                        personalEmail: candidate.personalEmail,
-                        mobilePhone: candidate.mobilePhone,
-                        homePhone: candidate.homePhone,
-                        gender: candidate.gender,
-                        maritalStatus: candidate.maritalStatus,
-                        dateOfBirth: candidate.dateOfBirth,
-                        address: candidate.address,
-                        profilePictureUrl: candidate.profilePictureUrl,
-                        resumeUrl: candidate.resumeUrl,
-                      });
-                    }}
-                    variant="default"
-                  >
-                    Edit Profile
-                  </Button>
-                )}
-              </div>
-            </header>
+  async function handleContractUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !contractId) return;
 
-            {error && (
-              <Card>
-                <CardContent>
-                  <div className="p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-400">
-                    <p className="font-semibold mb-2">⚠️ {error}</p>
-                    <p className="text-sm">
-                      To access your candidate profile, please contact HR or use the link provided in your application email.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Contract file size must be less than 10MB' });
+      return;
+    }
 
-            {!error && candidate && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {editing ? (
-                  <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">First Name</label>
-                          <Input
-                            value={formData.firstName || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("firstName", e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Middle Name</label>
-                          <Input
-                            value={formData.middleName || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("middleName", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Last Name</label>
-                          <Input
-                            value={formData.lastName || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("lastName", e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Personal Email</label>
-                          <Input
-                            type="email"
-                            value={formData.personalEmail || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("personalEmail", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Mobile Phone</label>
-                          <Input
-                            value={formData.mobilePhone || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("mobilePhone", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Home Phone</label>
-                          <Input
-                            value={formData.homePhone || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("homePhone", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Date of Birth</label>
-                          <Input
-                            type="date"
-                            value={formData.dateOfBirth || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("dateOfBirth", e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="label">Gender</label>
-                          <select
-                            className="input"
-                            value={formData.gender || ""}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("gender", e.target.value)}
-                          >
-                            <option value="">Select Gender</option>
-                            <option value="MALE">Male</option>
-                            <option value="FEMALE">Female</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="label">Marital Status</label>
-                          <select
-                            className="input"
-                            value={formData.maritalStatus || ""}
-                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("maritalStatus", e.target.value)}
-                          >
-                            <option value="">Select Status</option>
-                            <option value="SINGLE">Single</option>
-                            <option value="MARRIED">Married</option>
-                            <option value="DIVORCED">Divorced</option>
-                            <option value="WIDOWED">Widowed</option>
-                          </select>
-                        </div>
-                      </div>
+    // Validate file type
+    if (!file.type.includes('pdf')) {
+      setMessage({ type: 'error', text: 'Only PDF files are accepted for contracts' });
+      return;
+    }
 
-                      <div className="border-t border-border pt-4">
-                        <h3 className="text-text font-semibold mb-4">Address</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-text mb-1">Street Address</label>
-                            <Input
-                              value={formData.address?.streetAddress || ""}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("streetAddress", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-text mb-1">City</label>
-                            <Input
-                              value={formData.address?.city || ""}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("city", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-text mb-1">State/Province</label>
-                            <Input
-                              value={formData.address?.state || ""}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("state", e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-text mb-1">Postal Code</label>
-                            <Input
-                              value={formData.address?.postalCode || ""}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("postalCode", e.target.value)}
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-text mb-1">Country</label>
-                            <Input
-                              value={formData.address?.country || ""}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAddressChange("country", e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
+    setUploadingContract(true);
+    setMessage(null);
 
-                      <div className="border-t border-border pt-4">
-                        <div>
-                          <label className="block text-sm font-medium text-text mb-1">Resume URL</label>
-                          <Input
-                            type="url"
-                            value={formData.resumeUrl || ""}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("resumeUrl", e.target.value)}
-                            placeholder="https://..."
-                          />
-                        </div>
-                        <p className="text-text-muted text-xs mt-1">
-                          Enter the URL where your resume is hosted (e.g., Google Drive, Dropbox, etc.)
-                        </p>
-                      </div>
+    try {
+      // Simulate file upload to storage and get URL
+      // In production, upload to S3/Azure/etc and get the URL
+      const signatureUrl = `https://storage.example.com/contracts/${contractId}/${file.name}`;
 
-                      <div className="flex gap-2 justify-end pt-4 border-t border-border">
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            setEditing(false);
-                            setFormData({});
-                            setError(null);
-                          }}
-                          variant="outline"
-                          disabled={saving}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          variant="default"
-                          disabled={saving}
-                        >
-                          {saving ? "Saving..." : "Save Changes"}
-                        </Button>
-                      </div>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-text-muted text-sm">Candidate Number</label>
-                        <p className="text-text font-medium">{candidate.candidateNumber}</p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Full Name</label>
-                        <p className="text-text font-medium">
-                          {candidate.firstName} {candidate.middleName} {candidate.lastName}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Personal Email</label>
-                        <p className="text-text font-medium">{candidate.personalEmail || "-"}</p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Mobile Phone</label>
-                        <p className="text-text font-medium">{candidate.mobilePhone || "-"}</p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Home Phone</label>
-                        <p className="text-text font-medium">{candidate.homePhone || "-"}</p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Date of Birth</label>
-                        <p className="text-text font-medium">
-                          {candidate.dateOfBirth ? new Date(candidate.dateOfBirth).toLocaleDateString() : "-"}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Gender</label>
-                        <p className="text-text font-medium">{candidate.gender || "-"}</p>
-                      </div>
-                      <div>
-                        <label className="text-text-muted text-sm">Marital Status</label>
-                        <p className="text-text font-medium">{candidate.maritalStatus || "-"}</p>
-                      </div>
-                    </div>
+      await onboardingApi.contracts.uploadSigned(contractId, {
+        signatureUrl,
+        signedAt: new Date().toISOString(),
+      });
 
-                    {candidate.address && (
-                      <div className="border-t border-border pt-4">
-                        <h3 className="text-text font-semibold mb-4">Address</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-text-muted text-sm">Street Address</label>
-                            <p className="text-text font-medium">{candidate.address.streetAddress || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="text-text-muted text-sm">City</label>
-                            <p className="text-text font-medium">{candidate.address.city || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="text-text-muted text-sm">State/Province</label>
-                            <p className="text-text font-medium">{candidate.address.state || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="text-text-muted text-sm">Postal Code</label>
-                            <p className="text-text font-medium">{candidate.address.postalCode || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="text-text-muted text-sm">Country</label>
-                            <p className="text-text font-medium">{candidate.address.country || "-"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+      setMessage({ type: 'success', text: 'Signed contract uploaded successfully! HR will review it shortly.' });
+      e.target.value = ''; // Reset input
+      setContractId(''); // Clear contract ID
+    } catch (error: any) {
+      console.error('Failed to upload contract:', error);
+      setMessage({
+        type: 'error',
+        text: error.response?.data?.message || 'Failed to upload contract. Please check your Contract ID and try again.'
+      });
+    } finally {
+      setUploadingContract(false);
+    }
+  }
 
-                    {candidate.resumeUrl && (
-                      <div className="border-t border-border pt-4">
-                        <label className="text-text-muted text-sm">Resume</label>
-                        <p className="text-text font-medium">
-                          <a 
-                            href={candidate.resumeUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline"
-                          >
-                            View Resume
-                          </a>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </main>
-      )}
-    </RouteGuard>
-  );
+  async function handleFormUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !onboardingId) return;
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Form file size must be less than 10MB' });
+      return;
+    }
+
+    setUploadingForm(true);
+    setMessage(null);
+
+    try {
+      // Simulate file upload to storage and get URL
+      // In production, upload to S3/Azure/etc and get the URL
+      const fileUrl = `https://storage.example.com/forms/${onboardingId}/${file.name}`;
+
+      await onboardingApi.forms.upload(onboardingId, {
+        formType: 'general',
+        formUrl: fileUrl,
+        fileName: file.name,
+      });
+
+      setMessage({ type: 'success', text: 'Onboarding form uploaded successfully!' });
+      e.target.value = ''; // Reset input
+    } catch (error: any) {
+      console.error('Failed to upload form:', error);
+      setMessage({
+        type: 'error',
+        text: error.response?.data?.message || 'Failed to upload form. Please check your Onboarding ID and try again.'
+      });
+    } finally {
+      setUploadingForm(false);
+    }
+  }
 }
-

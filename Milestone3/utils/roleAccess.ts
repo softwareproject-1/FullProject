@@ -18,6 +18,7 @@ export enum SystemRole {
   LEGAL_POLICY_ADMIN = 'Legal & Policy Admin',
   FINANCE_STAFF = 'Finance Staff',
   JOB_CANDIDATE = 'Job Candidate',
+  NEW_HIRE = 'New Hire',
 }
 
 // Normalize role name (case-insensitive matching)
@@ -50,6 +51,7 @@ export const roleAccess = {
   // System Admin - Full access
   [SystemRole.SYSTEM_ADMIN]: {
     routes: [
+      '/',
       '/admin',
       '/admin/employee-profile',
       '/employee/profile',
@@ -62,10 +64,13 @@ export const roleAccess = {
       '/performance/cycles',
       '/performance/disputes',
       '/hr-manager',
+      '/hr-manager/onboarding',
       '/time-management',
       '/leaves',
       '/payroll',
+      '/payroll-tracking',
       '/recruitment',
+      '/offboarding',
     ],
     features: {
       viewAllEmployees: true,
@@ -92,7 +97,19 @@ export const roleAccess = {
       resolveDisputes: true,
       archiveEmployees: true,
       viewPayroll: true,
+      // Recruitment features
       manageRecruitment: true,
+      viewCandidates: true,
+      createCandidate: true,
+      editCandidate: true,
+      manageJobPostings: true,
+      scheduleInterviews: true,
+      manageOffers: true,
+      manageOnboarding: true,
+      manageOffboarding: true,
+      viewRecruitmentAnalytics: true,
+      manageHiringStages: true,
+      manageReferrals: true,
     },
     defaultRoute: '/admin',
   },
@@ -100,6 +117,7 @@ export const roleAccess = {
   // HR Admin - High HR access
   [SystemRole.HR_ADMIN]: {
     routes: [
+      '/',
       '/admin/employee-profile',
       '/employee/profile',
       '/admin/employee-profile/change-requests',
@@ -108,10 +126,12 @@ export const roleAccess = {
       '/performance/cycles',
       '/performance/disputes',
       '/hr-manager',
+      '/hr-manager/onboarding',
       '/time-management',
       '/leaves',
       '/payroll',
       '/recruitment',
+      '/offboarding',
     ],
     features: {
       viewAllEmployees: true,
@@ -138,7 +158,19 @@ export const roleAccess = {
       resolveDisputes: true,
       archiveEmployees: false,
       viewPayroll: true,
+      // Recruitment features
       manageRecruitment: true,
+      viewCandidates: true,
+      createCandidate: true,
+      editCandidate: true,
+      manageJobPostings: true,
+      scheduleInterviews: true,
+      manageOffers: true,
+      manageOnboarding: true,
+      manageOffboarding: true,
+      viewRecruitmentAnalytics: true,
+      manageHiringStages: true,
+      manageReferrals: true,
     },
     defaultRoute: '/hr-manager',
   },
@@ -146,7 +178,9 @@ export const roleAccess = {
   // HR Manager - Medium-High HR access
   [SystemRole.HR_MANAGER]: {
     routes: [
+      '/',
       '/hr-manager',
+      '/hr-manager/onboarding',
       '/admin/employee-profile',
       '/employee/profile',
       '/admin/employee-profile/change-requests',
@@ -157,6 +191,8 @@ export const roleAccess = {
       '/time-management',
       '/leaves',
       '/payroll/payroll-tracking/employee',
+      '/recruitment',
+      '/offboarding',
     ],
     features: {
       viewAllEmployees: true, // Read-only
@@ -179,7 +215,19 @@ export const roleAccess = {
       resolveDisputes: true,
       archiveEmployees: false,
       viewPayroll: false,
-      manageRecruitment: false,
+      // Recruitment features
+      manageRecruitment: true,
+      viewCandidates: true,
+      createCandidate: true,
+      editCandidate: true,
+      manageJobPostings: true,
+      scheduleInterviews: true,
+      manageOffers: true,
+      manageOnboarding: true,
+      manageOffboarding: true,
+      viewRecruitmentAnalytics: true,
+      manageHiringStages: true,
+      manageReferrals: true,
     },
     defaultRoute: '/hr-manager',
   },
@@ -187,6 +235,7 @@ export const roleAccess = {
   // HR Employee - Medium HR access
   [SystemRole.HR_EMPLOYEE]: {
     routes: [
+      '/',
       '/admin/employee-profile',
       '/employee/profile',
       '/admin/employee-profile/change-requests', // Can process (data entry, not approval)
@@ -197,6 +246,7 @@ export const roleAccess = {
       '/time-management',
       '/leaves',
       '/payroll/payroll-tracking/employee',
+      '/recruitment', // Can assist recruitment
     ],
     features: {
       viewAllEmployees: true,
@@ -228,6 +278,11 @@ export const roleAccess = {
       viewOrganizationalCharts: true, // Can view organizational charts (read-only)
       viewEmployeeQualifications: true, // Can view employee qualifications
       generateBasicReports: true, // Can generate basic HR reports
+      // Recruitment assist features
+      viewCandidates: true,
+      scheduleInterviews: true,
+      viewOnboarding: true,
+      assistOnboarding: true,
     },
     defaultRoute: '/admin/employee-profile',
   },
@@ -398,6 +453,7 @@ export const roleAccess = {
   // Recruiter - Medium recruitment access
   [SystemRole.RECRUITER]: {
     routes: [
+      '/',
       '/admin/employee-profile', // Candidates only
       '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View organizational structure (to understand open positions)
@@ -429,9 +485,16 @@ export const roleAccess = {
       resolveDisputes: false,
       archiveEmployees: false,
       viewPayroll: false,
+      // Recruitment features
       manageRecruitment: true,
+      manageJobPostings: true,
+      scheduleInterviews: true,
+      viewOnboarding: true,
+      assistOnboarding: true,
+      viewRecruitmentAnalytics: true,
+      manageReferrals: true,
     },
-    defaultRoute: '/admin/employee-profile', // Direct to candidate management
+    defaultRoute: '/recruitment',
   },
 
   // Legal & Policy Admin - Medium legal/policy access
@@ -509,17 +572,21 @@ export const roleAccess = {
     defaultRoute: '/',
   },
 
-  // Job Candidate - Lowest access
+  // Job Candidate - Candidate portal access
   [SystemRole.JOB_CANDIDATE]: {
     routes: [
       '/candidate',
       '/candidate/profile',
       '/candidate/applications',
+      '/candidate/onboarding',
     ],
     features: {
       viewAllEmployees: false,
       viewOwnCandidateProfile: true,
       editOwnCandidateProfile: true,
+      viewApplicationStatus: true,
+      applyToJobs: true,
+      uploadDocuments: true,
       createEmployee: false,
       editEmployee: false,
       deleteEmployee: false,
@@ -539,8 +606,31 @@ export const roleAccess = {
       archiveEmployees: false,
       viewPayroll: false,
       manageRecruitment: false,
+      // Onboarding features for candidates
+      viewOnboardingTasks: true,
+      completeOnboardingTasks: true,
+      uploadOnboardingDocuments: true,
+      viewOnboardingProgress: true,
     },
     defaultRoute: '/candidate',
+  },
+
+  // New Hire - Onboarding access
+  [SystemRole.NEW_HIRE]: {
+    routes: [
+      '/',
+      '/recruitment',
+      '/employee/profile',
+    ],
+    features: {
+      viewOwnProfile: true,
+      editOwnProfile: true,
+      viewOnboardingTasks: true,
+      completeOnboardingTasks: true,
+      uploadOnboardingDocuments: true,
+      viewOnboardingProgress: true,
+    },
+    defaultRoute: '/',
   },
 };
 
@@ -631,8 +721,11 @@ export const getCombinedAccess = (userRoles: string[] | undefined): RoleAccessCo
     SystemRole.SYSTEM_ADMIN,
     SystemRole.HR_ADMIN,
     SystemRole.HR_MANAGER,
+    SystemRole.RECRUITER,
     SystemRole.PAYROLL_MANAGER,
     SystemRole.DEPARTMENT_HEAD,
+    SystemRole.JOB_CANDIDATE,
+    SystemRole.NEW_HIRE,
   ];
 
   let defaultRoute = '/';
