@@ -115,19 +115,13 @@ export class FinanceController {
     @Roles(SystemRole.FINANCE_STAFF)
     @ApiOperation({ summary: 'Process refund for an approved dispute' })
     @ApiResponse({ status: 201, description: 'Refund processed successfully' })
-<<<<<<< HEAD
-    async processDisputeRefund(@Param('id') id: string, @Body() body: { refundAmount: number }, @Req() req): Promise<disputes> {
-        const financeId = req.user.sub;
-        return this.trackingService.processDisputeRefund(id, financeId, body.refundAmount);
-=======
-    processDisputeRefund(
+    async processDisputeRefund(
         @Param('id') id: string,
         @Body() dto: ProcessDisputeRefundDto,
         @Req() req
     ): Promise<disputes> {
         const financeId = req.user.sub;
         return this.trackingService.processDisputeRefund(id, financeId, dto.refundAmount);
->>>>>>> 76554a59781ea41f613cfba9294d2c8b6d603d0e
     }
 
     /**
