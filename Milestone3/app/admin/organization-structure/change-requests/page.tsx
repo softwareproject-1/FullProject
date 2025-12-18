@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { recordApprovalDecision, updateStructureRequestStatus, StructureChangeRequest } from "@/utils/organizationStructureApi";
 import { isSystemAdmin } from "@/utils/roleUtils";
 import axiosInstance from "@/utils/ApiClient";

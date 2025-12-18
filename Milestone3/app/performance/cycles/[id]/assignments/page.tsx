@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Card from "@/components/ui/card";
 import Button from "@/components/ui/button";
-import Input from "@/components/ui/Input";
+import Input from "@/components/ui/input";
 import RouteGuard from "@/components/RouteGuard";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
