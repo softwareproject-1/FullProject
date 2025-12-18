@@ -70,6 +70,12 @@ const navItems: NavItem[] = [
   },
   { name: "Leaves", href: "/leaves", icon: <Calendar className="w-5 h-5" /> },
   {
+    name: "Payroll Execution",
+    href: "/payroll-execution",
+    icon: <DollarSign className="w-5 h-5" />,
+    visibleForAllAuthenticated: true,
+  },
+  {
     name: "My Payroll",
     href: "/payroll/payroll-tracking/employee",
     icon: <Briefcase className="w-5 h-5" />,
