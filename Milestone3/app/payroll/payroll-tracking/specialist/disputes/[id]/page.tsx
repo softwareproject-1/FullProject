@@ -26,20 +26,22 @@ export default function SpecialistDisputeDetailPage() {
     const [submitting, setSubmitting] = useState(false);
 
     useEffect(() => {
-        fetchDisputeDetails();
+        if (disputeId) {
+            fetchDisputeDetails();
+        }
     }, [disputeId]);
 
     const fetchDisputeDetails = async () => {
         try {
+            setLoading(true);
             const response = await payrollSpecialistApi.getDispute(disputeId);
-            setDispute(response.data);
-            // Fetch related payslip for context
-            // const payslipResponse = await payrollTrackingApi.getPayslipById(response.data.payslipId);
-            // setPayslip(payslipResponse.data);
+            const disputeData = response.data.data || response.data;
+            console.log('DISPUTE DATA:', disputeData);
+            console.log('DISPUTE STATUS:', disputeData.status);
+            setDispute(disputeData);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            const found = (MOCK_DISPUTES as any).find((d: DisputeDto) => d._id === disputeId);
-            setDispute(found || null);
+            console.error('Failed to fetch dispute:', err);
+            toast.error('Failed to load dispute details');
         } finally {
             setLoading(false);
         }
@@ -60,7 +62,7 @@ export default function SpecialistDisputeDetailPage() {
                     ? 'Dispute approved and escalated to manager'
                     : 'Dispute rejected'
             );
-            router.push('/payroll/tracking/specialist/disputes');
+            router.push('/payroll/payroll-tracking/specialist/disputes');
         } catch (err: any) {
             toast.error(err.response?.data?.message || 'Failed to submit review');
         } finally {
@@ -70,7 +72,7 @@ export default function SpecialistDisputeDetailPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
             </div>
         );
@@ -79,18 +81,25 @@ export default function SpecialistDisputeDetailPage() {
     if (!dispute) {
         return (
             <div className="text-center py-12">
-                <p className="text-red-600">Dispute not found</p>
-                <Link href="/payroll/tracking/specialist/disputes">
-                    <Button className="mt-4">Back to Disputes</Button>
-                </Link>
+                <XCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+                <p className="text-slate-600">Dispute not found</p>
+                <Button className="mt-4" onClick={() => router.push('/payroll/payroll-tracking/specialist/disputes')}>
+                    Back to Disputes
+                </Button>
             </div>
         );
     }
 
+    // Check if dispute is pending review (handle both uppercase and lowercase variations)
+    const status = dispute.status?.toUpperCase().replace(/\s+/g, '_') || '';
+    const isPending = status === 'PENDING' || status === 'UNDER_REVIEW';
+
+    console.log('Status check - Original:', dispute.status, 'Normalized:', status, 'isPending:', isPending);
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div className="flex items-center gap-4">
-                <Link href="/payroll/tracking/specialist/disputes">
+                <Link href="/payroll/payroll-tracking/specialist/disputes">
                     <Button variant="outline" size="sm">
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back
@@ -134,74 +143,98 @@ export default function SpecialistDisputeDetailPage() {
                         <div>
                             <Label className="text-sm font-semibold">Submitted Date</Label>
                             <p className="text-slate-700 mt-1">
-                                {new Date(dispute.submittedAt).toLocaleDateString()}
+                                {dispute.submittedAt ? new Date(dispute.submittedAt).toLocaleDateString() : 'N/A'}
                             </p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Review Form */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Your Review</CardTitle>
-                    <CardDescription>
-                        Approve to escalate to manager for final decision, or reject to close the dispute
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="space-y-3">
-                            <Label>Decision</Label>
-                            <RadioGroup value={decision} onValueChange={(v) => setDecision(v as any)}>
-                                <div className="flex items-center space-x-2 border border-green-200 bg-green-50 p-3 rounded-lg">
-                                    <RadioGroupItem value="APPROVE" id="approve" />
-                                    <Label htmlFor="approve" className="flex-1 cursor-pointer font-medium text-green-900">
-                                        <CheckCircle className="w-4 h-4 inline mr-2" />
-                                        Approve - Escalate to Manager
-                                    </Label>
-                                </div>
-                                <div className="flex items-center space-x-2 border border-red-200 bg-red-50 p-3 rounded-lg">
-                                    <RadioGroupItem value="REJECT" id="reject" />
-                                    <Label htmlFor="reject" className="flex-1 cursor-pointer font-medium text-red-900">
-                                        <XCircle className="w-4 h-4 inline mr-2" />
-                                        Reject - Close Dispute
-                                    </Label>
-                                </div>
-                            </RadioGroup>
-                        </div>
+            {/* Review Form - Only show if pending */}
+            {isPending && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Your Review</CardTitle>
+                        <CardDescription>
+                            Approve to escalate to manager for final decision, or reject to close the dispute
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="space-y-3">
+                                <Label>Decision</Label>
+                                <RadioGroup value={decision} onValueChange={(v) => setDecision(v as any)}>
+                                    <div className="flex items-center space-x-2 border border-green-200 bg-green-50 p-3 rounded-lg">
+                                        <RadioGroupItem value="APPROVE" id="approve" />
+                                        <Label htmlFor="approve" className="flex-1 cursor-pointer font-medium text-green-900">
+                                            <CheckCircle className="w-4 h-4 inline mr-2" />
+                                            Approve - Escalate to Manager
+                                        </Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2 border border-red-200 bg-red-50 p-3 rounded-lg">
+                                        <RadioGroupItem value="REJECT" id="reject" />
+                                        <Label htmlFor="reject" className="flex-1 cursor-pointer font-medium text-red-900">
+                                            <XCircle className="w-4 h-4 inline mr-2" />
+                                            Reject - Close Dispute
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="comments">
-                                Comments <span className="text-red-600">*</span>
-                            </Label>
-                            <Textarea
-                                id="comments"
-                                value={comments}
-                                onChange={(e) => setComments(e.target.value)}
-                                placeholder={
-                                    decision === 'APPROVE'
-                                        ? 'Explain why you approve this dispute and what the manager should consider...'
-                                        : 'Explain why you are rejecting this dispute...'
-                                }
-                                rows={5}
-                                required
-                            />
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="comments">
+                                    Comments <span className="text-red-600">*</span>
+                                </Label>
+                                <Textarea
+                                    id="comments"
+                                    value={comments}
+                                    onChange={(e) => setComments(e.target.value)}
+                                    placeholder={
+                                        decision === 'APPROVE'
+                                            ? 'Explain why you approve this dispute and what the manager should consider...'
+                                            : 'Explain why you are rejecting this dispute...'
+                                    }
+                                    rows={5}
+                                    required
+                                />
+                            </div>
 
-                        <div className="flex gap-3">
-                            <Button type="submit" disabled={submitting} className="flex-1">
-                                {submitting ? 'Submitting...' : `Submit ${decision === 'APPROVE' ? 'Approval' : 'Rejection'}`}
-                            </Button>
-                            <Link href="/payroll/tracking/specialist/disputes">
-                                <Button type="button" variant="outline">
-                                    Cancel
+                            <div className="flex gap-3">
+                                <Button type="submit" disabled={submitting} className="flex-1">
+                                    {submitting ? 'Submitting...' : `Submit ${decision === 'APPROVE' ? 'Approval' : 'Rejection'}`}
                                 </Button>
-                            </Link>
+                                <Link href="/payroll/payroll-tracking/specialist/disputes">
+                                    <Button type="button" variant="outline">
+                                        Cancel
+                                    </Button>
+                                </Link>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Already Processed Message */}
+            {!isPending && (
+                <Card>
+                    <CardContent className="py-8">
+                        <div className="text-center">
+                            {dispute.status === 'APPROVED' || dispute.status === 'RESOLVED' ? (
+                                <>
+                                    <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                                    <p className="text-lg font-medium text-slate-900">This dispute has been {dispute.status.toLowerCase()}</p>
+                                </>
+                            ) : (
+                                <>
+                                    <XCircle className="w-12 h-12 text-red-600 mx-auto mb-3" />
+                                    <p className="text-lg font-medium text-slate-900">This dispute has been {dispute.status.toLowerCase()}</p>
+                                </>
+                            )}
+                            <p className="text-sm text-slate-600 mt-2">No further action required</p>
                         </div>
-                    </form>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

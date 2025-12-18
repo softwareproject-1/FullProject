@@ -109,7 +109,7 @@ export default function SpecialistDisputesPage() {
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <Link href={`/payroll/tracking/specialist/disputes/${dispute._id}`}>
+                                            <Link href={`/payroll/payroll-tracking/specialist/disputes/${dispute._id}`}>
                                                 <Button size="sm" variant="outline" className="w-full">
                                                     Review Details
                                                 </Button>

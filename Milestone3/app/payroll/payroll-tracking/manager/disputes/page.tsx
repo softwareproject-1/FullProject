@@ -9,44 +9,39 @@ import { payrollManagerApi, DisputeDto } from '@/services/api';
 import StatusBadge from '@/components/payroll/StatusBadge';
 import { toast } from 'sonner';
 
-export default function SpecialistDisputesPage() {
+export default function ManagerDisputesPage() {
     const [disputes, setDisputes] = useState<DisputeDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'ALL' | 'PENDING'>('PENDING');
 
     useEffect(() => {
         fetchDisputes();
-    }, [filter]);
+    }, []);
 
     const fetchDisputes = async () => {
         try {
             setLoading(true);
-            const response = filter === 'PENDING'
-                ? await payrollManagerApi.getSpecialistApprovedDisputes() // Changed API call
-                : await payrollManagerApi.getAllDisputes(); // Changed API call
-            setDisputes(response.data);
+            const response = await payrollManagerApi.getSpecialistApprovedDisputes();
+            const data = response.data.data || response.data;
+            setDisputes(data);
         } catch (err) {
-            const { MOCK_DISPUTES } = await import('@/lib/mockData');
-            const filtered = filter === 'PENDING'
-                ? (MOCK_DISPUTES as any).filter((d: DisputeDto) => d.specialistDecision === 'APPROVE' && d.status === 'PENDING') // Changed mock filter
-                : MOCK_DISPUTES;
-            setDisputes(filtered as any);
+            console.error('Failed to fetch disputes:', err);
+            setDisputes([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleQuickAction = async (id: string, action: 'APPROVE' | 'REJECT') => { // Renamed function
+    const handleQuickAction = async (id: string, action: 'APPROVE' | 'REJECT') => {
         try {
-            if (action === 'APPROVE') {
-                await payrollManagerApi.approveDispute(id, 'Quick approval from list view'); // Changed API call
-            } else {
-                await payrollManagerApi.rejectDispute(id, 'Quick rejection from list view'); // Changed API call
-            }
-            toast.success(`Dispute ${action.toLowerCase()}d - Status updated to ${action === 'APPROVE' ? 'APPROVED' : 'REJECTED'}`); // Changed toast message
+            await payrollManagerApi.managerActionDispute(
+                id,
+                action === 'APPROVE' ? 'confirm' : 'reject',
+                action === 'REJECT' ? 'Quick rejection from list view' : undefined
+            );
+            toast.success(`Dispute ${action.toLowerCase()}d successfully`);
             fetchDisputes();
         } catch (err) {
-            toast.error('Failed to process dispute'); // Changed toast message
+            toast.error('Failed to process dispute');
         }
     };
 
@@ -56,20 +51,6 @@ export default function SpecialistDisputesPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900">Confirm Disputes</h1>
                     <p className="text-slate-600 mt-1">Review specialist-approved disputes for final confirmation</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant={filter === 'PENDING' ? 'default' : 'outline'}
-                        onClick={() => setFilter('PENDING')}
-                    >
-                        Pending Only
-                    </Button>
-                    <Button
-                        variant={filter === 'ALL' ? 'default' : 'outline'}
-                        onClick={() => setFilter('ALL')}
-                    >
-                        All Disputes
-                    </Button>
                 </div>
             </div>
 
@@ -106,7 +87,7 @@ export default function SpecialistDisputesPage() {
                                             <p className="text-sm text-slate-600 mb-3">{dispute.description}</p>
                                             <div className="flex items-center gap-4 text-sm text-slate-500">
                                                 <span>Employee: {dispute.employeeName}</span>
-                                                <span>Submitted: {new Date(dispute.submittedAt).toLocaleDateString()}</span>
+                                                <span>Submitted: {dispute.submittedAt ? new Date(dispute.submittedAt).toLocaleDateString() : 'N/A'}</span>
                                                 <span>Payslip: {dispute.payslipId}</span>
                                                 {dispute.amount && (
                                                     <span className="font-semibold text-green-600">
@@ -116,7 +97,7 @@ export default function SpecialistDisputesPage() {
                                             </div>
                                         </div>
                                         <div className="flex flex-col gap-2">
-                                            <Link href={`/payroll/tracking/specialist/disputes/${dispute._id}`}>
+                                            <Link href={`/payroll/payroll-tracking/manager/disputes/${dispute._id}`}>
                                                 <Button size="sm" variant="outline" className="w-full">
                                                     Review Details
                                                 </Button>

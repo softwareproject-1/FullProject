@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { payrollTrackingApi, PayslipDto, TimeImpactDataDto } from '@/services/api';
+import { payrollTrackingApi, PayslipDto, TimeImpactDataDto, EnhancedPayslipDataDto } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, Download, Printer } from 'lucide-react';
 import TimeToPayWidget from '@/components/payroll/TimeToPayWidget';
+import EnhancedPayslipWidget from '@/components/payroll/EnhancedPayslipWidget';
 
 export default function PayslipDetailPage() {
     const params = useParams();
@@ -20,6 +21,8 @@ export default function PayslipDetailPage() {
     const [downloading, setDownloading] = useState(false);
     const [timeImpactData, setTimeImpactData] = useState<TimeImpactDataDto | null>(null);
     const [timeLoading, setTimeLoading] = useState(false);
+    const [enhancedData, setEnhancedData] = useState<EnhancedPayslipDataDto | null>(null);
+    const [enhancedLoading, setEnhancedLoading] = useState(false);
 
     useEffect(() => {
         const fetchPayslip = async () => {
@@ -32,7 +35,7 @@ export default function PayslipDetailPage() {
                 console.log('🔍 DEBUG: Fetching payslip from API...');
                 const response = await payrollTrackingApi.getPayslipById(payslipId);
                 console.log('🔍 DEBUG: API response successful');
-                setPayslip(response.data);
+                setPayslip(response.data.data || response.data);
             } catch (err: any) {
                 console.error('🔍 DEBUG: Error fetching payslip:', err);
                 // Use mock data fallback on auth errors AND 404 (backend route not found)
@@ -98,6 +101,31 @@ export default function PayslipDetailPage() {
         }
     }, [payslip]);
 
+    // Fetch enhanced payslip data
+    useEffect(() => {
+        const fetchEnhancedPayslip = async () => {
+            if (!payslip) return;
+
+            try {
+                setEnhancedLoading(true);
+                console.log('💰 Fetching enhanced payslip data for:', payslipId);
+                const response = await payrollTrackingApi.getEnhancedPayslip(payslipId);
+                console.log('💰 Enhanced payslip response:', response);
+                setEnhancedData(response.data.data || response.data);
+                console.log('💰 Enhanced data set successfully');
+            } catch (error: any) {
+                console.error('💰 Error fetching enhanced payslip:', error);
+                // Enhanced data not available - widget won't show
+            } finally {
+                setEnhancedLoading(false);
+            }
+        };
+
+        if (payslip) {
+            fetchEnhancedPayslip();
+        }
+    }, [payslip, payslipId]);
+
     const handleDownloadPDF = async () => {
         try {
             setDownloading(true);
@@ -152,26 +180,25 @@ export default function PayslipDetailPage() {
     }
 
 
-    // Extract data from mock data structure
-    // Mock data has: earnings: { baseSalary, allowances[], bonuses[], benefits[], refunds[] }
-    // Mock data has: deductions: { taxes[], insurance[], penalties: { penalties[] } }
-    const baseSalary = payslip.earnings.baseSalary;
-    const allowances = payslip.earnings.allowances || [];
-    const bonuses = payslip.earnings.bonuses || [];
-    const benefits = payslip.earnings.benefits || [];
-    const refunds = payslip.earnings.refunds || [];
+    // Helper to safely calculate totals
+    const earningsTotal = (payslip.baseSalary || 0) +
+        (payslip.overtime || 0) +
+        (payslip.allowances || 0) +
+        (payslip.bonuses || 0) +
+        (payslip.leaveEncashment || 0) +
+        (payslip.transportAllowance || 0);
 
-    const taxDeductions = payslip.deductions.taxes || [];
-    const insuranceDeductions = payslip.deductions.insurance || [];
-    const penalties = payslip.deductions.penalties?.penalties || [];
+    const deductionsBreakdown = [
+        { label: 'Tax', amount: payslip.taxDeductions || 0 },
+        { label: 'Insurance', amount: payslip.insuranceDeductions || 0 },
+        { label: 'Misconduct Penalties', amount: payslip.misconductDeductions || 0 },
+        { label: 'Unpaid Leave', amount: payslip.unpaidLeaveDeductions || 0 },
+    ];
 
-    // Calculate employer contributions from insurance
-    const employerContributions = insuranceDeductions.map(ins => ({
-        ...ins,
-        employeeAmount: (baseSalary * ins.employeeRate) / 100,
-        employerAmount: (baseSalary * ins.employerRate) / 100
-    }));
-    const totalEmployerContributions = employerContributions.reduce((sum, c) => sum + c.employerAmount, 0);
+    const totalEmployerContributions =
+        (payslip.employerContributions?.insurance || 0) +
+        (payslip.employerContributions?.pension || 0) +
+        (payslip.employerContributions?.socialSecurity || 0);
 
     return (
         <div className="space-y-6">
@@ -184,6 +211,9 @@ export default function PayslipDetailPage() {
                     </Button>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Payslip Details</h1>
+                        <p className="text-sm text-slate-600">
+                            Payslip ID: <span className="font-mono font-semibold text-slate-900">{payslipId}</span>
+                        </p>
                         <p className="text-sm text-slate-600">
                             Period: {new Date(payslip.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
                         </p>
@@ -203,15 +233,17 @@ export default function PayslipDetailPage() {
                         )}
                         {downloading ? 'Downloading...' : 'Download PDF'}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => window.print()}>
-                        <Printer className="w-4 h-4 mr-2" />
-                        Print
-                    </Button>
+
                 </div>
             </div>
 
             {/* Time-to-Pay Impact Widget */}
             <TimeToPayWidget data={timeImpactData} loading={timeLoading} />
+
+            {/* Enhanced Payslip Widget (Itemized Configuration Data) */}
+            {enhancedData && !enhancedLoading && (
+                <EnhancedPayslipWidget data={enhancedData} />
+            )}
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -241,236 +273,25 @@ export default function PayslipDetailPage() {
                 </Card>
             </div>
 
-            {/* Earnings Section */}
+            {/* Enhanced PayslipWidget above provides itemized breakdowns */}
+            {/* If enhanced data isn't available, users can still see summary cards above */}
+
+            {/* Report Error Section */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Earnings Breakdown</CardTitle>
-                    <CardDescription>Detailed view of all earnings for this period</CardDescription>
+                    <CardTitle>Report an Issue</CardTitle>
+                    <CardDescription>
+                        If you notice any discrepancies in your payslip, you can submit a dispute for review
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Base Salary */}
-                    <div className="flex justify-between items-center py-2 border-b">
-                        <div>
-                            <p className="font-medium">Base Salary</p>
-                            <p className="text-sm text-gray-500">Monthly base compensation</p>
-                        </div>
-                        <p className="font-semibold">${baseSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    </div>
-
-                    {/* Refunds/Leave Compensation */}
-                    {refunds.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold text-green-700">Leave Compensation & Refunds</h3>
-                            {refunds.map((refund, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2 bg-green-50 px-3 rounded">
-                                    <div>
-                                        <p className="font-medium text-green-800">{refund.description}</p>
-                                    </div>
-                                    <p className="font-semibold text-green-700">
-                                        ${refund.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Allowances */}
-                    {allowances.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">Allowances</h3>
-                            {allowances.map((allowance, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2">
-                                    <div>
-                                        <p className="font-medium">{allowance.name}</p>
-                                    </div>
-                                    <p className="font-semibold">${allowance.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Bonuses */}
-                    {bonuses.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">Bonuses</h3>
-                            {bonuses.map((bonus, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2">
-                                    <div>
-                                        <p className="font-medium">{bonus.name}</p>
-                                    </div>
-                                    <p className="font-semibold">${bonus.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Benefits */}
-                    {benefits.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">Benefits</h3>
-                            {benefits.map((benefit, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2">
-                                    <div>
-                                        <p className="font-medium">{benefit.name}</p>
-                                    </div>
-                                    <p className="font-semibold">${benefit.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Total Earnings */}
-                    <div className="flex justify-between items-center py-3 border-t-2 border-slate-300 font-bold text-lg">
-                        <p>Total Earnings</p>
-                        <p className="text-green-600">${payslip.totalGrossSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Deductions Section */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Deductions Breakdown</CardTitle>
-                    <CardDescription>Detailed view of all deductions for this period</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Tax Deductions - With Legal References */}
-                    {taxDeductions.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">Tax Deductions</h3>
-                            {taxDeductions.map((tax, idx) => {
-                                const taxAmount = (baseSalary * tax.rate) / 100;
-                                return (
-                                    <div key={idx} className="flex justify-between items-center py-2 border-b">
-                                        <div>
-                                            <p className="font-medium">{tax.name}</p>
-                                            <p className="text-sm text-gray-500">
-                                                {tax.description} • {tax.rate}% rate
-                                            </p>
-                                        </div>
-                                        <p className="font-semibold text-red-600">
-                                            -${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Insurance Deductions - With Rates */}
-                    {insuranceDeductions.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">Insurance Deductions</h3>
-                            {insuranceDeductions.map((ins, idx) => {
-                                const empAmount = (baseSalary * ins.employeeRate) / 100;
-                                return (
-                                    <div key={idx} className="border rounded-lg p-3 bg-blue-50">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <p className="font-medium">{ins.name}</p>
-                                            </div>
-                                            <p className="font-semibold text-red-600">
-                                                -${empAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                            </p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div>
-                                                <p className="text-gray-500">Employee Rate:</p>
-                                                <p className="font-medium">{ins.employeeRate}%</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-gray-500">Employer Rate:</p>
-                                                <p className="font-medium">{ins.employerRate}%</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Penalties */}
-                    {penalties.length > 0 && (
-                        <div className="space-y-2">
-                            <h3 className="font-semibold text-red-700">Penalties</h3>
-                            {penalties.map((penalty, idx) => (
-                                <div key={idx} className="flex justify-between items-center py-2 bg-red-50 px-3 rounded border border-red-200">
-                                    <div>
-                                        <p className="font-medium text-red-800">{penalty.reason}</p>
-                                    </div>
-                                    <p className="font-semibold text-red-700">
-                                        -${penalty.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Total Deductions */}
-                    <div className="flex justify-between items-center py-3 border-t-2 border-slate-300 font-bold text-lg">
-                        <p>Total Deductions</p>
-                        <p className="text-red-600">-${payslip.totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    </div>
-
-                    {/* Net Pay */}
-                    <div className="flex justify-between items-center py-4 bg-blue-50 px-4 rounded-lg border-2 border-blue-600">
-                        <p className="text-xl font-bold">Net Pay</p>
-                        <p className="text-2xl font-bold text-blue-600">
-                            ${payslip.netPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Employer Contributions Section */}
-            {employerContributions.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Employer Contributions</CardTitle>
-                        <CardDescription>Contributions made by your employer on your behalf</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {employerContributions.map((contrib, idx) => (
-                            <div key={idx} className="flex justify-between items-center py-2 border-b">
-                                <div>
-                                    <p className="font-medium">{contrib.name}</p>
-                                    <p className="text-sm text-gray-500">
-                                        Employer pays {contrib.employerRate}% • Base: ${contrib.employeeAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                    </p>
-                                </div>
-                                <p className="font-semibold text-green-600">
-                                    ${contrib.employerAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </p>
-                            </div>
-                        ))}
-                        <div className="flex justify-between items-center py-3 border-t-2 font-bold text-lg">
-                            <p>Total Employer Contributions</p>
-                            <p className="text-green-600">
-                                ${totalEmployerContributions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Payment Info */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Payment Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">Payment Status:</span>
-                        <Badge variant={payslip.paymentStatus === 'PAID' ? 'default' : 'secondary'}>
-                            {payslip.paymentStatus}
-                        </Badge>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-gray-600">Period:</span>
-                        <span className="font-medium">
-                            {new Date(payslip.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
-                        </span>
-                    </div>
+                <CardContent>
+                    <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => router.push(`/payroll/payroll-tracking/employee/disputes/create?payslipId=${payslipId}`)}
+                    >
+                        Submit a Dispute
+                    </Button>
                 </CardContent>
             </Card>
         </div>

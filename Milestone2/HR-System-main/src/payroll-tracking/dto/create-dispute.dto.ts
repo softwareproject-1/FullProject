@@ -1,11 +1,11 @@
-import { IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateDisputeDto {
-  @IsMongoId() 
+  @IsString()
   @IsNotEmpty()
-  payslipId: string; 
+  payslipId: string;
 
-  @IsString() 
+  @IsString()
   @IsNotEmpty()
   description: string;
 }

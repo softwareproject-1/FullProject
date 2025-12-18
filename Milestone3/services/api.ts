@@ -108,10 +108,8 @@ export interface DisputeDto {
 }
 
 export interface CreateDisputeDto {
-    payslipId?: string;
+    payslipId: string;
     description: string;
-    category?: string;
-    expectedAmount?: number;
 }
 
 export interface ReportFiltersDto {
@@ -214,6 +212,83 @@ export interface TimeImpactDataDto {
     disputedItemIds: string[];
 }
 
+// ==================== ENHANCED PAYSLIP (Itemized) ====================
+
+export interface AllowanceLineItemDto {
+    id: string;
+    name: string;
+    amount: number;
+}
+
+export interface TaxBracketInfoDto {
+    minIncome: number;
+    maxIncome: number;
+    rate: number;
+}
+
+export interface TaxLineItemDto {
+    id: string;
+    name: string;
+    amount: number;
+    lawReference: string;
+    bracket?: TaxBracketInfoDto;
+}
+
+export interface InsuranceLineItemDto {
+    id: string;
+    name: string;
+    employeeContribution: number;
+    employerContribution: number;
+    totalContribution: number;
+}
+
+export interface LeaveDeductionDto {
+    unpaidDays: number;
+    deductionAmount: number;
+    calculationFormula: string;
+}
+
+export interface EnhancedPayslipDataDto {
+    // Payslip Identification
+    payslipId: string;
+    month: string;
+    year: number;
+    employeeName: string;
+    payGrade?: string;
+
+    // Itemized Earnings
+    baseSalary: number;
+    allowances: AllowanceLineItemDto[];
+    totalAllowances: number;
+    overtimeCompensation: number;
+    leaveEncashment?: number;
+    grossPay: number;
+
+    // Itemized Deductions
+    taxDeductions: TaxLineItemDto[];
+    totalTax: number;
+    insuranceDeductions: InsuranceLineItemDto[];
+    totalInsurance: number;
+    leaveDeductions?: LeaveDeductionDto;
+    timeBasedPenalties: number;
+    totalDeductions: number;
+
+    // Net Pay
+    netPay: number;
+
+    // Compliance & Transparency
+    minimumWage: number;
+    minimumWageAlert: boolean;
+
+    // Employer Contributions (Total Rewards)
+    employerContributions: InsuranceLineItemDto[];
+    totalEmployerContributions: number;
+
+    // Dispute Support
+    disputeEligibleItems: string[];
+}
+
+
 // ============================================================
 // API ENDPOINTS
 // ============================================================
@@ -231,6 +306,12 @@ export const payrollTrackingApi = {
      */
     getPayslipById: (id: string) =>
         axiosInstance.get<{ data: PayslipDto }>(`/payroll-tracking/payslips/${id}`),
+
+    /**
+     * Get enhanced payslip with itemized allowances, tax, insurance
+     */
+    getEnhancedPayslip: (id: string) =>
+        axiosInstance.get<{ data: EnhancedPayslipDataDto }>(`/payroll-tracking/payslips/${id}/enhanced`),
 
     /**
      * Download payslip as PDF
@@ -342,8 +423,8 @@ export const payrollSpecialistApi = {
     // Backend uses PATCH /payroll-tracking/disputes/:id/resolve for specialist reviews
     reviewDispute: (id: string, decision: 'APPROVE' | 'REJECT', comments: string) =>
         axiosInstance.patch<{ data: DisputeDto }>(`/payroll-tracking/disputes/${id}/resolve`, {
-            decision,
-            comments
+            status: decision === 'APPROVE' ? 'approved' : 'rejected',
+            resolutionComment: comments
         }),
 
     // ==================== CLAIMS ====================

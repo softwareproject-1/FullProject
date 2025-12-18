@@ -12,11 +12,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hasRole, SystemRole, hasFeature } from '@/utils/roleAccess';
 import RouteGuard from '@/components/RouteGuard';
 
+// Fallback for undefined mock data
+const safePayGrades = mockPayGrades || [];
+const safeTaxRules = mockTaxRules || [];
+const safePayrollRuns = mockPayrollRuns || [];
+const safePayslips = mockPayslips || [];
+
 export default function Payroll() {
   const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState<'config' | 'run' | 'payslips'>('config');
   const [wizardStep, setWizardStep] = useState<'draft' | 'validate' | 'approve'>('draft');
-  const [selectedPayroll, setSelectedPayroll] = useState<PayrollRun | null>(mockPayrollRuns[1]); // Draft payroll
+  const [selectedPayroll, setSelectedPayroll] = useState<PayrollRun | null>(safePayrollRuns[1] || null); // Draft payroll
 
   // Check if user is Payroll Specialist or Finance Staff (view-only)
   const isPayrollSpecialist = user ? hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST) : false;
@@ -33,7 +39,7 @@ export default function Payroll() {
   }, [isViewOnly, currentView]);
 
   const payslipsForRun = selectedPayroll
-    ? mockPayslips.filter((slip) => slip.payrollRunId === selectedPayroll.id)
+    ? safePayslips.filter((slip) => slip.payrollRunId === selectedPayroll.id)
     : [];
 
   const payslipsWithErrors = payslipsForRun.filter((slip) => slip.errors && slip.errors.length > 0);
@@ -183,19 +189,19 @@ export default function Payroll() {
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-slate-700">Grade</th>
-                      <th className="px-6 py-3 text-left text-slate-700">Min Salary</th>
-                      <th className="px-6 py-3 text-left text-slate-700">Max Salary</th>
-                      <th className="px-6 py-3 text-left text-slate-700">Currency</th>
+                      <th className="px-6 py-3 text-left text-slate-700">Pay Grade</th>
+                      <th className="px-6 py-3 text-left text-slate-700">Base Salary</th>
+                      <th className="px-6 py-3 text-left text-slate-700">Gross Salary</th>
+                      <th className="px-6 py-3 text-left text-slate-700">Status</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-200">
-                    {mockPayGrades.map((grade) => (
-                      <tr key={grade.id}>
-                        <td className="px-6 py-4 text-slate-900">{grade.name}</td>
-                        <td className="px-6 py-4 text-slate-900">${grade.minSalary.toLocaleString()}</td>
-                        <td className="px-6 py-4 text-slate-900">${grade.maxSalary.toLocaleString()}</td>
-                        <td className="px-6 py-4 text-slate-900">{grade.currency}</td>
+                    {safePayGrades.map((grade) => (
+                      <tr key={grade._id}>
+                        <td className="px-6 py-4 text-slate-900">{grade.grade}</td>
+                        <td className="px-6 py-4 text-slate-900">${grade.baseSalary?.toLocaleString() || 'N/A'}</td>
+                        <td className="px-6 py-4 text-slate-900">${grade.grossSalary?.toLocaleString() || 'N/A'}</td>
+                        <td className="px-6 py-4"><StatusBadge status={grade.status} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -209,20 +215,18 @@ export default function Payroll() {
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-slate-700">Rule Name</th>
-                      <th className="px-6 py-3 text-left text-slate-700">Type</th>
-                      <th className="px-6 py-3 text-left text-slate-700">Threshold</th>
+                      <th className="px-6 py-3 text-left text-slate-700">Tax Type</th>
                       <th className="px-6 py-3 text-left text-slate-700">Rate</th>
+                      <th className="px-6 py-3 text-left text-slate-700">Status</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-200">
-                    {mockTaxRules.map((rule) => (
-                      <tr key={rule.id}>
+                    {safeTaxRules.map((rule) => (
+                      <tr key={rule._id}>
                         <td className="px-6 py-4 text-slate-900">{rule.name}</td>
-                        <td className="px-6 py-4">
-                          <StatusBadge status={rule.type} variant="info" />
-                        </td>
-                        <td className="px-6 py-4 text-slate-900">${rule.threshold.toLocaleString()}</td>
+                        <td className="px-6 py-4 text-slate-900">{rule.taxType}</td>
                         <td className="px-6 py-4 text-slate-900">{rule.rate}%</td>
+                        <td className="px-6 py-4"><StatusBadge status={rule.status} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -440,7 +444,7 @@ export default function Payroll() {
             }
           >
             <DataTable
-              data={mockPayslips.filter((slip) => slip.employeeId === 'emp001')}
+              data={safePayslips.filter((slip) => slip.employeeId === 'emp001')}
               columns={employeePayslipColumns}
             />
           </Card>

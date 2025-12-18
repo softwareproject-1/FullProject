@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { canAccessRoute, getCombinedAccess } from "@/utils/roleAccess";
+import { canAccessRoute, getCombinedAccess, hasRole, SystemRole } from "@/utils/roleAccess";
 import {
   LayoutDashboard,
   Users,
@@ -70,9 +70,10 @@ const navItems: NavItem[] = [
   },
   { name: "Leaves", href: "/leaves", icon: <Calendar className="w-5 h-5" /> },
   {
-    name: "Payroll",
-    href: "/payroll",
-    icon: <DollarSign className="w-5 h-5" />,
+    name: "My Payroll",
+    href: "/payroll/payroll-tracking/employee",
+    icon: <Briefcase className="w-5 h-5" />,
+    visibleForAllAuthenticated: true,
   },
   {
     name: "Payroll Config",
@@ -155,10 +156,28 @@ export function Sidebar() {
   const availableNavItems = useMemo(() => {
     if (!user || !user.roles) return [];
 
+    // Determine Payroll href based on user role
+    const isPayrollSpecialist = hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST);
+    const payrollHref = isPayrollSpecialist
+      ? "/payroll/payroll-tracking/specialist"
+      : "/payroll";
+
+    // Create dynamic Payroll item
+    const payrollItem: NavItem = {
+      name: "Payroll",
+      href: payrollHref,
+      icon: <DollarSign className="w-5 h-5" />,
+    };
+
     return navItems
       .map((item) => {
         if (item.href === "/") {
           return item;
+        }
+
+        // Insert Payroll item after My Payroll
+        if (item.name === "My Payroll") {
+          return [item, payrollItem];
         }
 
         if (item.visibleForAllAuthenticated) {
@@ -196,6 +215,7 @@ export function Sidebar() {
 
         return canAccessRoute(user.roles, routeToCheck) ? item : null;
       })
+      .flat()
       .filter(Boolean) as NavItem[];
   }, [user]);
 
@@ -252,11 +272,10 @@ export function Sidebar() {
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto no-scrollbar">
         <Link
           href={controlPath}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-            isControlActive
-              ? "bg-slate-700 text-white shadow-sm"
-              : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-          }`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${isControlActive
+            ? "bg-slate-700 text-white shadow-sm"
+            : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+            }`}
         >
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-sm font-medium">Dashboard</span>
@@ -269,7 +288,7 @@ export function Sidebar() {
             parentPath === "/"
               ? pathname === "/"
               : pathname === parentPath ||
-                pathname?.startsWith(`${parentPath}/`);
+              pathname?.startsWith(`${parentPath}/`);
           const childActive =
             item.children?.some((child) => isSubItemActive(child)) ?? false;
           const isExpanded = expandedItems.includes(item.name);
@@ -282,11 +301,10 @@ export function Sidebar() {
               <div key={item.name}>
                 <button
                   onClick={() => toggleExpanded(item.name)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    shouldHighlight
-                      ? "bg-slate-700 text-white shadow-sm"
-                      : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${shouldHighlight
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                    }`}
                 >
                   {item.icon}
                   <span className="text-sm font-medium flex-1 text-left">
@@ -306,11 +324,10 @@ export function Sidebar() {
                         <Link
                           key={child.name}
                           href={child.href}
-                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
-                            childIsActive
-                              ? "bg-slate-700 text-white shadow-sm"
-                              : "text-slate-300 hover:bg-blue-600/70 hover:text-white"
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-all duration-200 ${childIsActive
+                            ? "bg-slate-700 text-white shadow-sm"
+                            : "text-slate-300 hover:bg-blue-600/70 hover:text-white"
+                            }`}
                         >
                           {child.icon}
                           <span>{child.name}</span>
@@ -327,11 +344,10 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                shouldHighlight
-                  ? "bg-slate-700 text-white shadow-sm"
-                  : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-              }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${shouldHighlight
+                ? "bg-slate-700 text-white shadow-sm"
+                : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                }`}
             >
               {item.icon}
               <span className="text-sm font-medium">{item.name}</span>

@@ -18,7 +18,6 @@ export default function CreateDisputePage() {
     const [formData, setFormData] = useState<CreateDisputeDto>({
         payslipId: '',
         description: '',
-        expectedAmount: undefined,
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -78,49 +77,26 @@ export default function CreateDisputePage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="reason">
-                                Dispute Reason <span className="text-red-600">*</span>
-                            </Label>
-                            <Input
-                                id="reason"
-                                placeholder="e.g., Incorrect Tax Deduction, Missing Allowance"
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                required
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="detailedDescription">
-                                Detailed Explanation <span className="text-red-600">*</span>
+                            <Label htmlFor="description">
+                                Detailed Description <span className="text-red-600">*</span>
                             </Label>
                             <Textarea
-                                id="detailedDescription"
-                                placeholder="Provide detailed explanation of the issue..."
-                                value={formData.category || ''}
-                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                rows={5}
+                                id="description"
+                                placeholder="Provide detailed explanation of the issue, including specific amounts and any relevant information..."
+                                value={formData.description}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                rows={8}
                                 required
                             />
                             <p className="text-sm text-slate-500">
-                                Include specific details, amounts, and any relevant information
+                                Include specific details, amounts, and any relevant information about the payroll error
                             </p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="expectedAmount">Expected Amount (Optional)</Label>
-                            <Input
-                                id="expectedAmount"
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={formData.expectedAmount || ''}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, expectedAmount: parseFloat(e.target.value) })
-                                }
-                            />
-                            <p className="text-sm text-slate-500">
-                                If applicable, enter the amount you believe should have been paid
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p className="text-sm text-blue-800">
+                                <strong>Note:</strong> Once submitted, your dispute will be reviewed by the Payroll Specialist
+                                team. You will be notified of any updates or resolutions.
                             </p>
                         </div>
 

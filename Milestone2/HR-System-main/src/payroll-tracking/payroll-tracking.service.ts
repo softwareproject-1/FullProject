@@ -2,7 +2,12 @@ import { Injectable, NotFoundException, InternalServerErrorException, BadRequest
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { HttpService } from '@nestjs/axios';
-import { lastValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
+import { PayGradesService } from '../payroll-configuration/services/pay-grades.service';
+import { AllowanceService } from '../payroll-configuration/services/allowance.service';
+import { TaxRulesService } from '../payroll-configuration/services/tax-rules.service';
+import { InsuranceBracketsService } from '../payroll-configuration/services/insurance-brackets.service';
+import { CompanySettingsService } from '../payroll-configuration/services/company-settings.service';
 import { claims, claimsDocument } from './models/claims.schema';
 import { NotificationLog, NotificationLogDocument } from '../time-management/models/notification-log.schema';
 import { CreateClaimDto } from './dto/create-claim.dto';
@@ -17,6 +22,7 @@ import { disputes as Dispute, disputesDocument as DisputeDocument } from './mode
 import { DisputeStatus } from './enums/payroll-tracking-enum';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
+import { EmployeeProfile, EmployeeProfileDocument } from '../employee-profile/models/employee-profile.schema';
 import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
 import { TimeImpactDataDto, PenaltyItemDto, OvertimeItemDto, PermissionItemDto, PenaltyType, TimeItemStatus, OvertimeRateType } from './dto/time-impact.dto';
 import PDFDocument = require('pdfkit');
@@ -27,28 +33,20 @@ export class PayrollTrackingService {
   private readonly TIME_MANAGEMENT_BASE_URL = 'http://localhost:3000'; // Same server
 
   constructor(
-    // === FATMA'S INJECTION ===
+    @InjectModel(Refund.name) private refundsModel: Model<RefundDocument>,
     @InjectModel(claims.name) private claimModel: Model<claimsDocument>,
-    // === FATMA'S INJECTION END ===
-
-    // === ELENA'S INJECTION ===
-    @InjectModel(Refund.name) private refundModel: Model<RefundDocument>,
-    @InjectModel(paySlip.name) private payslipModel: Model<PayslipDocument>,
-    // === ELENA'S INJECTION END ===
-
-    // === MAYA'S INJECTION ===
     @InjectModel(Dispute.name) private disputeModel: Model<DisputeDocument>,
-    // === MAYA'S INJECTION END ===
-
-    // === NOTIFICATION INJECTION ===
+    @InjectModel(paySlip.name) private payslipModel: Model<PayslipDocument>,
+    @InjectModel(EmployeeProfile.name) private employeeModel: Model<EmployeeProfileDocument>,
     @InjectModel(NotificationLog.name) private notificationLogModel: Model<NotificationLogDocument>,
-    // === NOTIFICATION INJECTION END ===
-
-    // === EMPLOYEE PROFILE SERVICE ===
-    private readonly employeeProfileService: EmployeeProfileService,
-
-    // === HTTP SERVICE FOR TIME MANAGEMENT INTEGRATION ===
-    private readonly httpService: HttpService,
+    private employeeProfileService: EmployeeProfileService,
+    private httpService: HttpService,
+    // Payroll Configuration Services
+    private payGradesService: PayGradesService,
+    private allowanceService: AllowanceService,
+    private taxRulesService: TaxRulesService,
+    private insuranceBracketsService: InsuranceBracketsService,
+    private companySettingsService: CompanySettingsService,
   ) { }
 
   // === FATMA START ===
@@ -355,7 +353,7 @@ export class PayrollTrackingService {
     }
     // This block must be at the end of the function logic
     try {
-      const newRefund = new this.refundModel(newRefundData);
+      const newRefund = new this.refundsModel(newRefundData);
       return newRefund.save(); // <-- THIS LINE fulfills the Promise<Refund> contract
     } catch (error) {
       throw new InternalServerErrorException('Failed to create internal refund document.');
@@ -369,7 +367,7 @@ export class PayrollTrackingService {
   async markRefundPaid(refundId: string, payrollRunId: string): Promise<Refund> {
 
     // Find and update the refund status and link the payroll run ID
-    const updatedRefund = await this.refundModel.findByIdAndUpdate(
+    const updatedRefund = await this.refundsModel.findByIdAndUpdate(
       refundId,
       {
         status: RefundStatus.PAID,
@@ -980,7 +978,7 @@ export class PayrollTrackingService {
     const totalDisputes = await disputesQuery.countDocuments();
 
     // Get pending refunds and calculate total value
-    const refunds = await this.refundModel
+    const refunds = await this.refundsModel
       .find({
         ...dateFilter,
         status: RefundStatus.PENDING,
@@ -1030,7 +1028,7 @@ export class PayrollTrackingService {
     });
 
     // Get refunds processed (PAID) in the period
-    const processedRefunds = await this.refundModel
+    const processedRefunds = await this.refundsModel
       .find({
         updatedAt: { $gte: startDate, $lte: endDate },
         status: RefundStatus.PAID,
@@ -1284,11 +1282,11 @@ export class PayrollTrackingService {
   async submitDispute(userId: Types.ObjectId, dto: CreateDisputeDto): Promise<Dispute> {
     // NOTE: We use your schema's property names: employeeId, payslipId, status
     const newDispute = new this.disputeModel({
-      disputeId: `DISP - ${Date.now()} `, // Generate unique ID
+      disputeId: `DISP-${Date.now()}`, // Generate unique ID without spaces
       employeeId: userId,
       payslipId: new Types.ObjectId(dto.payslipId),
       description: dto.description,
-      status: DisputeStatus.UNDER_REVIEW, // Use your enum value
+      status: DisputeStatus.UNDER_REVIEW, // Use correct enum value
     });
     return newDispute.save();
   }
@@ -1298,8 +1296,16 @@ export class PayrollTrackingService {
    * Now moves to PENDING_MANAGER_APPROVAL instead of directly APPROVED
    */
   async resolveDispute(disputeId: string, payrollSpecialistId: Types.ObjectId, dto: ResolveDisputeDto): Promise<Dispute> {
-    // Find dispute first
-    const dispute = await this.disputeModel.findOne({ disputeId }).exec();
+    // Find dispute - try by MongoDB _id first, then by disputeId field
+    let dispute: Dispute | null = null;
+
+    if (Types.ObjectId.isValid(disputeId)) {
+      dispute = await this.disputeModel.findById(disputeId).exec();
+    }
+
+    if (!dispute) {
+      dispute = await this.disputeModel.findOne({ disputeId }).exec();
+    }
 
     if (!dispute) {
       throw new NotFoundException(`Dispute with ID ${disputeId} not found.`);
@@ -1311,9 +1317,9 @@ export class PayrollTrackingService {
       newStatus = DisputeStatus.PENDING_MANAGER_APPROVAL;
     }
 
-    // Use findOneAndUpdate to find by the unique string ID (disputeId)
-    const updatedDispute = await this.disputeModel.findOneAndUpdate(
-      { disputeId: disputeId },
+    // Update the dispute using its _id
+    const updatedDispute = await this.disputeModel.findByIdAndUpdate(
+      dispute,
       {
         status: newStatus,
         resolutionComment: dto.resolutionComment,
@@ -1339,8 +1345,16 @@ export class PayrollTrackingService {
     managerId: Types.ObjectId,
     dto: ManagerActionDisputeDto,
   ): Promise<Dispute> {
-    // Find the dispute first
-    const dispute = await this.disputeModel.findOne({ disputeId }).exec();
+    // Find dispute - try by MongoDB _id first, then by disputeId field
+    let dispute: Dispute | null = null;
+
+    if (Types.ObjectId.isValid(disputeId)) {
+      dispute = await this.disputeModel.findById(disputeId).exec();
+    }
+
+    if (!dispute) {
+      dispute = await this.disputeModel.findOne({ disputeId }).exec();
+    }
 
     if (!dispute) {
       throw new NotFoundException(`Dispute with ID ${disputeId} not found`);
@@ -1365,9 +1379,9 @@ export class PayrollTrackingService {
       resolutionComment = dto.rejectionReason || 'Rejected by manager';
     }
 
-    // Update the dispute with manager's decision
-    const updatedDispute = await this.disputeModel.findOneAndUpdate(
-      { disputeId },
+    // Update the dispute using its document
+    const updatedDispute = await this.disputeModel.findByIdAndUpdate(
+      dispute,
       {
         status: finalStatus,
         resolutionComment,
@@ -1460,7 +1474,7 @@ export class PayrollTrackingService {
   /**
    * Finance Staff processes a dispute refund
    */
-  async processDisputeRefund(disputeId: string, financeId: string): Promise<Dispute> {
+  async processDisputeRefund(disputeId: string, financeId: string, refundAmount: number): Promise<Dispute> {
     const dispute = await this.disputeModel.findById(disputeId).exec();
     if (!dispute) {
       throw new NotFoundException(`Dispute with ID ${disputeId} not found`);
@@ -1470,12 +1484,16 @@ export class PayrollTrackingService {
       throw new BadRequestException(`Dispute must be in APPROVED status.Current status: ${dispute.status} `);
     }
 
-    // Create refund
-    // NOTE: Amount is placeholder 100 as per previous implementation
+    // Validate refund amount
+    if (!refundAmount || refundAmount <= 0) {
+      throw new BadRequestException('Refund amount must be a positive number');
+    }
+
+    // Create refund with finance-provided amount
     await this.createRefundInternal(
       dispute._id as Types.ObjectId,
       'Dispute',
-      100,
+      refundAmount,
       dispute.employeeId,
     );
 
@@ -1617,8 +1635,8 @@ export class PayrollTrackingService {
 
   private async fetchTimeExceptions(userId: string, startDate: Date, endDate: Date): Promise<any[]> {
     try {
-      const url = `${this.TIME_MANAGEMENT_BASE_URL}/time-management/time-exceptions`;
-      const response = await lastValueFrom(
+      const url = `${this.TIME_MANAGEMENT_BASE_URL} /time-management/time - exceptions`;
+      const response = await firstValueFrom(
         this.httpService.get(url, {
           params: { employeeId: userId, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
         })
@@ -1632,8 +1650,8 @@ export class PayrollTrackingService {
 
   private async fetchCorrectionRequests(userId: string, startDate: Date, endDate: Date): Promise<any[]> {
     try {
-      const url = `${this.TIME_MANAGEMENT_BASE_URL}/time-management/attendance-correction-requests`;
-      const response = await lastValueFrom(
+      const url = `${this.TIME_MANAGEMENT_BASE_URL} /time-management/attendance - correction - requests`;
+      const response = await firstValueFrom(
         this.httpService.get(url, {
           params: { employeeId: userId, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
         })
@@ -1647,8 +1665,8 @@ export class PayrollTrackingService {
 
   private async fetchHolidays(startDate: Date, endDate: Date): Promise<any[]> {
     try {
-      const url = `${this.TIME_MANAGEMENT_BASE_URL}/time-management/holidays`;
-      const response = await lastValueFrom(
+      const url = `${this.TIME_MANAGEMENT_BASE_URL} /time-management/holidays`;
+      const response = await firstValueFrom(
         this.httpService.get(url, {
           params: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
         })
@@ -1698,7 +1716,7 @@ export class PayrollTrackingService {
             penalty.minutesLate = minutesLate;
             penalty.amount = deductibleMinutes * DEDUCTION_PER_MINUTE;
             const penaltyDate = penalty.date || new Date().toISOString().split('T')[0];
-            penalty.reason = `Late arrival by ${minutesLate} minutes on ${new Date(penaltyDate).toLocaleDateString()}`;
+            penalty.reason = `Late arrival by ${minutesLate} minutes on ${new Date(penaltyDate).toLocaleDateString()} `;
             penalties.push(penalty as PenaltyItemDto);
           }
           break;
@@ -1708,7 +1726,7 @@ export class PayrollTrackingService {
           penalty.type = PenaltyType.EARLY_LEAVE;
           penalty.amount = minutesEarly * DEDUCTION_PER_MINUTE;
           const earlyDate = penalty.date || new Date().toISOString().split('T')[0];
-          penalty.reason = `Early departure by ${minutesEarly} minutes on ${new Date(earlyDate).toLocaleDateString()}`;
+          penalty.reason = `Early departure by ${minutesEarly} minutes on ${new Date(earlyDate).toLocaleDateString()} `;
           penalties.push(penalty as PenaltyItemDto);
           break;
 
@@ -1717,7 +1735,7 @@ export class PayrollTrackingService {
             penalty.type = PenaltyType.UNAPPROVED_ABSENCE;
             penalty.amount = dailySalary;
             const absenceDate = penalty.date || new Date().toISOString().split('T')[0];
-            penalty.reason = `Unapproved absence due to missed punch on ${new Date(absenceDate).toLocaleDateString()}`;
+            penalty.reason = `Unapproved absence due to missed punch on ${new Date(absenceDate).toLocaleDateString()} `;
             penalties.push(penalty as PenaltyItemDto);
           }
           break;
@@ -1791,11 +1809,11 @@ export class PayrollTrackingService {
   private async sendMinimumWageAlert(employeeId: string, projectedNetPay: number, minimumWage: number): Promise<void> {
     try {
       const employee = await this.employeeProfileService.getProfileById(employeeId);
-      const employeeName = `${employee.firstName} ${employee.lastName}`;
+      const employeeName = `${employee.firstName} ${employee.lastName} `;
 
       const notification = new this.notificationLogModel({
         recipientId: 'HR_ADMIN',
-        message: `MINIMUM WAGE ALERT: ${employeeName} (${employeeId}) projected net pay (${projectedNetPay.toFixed(2)} EGP) is below minimum wage (${minimumWage} EGP). Shortfall: ${(minimumWage - projectedNetPay).toFixed(2)} EGP.`,
+        message: `MINIMUM WAGE ALERT: ${employeeName} (${employeeId}) projected net pay(${projectedNetPay.toFixed(2)} EGP) is below minimum wage(${minimumWage} EGP).Shortfall: ${(minimumWage - projectedNetPay).toFixed(2)} EGP.`,
         type: 'ALERT',
         relatedEntityId: employeeId,
         createdAt: new Date(),
@@ -1804,6 +1822,259 @@ export class PayrollTrackingService {
       await notification.save();
     } catch (error) {
       console.error('Error sending minimum wage alert:', error);
+    }
+  }
+
+  // ==================== PAYROLL CONFIGURATION INTEGRATION ====================
+
+  /**
+   * Get approved allowances as itemized line items
+   */
+  private async getAllowanceLineItems(): Promise<any[]> {
+    try {
+      const allowances = await this.allowanceService.findAll();
+      const approvedAllowances = allowances.filter((a: any) => a.status === 'approved');
+
+      return approvedAllowances.map((a: any) => ({
+        id: a._id.toString(),
+        name: a.name,
+        amount: a.amount,
+      }));
+    } catch (error) {
+      console.error('Error fetching allowances:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate tax with law references using progressive brackets
+   */
+  private async calculateTaxWithLawReference(grossIncome: number): Promise<any[]> {
+    try {
+      const taxRules = await this.taxRulesService.findAll();
+      const activeTaxRule = taxRules.find((r: any) => r.status === 'approved');
+
+      if (!activeTaxRule) {
+        return [];
+      }
+
+      const taxItems: any[] = [];
+
+      if (activeTaxRule.taxType === 'Progressive Brackets' && activeTaxRule.brackets) {
+        let remainingIncome = grossIncome;
+
+        for (const bracket of activeTaxRule.brackets) {
+          if (remainingIncome <= 0) break;
+
+          const bracketRange = bracket.maxIncome - bracket.minIncome;
+          const taxableAmount = Math.min(remainingIncome, bracketRange);
+          const taxAmount = (taxableAmount * bracket.rate) / 100;
+
+          if (taxAmount > 0) {
+            taxItems.push({
+              id: `tax - ${activeTaxRule._id} -${bracket.rate} `,
+              name: `${activeTaxRule.name} (${bracket.rate}%)`,
+              amount: taxAmount,
+              lawReference: `${activeTaxRule.name} - Bracket ${bracket.rate}% (${bracket.minIncome.toLocaleString()} -${bracket.maxIncome.toLocaleString()} EGP)`,
+              bracket: {
+                minIncome: bracket.minIncome,
+                maxIncome: bracket.maxIncome,
+                rate: bracket.rate,
+              },
+            });
+          }
+
+          remainingIncome -= taxableAmount;
+        }
+      } else if (activeTaxRule.taxType === 'Single Rate') {
+        const taxAmount = (grossIncome * activeTaxRule.rate) / 100;
+        taxItems.push({
+          id: `tax - ${activeTaxRule._id} `,
+          name: activeTaxRule.name,
+          amount: taxAmount,
+          lawReference: `${activeTaxRule.name} - ${activeTaxRule.rate}% flat rate`,
+          bracket: null,
+        });
+      }
+
+      return taxItems;
+    } catch (error) {
+      console.error('Error calculating tax:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate insurance breakdown (employee + employer contributions)
+   */
+  private async calculateInsuranceBreakdown(salary: number): Promise<{ employee: any[]; employer: any[] }> {
+    try {
+      const brackets = await this.insuranceBracketsService.findAll();
+      const applicableBrackets = brackets.filter(
+        (b: any) =>
+          b.status === 'approved' &&
+          salary >= b.minSalary &&
+          salary <= b.maxSalary
+      );
+
+      const employeeContributions = applicableBrackets.map((b: any) => ({
+        id: b._id.toString(),
+        name: b.name,
+        employeeContribution: (salary * b.employeeRate) / 100,
+        employerContribution: (salary * b.employerRate) / 100,
+        totalContribution: (salary * (b.employeeRate + b.employerRate)) / 100,
+      }));
+
+      const employerContributions = applicableBrackets.map((b: any) => ({
+        id: `employer - ${b._id} `,
+        name: `Employer ${b.name} `,
+        employeeContribution: 0,
+        employerContribution: (salary * b.employerRate) / 100,
+        totalContribution: (salary * b.employerRate) / 100,
+      }));
+
+      return {
+        employee: employeeContributions,
+        employer: employerContributions,
+      };
+    } catch (error) {
+      console.error('Error calculating insurance:', error);
+      return { employee: [], employer: [] };
+    }
+  }
+
+  /**
+   * Mock: Get unpaid leave deduction (placeholder for Leaves subsystem)
+   */
+  private async getUnpaidLeaveDeduction(userId: string, month: number, year: number): Promise<any | null> {
+    // TODO: Replace with actual Leaves API call when ready
+    return null;
+  }
+
+  /**
+   * Mock: Get leave encashment (placeholder for Leaves subsystem)
+   */
+  private async getLeaveEncashment(userId: string, month: number, year: number): Promise<number | null> {
+    // TODO: Replace with actual Leaves API call when ready
+    return null;
+  }
+
+  /**
+   * Get enhanced payslip data with itemized allowances, tax, insurance
+   */
+  async getEnhancedPayslipData(userId: string, payslipId: string): Promise<any> {
+    try {
+      // 1. Fetch original payslip
+      const payslip = await this.payslipModel.findById(payslipId).exec();
+      if (!payslip) {
+        throw new NotFoundException('Payslip not found');
+      }
+
+      // 2. Fetch employee profile
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      if (!employee) {
+        throw new NotFoundException('Employee not found');
+      }
+
+      // 3. Get base salary
+      const baseSalary = employee.salary || 3000;
+
+      // 4. Get itemized allowances
+      const allowances = await this.getAllowanceLineItems();
+      const totalAllowances = allowances.reduce((sum, a) => sum + a.amount, 0);
+
+      // 5. Calculate gross pay
+      const grossPay = baseSalary + totalAllowances;
+
+      // 6. Get time impact data (overtime)
+      const payslipDate = new Date((payslip as any).createdAt || Date.now());
+      const month = payslipDate.getMonth() + 1;
+      const year = payslipDate.getFullYear();
+
+      let overtimeCompensation = 0;
+      let timeBasedPenalties = 0;
+      try {
+        const timeImpact = await this.getTimeImpactData(userId, month, year);
+        overtimeCompensation = timeImpact.totalOvertimeCompensation || 0;
+        timeBasedPenalties = timeImpact.totalPenalties || 0;
+      } catch (error) {
+        console.error('Error fetching time impact:', error);
+      }
+
+      // 7. Get leave data (mock for now)
+      const leaveEncashment = await this.getLeaveEncashment(userId, month, year);
+      const leaveDeductions = await this.getUnpaidLeaveDeduction(userId, month, year);
+
+      // 8. Calculate tax with law references
+      const taxDeductions = await this.calculateTaxWithLawReference(grossPay);
+      const totalTax = taxDeductions.reduce((sum, t) => sum + t.amount, 0);
+
+      // 9. Calculate insurance (employee + employer)
+      const insurance = await this.calculateInsuranceBreakdown(grossPay);
+      const totalInsurance = insurance.employee.reduce((sum, i) => sum + i.employeeContribution, 0);
+      const totalEmployerContributions = insurance.employer.reduce((sum, i) => sum + i.employerContribution, 0);
+
+      // 10. Calculate total deductions
+      const totalDeductions = totalTax + totalInsurance + timeBasedPenalties + (leaveDeductions?.deductionAmount || 0);
+
+      // 11. Calculate net pay
+      const netPay = grossPay + overtimeCompensation + (leaveEncashment || 0) - totalDeductions;
+
+      // 12. Check minimum wage compliance
+      const minimumWageAlert = netPay < this.MINIMUM_WAGE;
+      if (minimumWageAlert) {
+        await this.sendMinimumWageAlert(userId, netPay, this.MINIMUM_WAGE);
+      }
+
+      // 13. Compile dispute-eligible item IDs
+      const disputeEligibleItems = [
+        ...allowances.map(a => a.id),
+        ...taxDeductions.map(t => t.id),
+        ...insurance.employee.map(i => i.id),
+      ];
+
+      // 14. Return enhanced payslip data
+      return {
+        payslipId: payslip._id.toString(),
+        month: payslipDate.toLocaleDateString('en-US', { month: 'long' }),
+        year,
+        employeeName: `${employee.firstName} ${employee.lastName} `,
+        payGrade: 'N/A',
+
+        // Earnings
+        baseSalary,
+        allowances,
+        totalAllowances,
+        overtimeCompensation,
+        leaveEncashment,
+        grossPay,
+
+        // Deductions
+        taxDeductions,
+        totalTax,
+        insuranceDeductions: insurance.employee,
+        totalInsurance,
+        leaveDeductions,
+        timeBasedPenalties,
+        totalDeductions,
+
+        // Net Pay
+        netPay,
+
+        // Compliance
+        minimumWage: this.MINIMUM_WAGE,
+        minimumWageAlert,
+
+        // Employer Contributions
+        employerContributions: insurance.employer,
+        totalEmployerContributions,
+
+        // Dispute Support
+        disputeEligibleItems,
+      };
+    } catch (error) {
+      console.error('Error generating enhanced payslip:', error);
+      throw new InternalServerErrorException('Failed to generate enhanced payslip data');
     }
   }
 }

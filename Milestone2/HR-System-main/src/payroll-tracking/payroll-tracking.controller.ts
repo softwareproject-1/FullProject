@@ -192,12 +192,23 @@ export class PayrollTrackingController {
   @ApiOperation({ summary: 'Submit a new payroll dispute' })
   @ApiResponse({ status: 201, description: 'Dispute submitted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  submitDispute(@Req() req, @Body() dto: CreateDisputeDto) {
+  async submitDispute(@Req() req, @Body() dto: CreateDisputeDto) {
     const userId = req.user.sub;
-    return this.trackingService.submitDispute(
-      new Types.ObjectId(userId),
-      dto
-    );
+    console.log('🔍 Dispute submission - User ID:', userId);
+    console.log('🔍 Dispute submission - DTO:', JSON.stringify(dto, null, 2));
+
+    try {
+      const result = await this.trackingService.submitDispute(
+        new Types.ObjectId(userId),
+        dto
+      );
+      console.log('✅ Dispute created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error creating dispute:', error.message);
+      console.error('❌ Stack:', error.stack);
+      throw error;
+    }
   }
 
   /**
@@ -260,6 +271,22 @@ export class PayrollTrackingController {
   @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
   getAllDisputes() {
     return this.trackingService.getAllDisputes();
+  }
+
+  /**
+   * Get a single dispute by ID
+   * GET /payroll-tracking/disputes/:id
+   */
+  @Get('disputes/:id')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get dispute by ID' })
+  @ApiResponse({ status: 200, description: 'Dispute retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  @ApiResponse({ status: 404, description: 'Dispute not found' })
+  getDisputeById(@Param('id') id: string) {
+    return this.trackingService.getDisputeById(id);
   }
 
   /**
@@ -411,6 +438,22 @@ export class PayrollTrackingController {
     const monthNum = parseInt(month, 10);
     const yearNum = parseInt(year, 10);
     return this.trackingService.getTimeImpactData(userId, monthNum, yearNum);
+  }
+
+  /**
+   * Get Enhanced Payslip with Itemized Allowances, Tax, Insurance
+   * GET /payroll-tracking/payslips/:id/enhanced
+   */
+  @Get('payslips/:id/enhanced')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get enhanced payslip with itemized deductions and allowances' })
+  @ApiParam({ name: 'id', description: 'Payslip ID' })
+  @ApiResponse({ status: 200, description: 'Enhanced payslip data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Payslip not found' })
+  async getEnhancedPayslip(@Req() req, @Param('id') payslipId: string) {
+    const userId = req.user.sub;
+    return this.trackingService.getEnhancedPayslipData(userId, payslipId);
   }
 
   /**

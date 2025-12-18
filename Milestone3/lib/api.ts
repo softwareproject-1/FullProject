@@ -584,74 +584,75 @@ export async function reviewLeaveRequest(
 
 // ==================== PAYROLL ====================
 
-// export const mockPayGrades: PayGrade[] = [
-//   {
-//     id: "grade001",
-//     name: "G1",
-//     minSalary: 30000,
-//     maxSalary: 45000,
-//     currency: "USD",
-//   },
-//   {
-//     id: "grade002",
-//     name: "G2",
-//     minSalary: 45000,
-//     maxSalary: 60000,
-//     currency: "USD",
-//   },
-//   {
-//     id: "grade003",
-//     name: "G3",
-//     minSalary: 60000,
-//     maxSalary: 80000,
-//     currency: "USD",
-//   },
-//   {
-//     id: "grade004",
-//     name: "G4",
-//     minSalary: 80000,
-//     maxSalary: 110000,
-//     currency: "USD",
-//   },
-//   {
-//     id: "grade005",
-//     name: "G5",
-//     minSalary: 110000,
-//     maxSalary: 150000,
-//     currency: "USD",
-//   },
-//   {
-//     id: "grade006",
-//     name: "G6",
-//     minSalary: 150000,
-//     maxSalary: 200000,
-//     currency: "USD",
-//   },
-// ];
+export const mockPayGrades: PayGrade[] = [
+  {
+    _id: "grade001",
+    grade: "G1",
+    baseSalary: 30000,
+    grossSalary: 45000,
+    status: "approved",
+  },
+  {
+    _id: "grade002",
+    grade: "G2",
+    baseSalary: 45000,
+    grossSalary: 60000,
+    status: "approved",
+  },
+  {
+    _id: "grade003",
+    grade: "G3",
+    baseSalary: 60000,
+    grossSalary: 80000,
+    status: "approved",
+  },
+  {
+    _id: "grade004",
+    grade: "G4",
+    baseSalary: 80000,
+    grossSalary: 110000,
+    status: "approved",
+  },
+  {
+    _id: "grade005",
+    grade: "G5",
+    baseSalary: 110000,
+    grossSalary: 150000,
+    status: "approved",
+  },
+  {
+    _id: "grade006",
+    grade: "G6",
+    baseSalary: 150000,
+    grossSalary: 200000,
+    status: "approved",
+  },
+];
 
-// export const mockTaxRules: TaxRule[] = [
-//   {
-//     id: "tax001",
-//     name: "Federal Income Tax",
-//     threshold: 0,
-//     rate: 15,
-//     type: "Income Tax",
-//   },
-//   {
-//     id: "tax002",
-//     name: "Social Security",
-//     threshold: 0,
-//     rate: 6.2,
-//     type: "Social Security",
-//   },
-//   {
-//     id: "tax003",
-//     name: "Health Insurance",
-//     threshold: 0,
-//     rate: 5,
-//     type: "Insurance",
-//   },
-// ];
+export const mockTaxRules: TaxRule[] = [
+  {
+    _id: "tax001",
+    name: "Federal Income Tax",
+    taxType: "Single Rate",
+    rate: 15,
+    status: "approved",
+  },
+  {
+    _id: "tax002",
+    name: "Social Security",
+    taxType: "Single Rate",
+    rate: 6.2,
+    status: "approved",
+  },
+  {
+    _id: "tax003",
+    name: "Health Insurance",
+    taxType: "Single Rate",
+    rate: 5,
+    status: "approved",
+  },
+];
+
 
 export const mockPayrollRuns: PayrollRun[] = [
   {
@@ -899,14 +900,14 @@ export const employeeProfileApi = {
         // Check both emp.roles and emp.systemRoles?.roles
         const empRoles = emp.roles || emp.systemRoles?.roles || [];
         if (!Array.isArray(empRoles)) return false;
-        
+
         // Normalize employee roles for comparison
-        const normalizedEmpRoles = empRoles.map((role: string) => 
+        const normalizedEmpRoles = empRoles.map((role: string) =>
           String(role).toLowerCase().trim()
         );
-        
+
         // Check if employee has at least one of the target roles
-        return normalizedEmpRoles.some((empRole: string) => 
+        return normalizedEmpRoles.some((empRole: string) =>
           normalizedTargetRoles.includes(empRole)
         );
       });
