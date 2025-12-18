@@ -115,7 +115,7 @@ export class FinanceController {
     @Roles(SystemRole.FINANCE_STAFF)
     @ApiOperation({ summary: 'Process refund for an approved dispute' })
     @ApiResponse({ status: 201, description: 'Refund processed successfully' })
-    async processDisputeRefund(
+    processDisputeRefund(
         @Param('id') id: string,
         @Body() dto: ProcessDisputeRefundDto,
         @Req() req
