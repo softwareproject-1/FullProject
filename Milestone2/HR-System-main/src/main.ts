@@ -37,7 +37,24 @@ async function bootstrap() {
   }
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (requestOrigin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!requestOrigin) return callback(null, true);
+
+      // Check if origin is in the explicitly allowed list
+      if (allowedOrigins.indexOf(requestOrigin) !== -1) {
+        return callback(null, true);
+      }
+
+      // Check if origin matches Vercel preview URL pattern (*.vercel.app)
+      if (requestOrigin.match(/^https:\/\/.*\.vercel\.app$/)) {
+        return callback(null, true);
+      }
+
+      // Block other origins
+      // console.log(`To fix CORS: Add ${requestOrigin} to allowedOrigins or FRONTEND_URL env var`);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
