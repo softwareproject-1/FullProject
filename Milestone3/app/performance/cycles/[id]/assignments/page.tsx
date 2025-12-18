@@ -454,7 +454,7 @@ export default function CreateAssignmentsPage() {
         {
           employeeProfileId: employeeId,
           managerProfileId: employee.managerId || user?._id || "",
-          departmentId: employee.departmentId, // This should not be empty now
+          departmentId: employee.departmentId || "", // Ensure string type
           positionId: employee.positionId || undefined,
           dueDate: dueDate || undefined,
         },
@@ -607,7 +607,7 @@ export default function CreateAssignmentsPage() {
                       // Extract template name
                       const templateName = assignment.templateName || 
                         (assignment.templateId && typeof assignment.templateId === 'object'
-                          ? (assignment.templateId.name || assignment.templateId.title)
+                          ? ((assignment.templateId as any).name || (assignment.templateId as any).title)
                           : '') || 
                         'Unknown Template';
                       

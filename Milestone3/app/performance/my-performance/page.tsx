@@ -105,7 +105,7 @@ export default function MyPerformancePage() {
       
       // Filter to show only the current user's records
       const myRecords = allRecords.filter((record: PerformanceRecord) => {
-        const recordEmployeeId = record.employeeProfileId?._id || record.employeeProfileId;
+        const recordEmployeeId = (record.employeeProfileId as any)?._id || record.employeeProfileId;
         const userId = user._id;
         return String(recordEmployeeId) === String(userId);
       });
