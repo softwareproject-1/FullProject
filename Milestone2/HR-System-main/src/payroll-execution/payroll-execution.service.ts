@@ -25,6 +25,10 @@ import {
   EmployeeTerminationResignation,
   EmployeeTerminationResignationDocument,
 } from './models/EmployeeTerminationResignation.schema';
+import {
+  employeePenalties,
+  employeePenaltiesDocument,
+} from './models/employeePenalties.schema';
 
 // DTOs
 import { InitiateRunDto } from './dto/initiate-run.dto';
@@ -76,6 +80,8 @@ export class PayrollExecutionService {
     private signingBonusModel: Model<employeeSigningBonusDocument>,
     @InjectModel(EmployeeTerminationResignation.name)
     private terminationModel: Model<EmployeeTerminationResignationDocument>,
+    @InjectModel(employeePenalties.name)
+    private penaltiesModel: Model<employeePenaltiesDocument>,
     @InjectModel(Employee.name)
     private employeeModel: Model<EmployeeProfileDocument>,
     @Inject(TaxRulesService)
@@ -965,20 +971,20 @@ export class PayrollExecutionService {
         .exec();
 
       this.logger.log(`Employee details found: ${employeeDetails.length}`);
-
+      
       this.logger.log(`Employee details found: ${employeeDetails.length}`);
-
+      
       // === ROSTER SYNC: Ensure all active employees are in this run ===
       // 1. Get all active employees
       const activeEmployees = await this.employeeModel.find({ isActive: true }).exec();
       const existingEmployeeIds = new Set(employeeDetails.map(d => d.employeeId.toString()));
-
+      
       const missingEmployees = activeEmployees.filter(emp => !existingEmployeeIds.has(emp._id.toString()));
-
+      
       if (missingEmployees.length > 0) {
         this.logger.log(`Found ${missingEmployees.length} active employees missing from this run. Syncing...`);
         await this.processEmployeesForRun(missingEmployees, payrollRun._id as Types.ObjectId);
-
+        
         // Reload details after sync
         const reloadedDetails = await this.empDetailsModel.find({ payrollRunId: payrollRun._id }).exec();
         employeeDetails.length = 0;
@@ -1071,6 +1077,13 @@ export class PayrollExecutionService {
             }
           }
 
+          // Get penalties for this employee
+          const penalties = await this.penaltiesModel
+            .findOne({
+              employeeId: empDetail.employeeId,
+            })
+            .exec();
+
           // Check for approved bonuses
           const approvedBonus = await this.signingBonusModel
             .findOne({
@@ -1091,10 +1104,15 @@ export class PayrollExecutionService {
             })
             .exec();
 
+          // Calculation Logic Update: Refunds
+          // User Formula: Net Pay = Net Salary - Penalties + Refunds
+          const refundsAmount = empDetail.refunds || 0; 
+          
           // Calculate salary - update calculateSalary method to not expect employee model
           const calculation = await this.calculateSalary(
             empDetail,
             employee, // Pass the raw employee object, not Mongoose model
+            penalties,
             approvedBonus,
             approvedTermination,
             runId,
@@ -1114,18 +1132,18 @@ export class PayrollExecutionService {
 
           // Populate Breakdown Arrays for Frontend (Draft Page)
           if (calculation.tax && calculation.tax.breakdown) {
-            (empDetail as any).taxBreakdown = calculation.tax.breakdown.map((t: any) => ({
-              bracket: t.name, // Frontend expects 'bracket', backend calculation has 'name'
-              rate: t.rate,
-              amount: t.amount
-            }));
+              (empDetail as any).taxBreakdown = calculation.tax.breakdown.map((t: any) => ({
+                  bracket: t.name, // Frontend expects 'bracket', backend calculation has 'name'
+                  rate: t.rate,
+                  amount: t.amount
+              }));
           }
           if (calculation.insurance) {
-            (empDetail as any).insuranceBreakdown = [{
-              name: calculation.insurance.bracket || 'Insurance',
-              rate: calculation.insurance.employeeRate,
-              amount: calculation.insurance.employeeAmount
-            }];
+              (empDetail as any).insuranceBreakdown = [{
+                  name: calculation.insurance.bracket || 'Insurance',
+                  rate: calculation.insurance.employeeRate,
+                  amount: calculation.insurance.employeeAmount
+              }];
           }
 
           // Save breakdowns
@@ -1153,52 +1171,52 @@ export class PayrollExecutionService {
             // Populate Breakdown Arrays
             // Tax Breakdown
             if (calculation.tax && calculation.tax.breakdown) {
-              // Map to schema format if necessary, or just push compatible objects
-              payslip.deductionsDetails!.taxes = calculation.tax.breakdown.map((t: any) => ({
-                name: t.name,
-                rate: t.rate,
-                amount: t.amount,
-                description: `Progressive Tax Rules` // Add if schema requires description? Schema says 'taxes: taxRules[]'
-                // Wait, 'taxRules[]' schema expects a full taxRules object? 
-                // Let's check schema: 'taxes: taxRules[]'. And taxRules has name, rate, status...
-                // We should try to match the shape.
-              })) as any;
-              // Actually, it's safer to cast to avoid strict schema validation issues here, or construct proper objects.
-              // Ideally we should just save the breakdown provided by calculation.
+                // Map to schema format if necessary, or just push compatible objects
+                 payslip.deductionsDetails!.taxes = calculation.tax.breakdown.map((t: any) => ({
+                     name: t.name,
+                     rate: t.rate,
+                     amount: t.amount,
+                     description: `Progressive Tax Rules` // Add if schema requires description? Schema says 'taxes: taxRules[]'
+                     // Wait, 'taxRules[]' schema expects a full taxRules object? 
+                     // Let's check schema: 'taxes: taxRules[]'. And taxRules has name, rate, status...
+                     // We should try to match the shape.
+                 })) as any; 
+                 // Actually, it's safer to cast to avoid strict schema validation issues here, or construct proper objects.
+                 // Ideally we should just save the breakdown provided by calculation.
             }
 
             // Insurance Breakdown
             if (calculation.insurance) {
-              // Schema expects 'insurances: insuranceBrackets[]'. 
-              // Our calculation returns a single bracket usually, or composite?
-              // calculation.insurance has { amount, bracket, employeeRate ... }
-              // Let's explicitly construct an array
-              payslip.deductionsDetails!.insurances = [{
-                name: calculation.insurance.bracket || 'Standard Insurance',
-                employeeRate: calculation.insurance.employeeRate || 0,
-                employerRate: calculation.insurance.employerRate || 0,
-                minSalary: 0,       // Required by Schema
-                maxSalary: 999999,  // Required by Schema
-                status: 'approved'  // Lowercase to match Enum
-              }] as any;
+                // Schema expects 'insurances: insuranceBrackets[]'. 
+                // Our calculation returns a single bracket usually, or composite?
+                // calculation.insurance has { amount, bracket, employeeRate ... }
+                // Let's explicitly construct an array
+                payslip.deductionsDetails!.insurances = [{
+                    name: calculation.insurance.bracket || 'Standard Insurance',
+                    employeeRate: calculation.insurance.employeeRate || 0,
+                    employerRate: calculation.insurance.employerRate || 0,
+                    minSalary: 0,       // Required by Schema
+                    maxSalary: 999999,  // Required by Schema
+                    status: 'approved'  // Lowercase to match Enum
+                }] as any; 
             }
 
             // Add bonus to payslip if exists
             if (approvedBonus) {
-              // Get the full bonus config to get positionName
-              const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
-                _id: approvedBonus.signingBonusId
-              });
+                // Get the full bonus config to get positionName
+                const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
+                  _id: approvedBonus.signingBonusId
+                });
 
-              // Now bonuses array is guaranteed to exist after ensurePayslipStructure
-              payslip.earningsDetails!.bonuses!.push({
-                positionName: bonusConfig?.positionName || 'General Position',
-                amount: approvedBonus.givenAmount,
-                status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
-                createdBy: approvedBonus.employeeId,
-                approvedBy: approvedBonus.employeeId,
-                approvedAt: new Date(),
-              } as any);
+                // Now bonuses array is guaranteed to exist after ensurePayslipStructure
+                payslip.earningsDetails!.bonuses!.push({
+                  positionName: bonusConfig?.positionName || 'General Position',
+                  amount: approvedBonus.givenAmount,
+                  status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
+                  createdBy: approvedBonus.employeeId,
+                  approvedBy: approvedBonus.employeeId,
+                  approvedAt: new Date(),
+                } as any);
             }
 
             // Add termination benefit to earnings if exists
@@ -1396,7 +1414,7 @@ export class PayrollExecutionService {
 
     // Calculate net salary
     const netSalary = grossSalary - taxAmount - insuranceAmount;
-
+    
     // this.logger.warn(`DEBUG CALCULATION for ${empDetail.employeeId}:`);
     // this.logger.warn(`  Gross: ${grossSalary}`);
     // this.logger.warn(`  Tax: ${taxAmount}`);
@@ -1406,7 +1424,7 @@ export class PayrollExecutionService {
     // Penalties
     const penDeduction = (penaltyDeduction && !isNaN(penaltyDeduction)) ? penaltyDeduction : 0;
     const leaveDeduction = (unpaidLeaveDeduction && !isNaN(unpaidLeaveDeduction)) ? unpaidLeaveDeduction : 0;
-
+    
     const refundsAdded = (refunds && !isNaN(refunds)) ? refunds : 0; // Check refunds
 
     // this.logger.warn(`  Penalties: ${penDeduction}`);
@@ -1419,12 +1437,12 @@ export class PayrollExecutionService {
     // BR 60: Ensure minimum wage floor
     const beforeMinWageCheck = finalSalary;
     finalSalary = Math.max(this.MINIMUM_WAGE, finalSalary);
-
+    
     if (isNaN(finalSalary)) {
-      this.logger.error(`CRITICAL: Final Salary calculation resulted in NaN. Defaulting to Base Salary or Min Wage.`);
-      finalSalary = Math.max(this.MINIMUM_WAGE, grossSalary);
+       this.logger.error(`CRITICAL: Final Salary calculation resulted in NaN. Defaulting to Base Salary or Min Wage.`);
+       finalSalary = Math.max(this.MINIMUM_WAGE, grossSalary); 
     }
-
+    
     // this.logger.warn(`  Final Salary: ${finalSalary}`);
 
     // Anomalies detection
@@ -1588,7 +1606,7 @@ export class PayrollExecutionService {
     try {
       // Fetch all tax rules from configuration
       const taxRules = await this.taxRulesService.findAll();
-
+      
       if (!taxRules || taxRules.length === 0) {
         this.logger.warn('No tax rules configured. Using default progressive tax brackets.');
         return this.calculateDefaultProgressiveTax(grossSalary);
@@ -1604,33 +1622,33 @@ export class PayrollExecutionService {
       // 60,000 - 200,000: 20%
       // 200,000 - 400,000: 22.5%
       // > 400,000: 25%
-
+      
       // We map the fetched rules to these tiers based on rate or name
       // This is a heuristic since the schema lacks min/max.
-
+      
       let remainingSalary = grossSalary;
       let totalTax = 0;
       const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
 
       // Define thresholds
       const tiers = [
-        { limit: 15000, rate: 0 },
-        { limit: 15000, rate: 2.5 }, // 15k-30k (width 15k)
-        { limit: 15000, rate: 10 },  // 30k-45k (width 15k)
-        { limit: 15000, rate: 15 },  // 45k-60k (width 15k)
-        { limit: 140000, rate: 20 }, // 60k-200k (width 140k)
-        { limit: 200000, rate: 22.5 }, // 200k-400k (width 200k)
-        { limit: Infinity, rate: 25 }  // >400k
+          { limit: 15000, rate: 0 },
+          { limit: 15000, rate: 2.5 }, // 15k-30k (width 15k)
+          { limit: 15000, rate: 10 },  // 30k-45k (width 15k)
+          { limit: 15000, rate: 15 },  // 45k-60k (width 15k)
+          { limit: 140000, rate: 20 }, // 60k-200k (width 140k)
+          { limit: 200000, rate: 22.5 }, // 200k-400k (width 200k)
+          { limit: Infinity, rate: 25 }  // >400k
       ];
 
       // Helper to find authorized rate from DB for a given target rate
       const getRuleRate = (targetRate: number) => {
-        const rule = taxRules.find(r => Math.abs(r.rate - targetRate) < 0.1 && (r.status === 'APPROVED' || r.status === 'ACTIVE'));
-        return rule ? rule.rate : targetRate; // Use DB rule rate or fallback to standard
+          const rule = taxRules.find(r => Math.abs(r.rate - targetRate) < 0.1 && (r.status === 'APPROVED' || r.status === 'ACTIVE'));
+          return rule ? rule.rate : targetRate; // Use DB rule rate or fallback to standard
       };
 
       let currentThreshold = 0;
-
+      
       // Tier 1: 0 - 15,000
       let tierWidth = 15000;
       let taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
@@ -1670,8 +1688,8 @@ export class PayrollExecutionService {
       rate = getRuleRate(15);
       tax = taxedAmount * (rate / 100);
       if (tax > 0) {
-        totalTax += tax;
-        breakdown.push({ name: 'Tier 4 (45k-60k)', rate, amount: tax });
+         totalTax += tax;
+         breakdown.push({ name: 'Tier 4 (45k-60k)', rate, amount: tax });
       }
       currentThreshold += tierWidth;
 
@@ -1681,29 +1699,29 @@ export class PayrollExecutionService {
       rate = getRuleRate(20);
       tax = taxedAmount * (rate / 100);
       if (tax > 0) {
-        totalTax += tax;
-        breakdown.push({ name: 'Tier 5 (60k-200k)', rate, amount: tax });
+         totalTax += tax;
+         breakdown.push({ name: 'Tier 5 (60k-200k)', rate, amount: tax });
       }
       currentThreshold += tierWidth;
 
-      // Tier 6: 200,000 - 400,000
+       // Tier 6: 200,000 - 400,000
       tierWidth = 200000;
       taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
       rate = getRuleRate(22.5);
       tax = taxedAmount * (rate / 100);
       if (tax > 0) {
-        totalTax += tax;
-        breakdown.push({ name: 'Tier 6 (200k-400k)', rate, amount: tax });
+         totalTax += tax;
+         breakdown.push({ name: 'Tier 6 (200k-400k)', rate, amount: tax });
       }
       currentThreshold += tierWidth;
 
-      // Tier 7: > 400,000
+       // Tier 7: > 400,000
       taxedAmount = Math.max(grossSalary - currentThreshold, 0);
       if (taxedAmount > 0) {
-        rate = getRuleRate(25);
-        tax = taxedAmount * (rate / 100);
-        totalTax += tax;
-        breakdown.push({ name: 'Tier 7 (>400k)', rate, amount: tax });
+          rate = getRuleRate(25);
+          tax = taxedAmount * (rate / 100);
+          totalTax += tax;
+          breakdown.push({ name: 'Tier 7 (>400k)', rate, amount: tax });
       }
 
       this.logger.warn(`  Total Tax Calculated (Progressive): ${totalTax}`);
@@ -1749,9 +1767,9 @@ export class PayrollExecutionService {
    */
   private async calculateInsurance(grossSalary: number): Promise<any> {
     try {
-      // Fetch insurance brackets from configuration
+    // Fetch insurance brackets from configuration
       const brackets = await this.insuranceBracketsService.findAll();
-
+      
       this.logger.warn(`DEBUG INSURANCE: Found ${brackets ? brackets.length : 0} brackets`);
 
       if (!brackets || brackets.length === 0) {
@@ -1759,7 +1777,7 @@ export class PayrollExecutionService {
         this.logger.warn('No insurance brackets configured. Using default rates.');
         return this.calculateDefaultInsurance(grossSalary);
       }
-
+      
       // Log brackets for debug
       brackets.forEach(b => this.logger.warn(`  Bracket: ${b.name}, Range: ${b.minSalary}-${b.maxSalary}, Status: ${b.status}`));
 
@@ -3372,7 +3390,7 @@ export class PayrollExecutionService {
       distribution: distributionStatus,
 
       // Frontend Compatibility Fields (Direct mapping for PayslipPreviewModal)
-      taxBreakdown: empDetails?.taxBreakdown || [],
+      taxBreakdown: empDetails?.taxBreakdown || [], 
       insurance: empDetails?.insuranceBreakdown && empDetails.insuranceBreakdown.length > 0 ? {
         employeeAmount: empDetails.insuranceBreakdown[0].amount || 0,
         employerAmount: 0, // Not stored in breakdown currently, defaults to 0
