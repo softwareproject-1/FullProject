@@ -156,6 +156,7 @@ export const roleAccess = {
       '/performance/disputes',
       '/time-management',
       '/leaves',
+      '/payroll/payroll-tracking/employee',
     ],
     features: {
       viewAllEmployees: true, // Read-only
@@ -195,6 +196,7 @@ export const roleAccess = {
       '/admin/organization-structure', // Can view organizational charts (read-only)
       '/time-management',
       '/leaves',
+      '/payroll/payroll-tracking/employee',
     ],
     features: {
       viewAllEmployees: true,
@@ -242,6 +244,7 @@ export const roleAccess = {
       '/admin/organization-structure', // View organizational structure (read-only)
       '/time-management',
       '/leaves',
+      '/payroll/payroll-tracking/employee',
     ],
     features: {
       viewAllEmployees: false,
@@ -284,6 +287,7 @@ export const roleAccess = {
       '/admin/organization-structure', // View basic organizational structure (own position and department)
       '/time-management',
       '/leaves',
+      '/payroll/payroll-tracking/employee',
     ],
     features: {
       viewAllEmployees: false,
@@ -399,6 +403,7 @@ export const roleAccess = {
       '/admin/organization-structure', // View organizational structure (to understand open positions)
       '/recruiter', // Recruiter dashboard
       '/recruitment',
+      '/payroll/payroll-tracking/employee',
     ],
     features: {
       viewAllEmployees: false,
@@ -435,6 +440,7 @@ export const roleAccess = {
       '/admin/employee-profile', // Read-only for compliance
       '/employee/profile', // Self-service profile editing
       '/admin/organization-structure', // View organizational structure (for compliance)
+      '/payroll/payroll-tracking/employee',
     ],
     features: {
       viewAllEmployees: true, // Compliance data only
@@ -551,28 +557,28 @@ export const getRoleAccess = (role: SystemRole | string): RoleAccessConfig => {
     console.warn('getRoleAccess: No role provided');
     return roleAccess[SystemRole.DEPARTMENT_EMPLOYEE];
   }
-  
+
   const normalizedRole = normalizeRole(role);
-  
+
   // First try exact match (case-insensitive)
   const roleKey = Object.keys(roleAccess).find(
     key => normalizeRole(key) === normalizedRole
   ) as SystemRole | undefined;
-  
+
   if (roleKey) {
     return roleAccess[roleKey];
   }
-  
+
   // If not found, try matching against enum values directly
   const enumValues = Object.values(SystemRole);
   const matchingEnumValue = enumValues.find(
     enumValue => normalizeRole(enumValue) === normalizedRole
   );
-  
+
   if (matchingEnumValue) {
     return roleAccess[matchingEnumValue];
   }
-  
+
   // Log warning for debugging
   console.warn('getRoleAccess: Role not found in roleAccess config:', {
     originalRole: role,
@@ -580,7 +586,7 @@ export const getRoleAccess = (role: SystemRole | string): RoleAccessConfig => {
     availableRoles: Object.keys(roleAccess),
     availableEnumValues: enumValues,
   });
-  
+
   // Default to department employee access if role not found
   return roleAccess[SystemRole.DEPARTMENT_EMPLOYEE];
 };
@@ -604,7 +610,7 @@ export const getCombinedAccess = (userRoles: string[] | undefined): RoleAccessCo
   }
 
   const accessConfigs = validRoles.map(role => getRoleAccess(role));
-  
+
   // Combine routes (union)
   const combinedRoutes = Array.from(
     new Set(accessConfigs.flatMap(config => config.routes || []))
@@ -647,14 +653,14 @@ export const getCombinedAccess = (userRoles: string[] | undefined): RoleAccessCo
 // Check if user can access a route
 export const canAccessRoute = (userRoles: string[] | undefined, route: string): boolean => {
   if (!userRoles || userRoles.length === 0) return false;
-  
+
   const access = getCombinedAccess(userRoles);
-  
+
   // Check exact match first
   if (access.routes.includes(route)) {
     return true;
   }
-  
+
   // Check if route is a sub-route of any allowed route
   // e.g., if user has access to /admin/organization-structure,
   // they should have access to /admin/organization-structure/departments
@@ -663,7 +669,7 @@ export const canAccessRoute = (userRoles: string[] | undefined, route: string): 
       return true;
     }
   }
-  
+
   return false;
 };
 
@@ -672,19 +678,19 @@ export const hasFeature = (userRoles: string[] | undefined, feature: string): bo
   if (!userRoles || userRoles.length === 0) {
     return false;
   }
-  
+
   // Ensure roles is a proper array
-  const validRoles = Array.isArray(userRoles) 
+  const validRoles = Array.isArray(userRoles)
     ? userRoles.filter(role => role && typeof role === 'string').map(r => String(r).trim())
     : [];
-  
+
   if (validRoles.length === 0) {
     return false;
   }
-  
+
   const access = getCombinedAccess(validRoles);
   const hasFeatureAccess = access.features?.[feature] === true;
-  
+
   return hasFeatureAccess;
 };
 

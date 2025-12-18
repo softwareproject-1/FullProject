@@ -47,6 +47,6 @@ export class CreatePayrollPolicyDto {
   @IsEnum(Applicability)
   applicability: Applicability;
 
-  @IsEnum(ConfigStatus)
-  status: ConfigStatus;
+  // @IsEnum(ConfigStatus)
+  // status: ConfigStatus;
 }

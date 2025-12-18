@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -12,6 +16,7 @@ import {
   buildDeleteMessage,
   buildUpdateMessage,
 } from '../helpers/response-message';
+import { ConfigStatus } from '../enums/payroll-configuration-enums';
 
 @Injectable()
 export class InsuranceBracketsService {
@@ -24,13 +29,16 @@ export class InsuranceBracketsService {
   //   const created = new this.insuranceModel(dto);
   //   return created.save();
   // }
-async create(dto: CreateInsuranceBracketDto) {
-  // Validate that only allowed fields are in the DTO
-  const safeDto = strictUpdate(dto, this.insuranceModel);
+  async create(dto: CreateInsuranceBracketDto) {
+    // Validate that only allowed fields are in the DTO
+    const safeDto = strictUpdate(dto, this.insuranceModel);
 
-  const created = new this.insuranceModel(safeDto);
-  return created.save();
-}
+    const created = new this.insuranceModel({
+      ...safeDto,
+      status: 'draft', // enforce workflow rule
+    });
+    return created.save();
+  }
   async findAll() {
     return this.insuranceModel.find().exec();
   }
@@ -42,6 +50,16 @@ async create(dto: CreateInsuranceBracketDto) {
   }
 
   async update(id: string, dto: UpdateInsuranceBracketDto) {
+    const doc = await this.insuranceModel.findById(id).exec();
+    if (!doc) throw new NotFoundException('Insurance bracket not found');
+
+    // Workflow rule: cannot update if not draft
+    if (doc.status !== 'draft') {
+      throw new BadRequestException(
+        `Cannot update insurance bracket because it is already ${doc.status}. Only draft insurance brackets can be updated.`,
+      );
+    }
+
     const safeDto = strictUpdate(dto, this.insuranceModel);
 
     const updated = await this.insuranceModel
@@ -56,11 +74,42 @@ async create(dto: CreateInsuranceBracketDto) {
   }
 
   async remove(id: string) {
+    const doc = await this.insuranceModel.findById(id).exec();
+    if (!doc) throw new NotFoundException('Insurance bracket not found');
+
+    // Workflow rule: cannot delete if not draft
+    if (doc.status !== 'draft') {
+      throw new BadRequestException(
+        `Cannot delete insurance bracket because it is already ${doc.status}. Only draft insurance brackets can be deleted.`,
+      );
+    }
+
     const res = await this.insuranceModel.findByIdAndDelete(id).exec();
-    if (!res) throw new NotFoundException('Insurance bracket not found');
     return {
       message: buildDeleteMessage('insurance bracket'),
       data: res,
     };
+  }
+
+  // STATUS UPDATE → Payroll Manager ONLY
+  async updateStatus(
+    id: string,
+    status: ConfigStatus.APPROVED | ConfigStatus.REJECTED,
+  ) {
+    const doc = await this.insuranceModel.findById(id).exec();
+    if (!doc) throw new NotFoundException('Insurance bracket not found');
+
+    // Allowed transitions:
+    // draft → approved
+    // draft → rejected
+    // rejected → approved (resubmission scenario)
+    if (![ConfigStatus.DRAFT, ConfigStatus.REJECTED].includes(doc.status)) {
+      throw new BadRequestException(
+        `Cannot change status because insurance bracket is currently '${doc.status}'. Only draft or rejected insurance brackets can be modified.`,
+      );
+    }
+
+    doc.status = status;
+    return doc.save();
   }
 }

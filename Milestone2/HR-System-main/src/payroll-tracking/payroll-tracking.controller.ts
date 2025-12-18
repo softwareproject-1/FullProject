@@ -1,9 +1,9 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, Query, UsePipes, ValidationPipe, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Get, Patch, Body, Param, Req, Query, UsePipes, ValidationPipe, UseGuards, Res, Header } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { PayrollTrackingService } from './payroll-tracking.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { UpdateClaimDto } from './dto/update-claim.dto';
-import { PayRefundDto } from './dto/pay-refund.dto'; 
+import { PayRefundDto } from './dto/pay-refund.dto';
 import { claims } from './models/claims.schema';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -32,7 +32,7 @@ import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
 @UseGuards(AuthenticationGuard, RolesGuard)
 @UsePipes(new ValidationPipe({ transform: true }))
 export class PayrollTrackingController {
-  constructor(private readonly trackingService: PayrollTrackingService) {}
+  constructor(private readonly trackingService: PayrollTrackingService) { }
 
   // Hardcoded IDs for local testing (commented out - using JWT auth now)
   // private readonly DUMMY_EMPLOYEE_ID = '507f1f77bcf86cd799439011'; 
@@ -66,24 +66,92 @@ export class PayrollTrackingController {
   }
 
   /**
-   * Review and update a claim (Finance Staff only)
+   * Get all PENDING claims for Payroll Specialist/Finance Staff to review
+   * GET /payroll-tracking/claims/pending
+   */
+  @Get('claims/pending')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.FINANCE_STAFF)
+  @ApiOperation({ summary: 'Get all pending claims for review' })
+  @ApiResponse({ status: 200, description: 'Pending claims retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires PAYROLL_SPECIALIST or FINANCE_STAFF role' })
+  getAllPendingClaims(): Promise<claims[]> {
+    return this.trackingService.getAllPendingClaims();
+  }
+
+  /**
+   * Get claims with optional filters
+   * GET /payroll-tracking/claims?specialistApproved=true
+   */
+  @Get('claims')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.FINANCE_STAFF, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get claims with optional filters' })
+  @ApiResponse({ status: 200, description: 'Claims retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  getClaims(@Query('specialistApproved') specialistApproved?: string): Promise<claims[]> {
+    if (specialistApproved === 'true') {
+      return this.trackingService.getSpecialistApprovedClaims();
+    }
+    return this.trackingService.getAllClaims();
+  }
+
+  /**
+   * Get ALL claims (any status) for reporting/monitoring
+   * GET /payroll-tracking/claims/all
+   */
+  @Get('claims/all')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.FINANCE_STAFF, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get all claims (any status)' })
+  @ApiResponse({ status: 200, description: 'All claims retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  getAllClaims(): Promise<claims[]> {
+    return this.trackingService.getAllClaims();
+  }
+
+  /**
+   * Get a single claim by ID
+   * GET /payroll-tracking/claims/:id
+   */
+  @Get('claims/:id')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.FINANCE_STAFF, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get claim by ID' })
+  @ApiResponse({ status: 200, description: 'Claim retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  @ApiResponse({ status: 404, description: 'Claim not found' })
+  getClaimById(@Param('id') id: string): Promise<claims> {
+    return this.trackingService.getClaimById(id);
+  }
+
+  /**
+   * Review and update a claim (Payroll Specialist or Finance Staff)
    * PATCH /payroll-tracking/claims/:id/review
    * This moves claim to PENDING_MANAGER_APPROVAL or REJECTED
    */
   @Patch('claims/:id/review')
   @ApiBearerAuth('JWT-auth')
-  @Roles(SystemRole.FINANCE_STAFF)
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.FINANCE_STAFF)
   @ApiOperation({ summary: 'Review and update a claim' })
   @ApiResponse({ status: 200, description: 'Claim reviewed successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Requires FINANCE_STAFF role' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires PAYROLL_SPECIALIST or FINANCE_STAFF role' })
   @ApiResponse({ status: 404, description: 'Claim not found' })
   reviewClaim(
     @Param('id') id: string,
     @Req() req,
     @Body() body: UpdateClaimDto,
   ): Promise<claims> {
-    const adminId = req.user.sub;
+    console.log('🔥🔥🔥 REVIEW CLAIM ENDPOINT CALLED! 🔥🔥🔥');
+    console.log('Claim ID:', id);
+    console.log('Request body:', JSON.stringify(body));
+    console.log('User ID:', req.user?.userId);
+    const adminId = req.user.userId;
     return this.trackingService.reviewClaim(id, adminId, body);
   }
 
@@ -124,12 +192,23 @@ export class PayrollTrackingController {
   @ApiOperation({ summary: 'Submit a new payroll dispute' })
   @ApiResponse({ status: 201, description: 'Dispute submitted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  submitDispute(@Req() req, @Body() dto: CreateDisputeDto) {
-      const userId = req.user.sub;
-      return this.trackingService.submitDispute(
-          new Types.ObjectId(userId), 
-          dto
+  async submitDispute(@Req() req, @Body() dto: CreateDisputeDto) {
+    const userId = req.user.sub;
+    console.log('🔍 Dispute submission - User ID:', userId);
+    console.log('🔍 Dispute submission - DTO:', JSON.stringify(dto, null, 2));
+
+    try {
+      const result = await this.trackingService.submitDispute(
+        new Types.ObjectId(userId),
+        dto
       );
+      console.log('✅ Dispute created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error creating dispute:', error.message);
+      console.error('❌ Stack:', error.stack);
+      throw error;
+    }
   }
 
   /**
@@ -142,8 +221,72 @@ export class PayrollTrackingController {
   @ApiResponse({ status: 200, description: 'Disputes retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getMyDisputes(@Req() req) {
-      const userId = req.user.sub;
-      return this.trackingService.getMyDisputes(new Types.ObjectId(userId));
+    const userId = req.user.sub;
+    return this.trackingService.getMyDisputes(new Types.ObjectId(userId));
+  }
+
+  /**
+   * Get all PENDING disputes for Payroll Specialist to review
+   * GET /payroll-tracking/disputes/pending
+   */
+  @Get('disputes/pending')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST)
+  @ApiOperation({ summary: 'Get all pending disputes for review' })
+  @ApiResponse({ status: 200, description: 'Pending disputes retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires PAYROLL_SPECIALIST role' })
+  getAllPendingDisputes() {
+    return this.trackingService.getAllPendingDisputes();
+  }
+
+  /**
+   * Get disputes with optional filters
+   * GET /payroll-tracking/disputes?specialistApproved=true
+   */
+  @Get('disputes')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get disputes with optional filters' })
+  @ApiResponse({ status: 200, description: 'Disputes retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  getDisputes(@Query('specialistApproved') specialistApproved?: string) {
+    if (specialistApproved === 'true') {
+      return this.trackingService.getSpecialistApprovedDisputes();
+    }
+    return this.trackingService.getAllDisputes();
+  }
+
+  /**
+   * Get ALL disputes (any status) for reporting/monitoring
+   * GET /payroll-tracking/disputes/all
+   */
+  @Get('disputes/all')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get all disputes (any status)' })
+  @ApiResponse({ status: 200, description: 'All disputes retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  getAllDisputes() {
+    return this.trackingService.getAllDisputes();
+  }
+
+  /**
+   * Get a single dispute by ID
+   * GET /payroll-tracking/disputes/:id
+   */
+  @Get('disputes/:id')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER)
+  @ApiOperation({ summary: 'Get dispute by ID' })
+  @ApiResponse({ status: 200, description: 'Dispute retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires appropriate role' })
+  @ApiResponse({ status: 404, description: 'Dispute not found' })
+  getDisputeById(@Param('id') id: string) {
+    return this.trackingService.getDisputeById(id);
   }
 
   /**
@@ -160,16 +303,16 @@ export class PayrollTrackingController {
   @ApiResponse({ status: 403, description: 'Forbidden - Requires PAYROLL_SPECIALIST role' })
   @ApiResponse({ status: 404, description: 'Dispute not found' })
   resolveDispute(
-      @Param('id') disputeId: string, 
-      @Body() dto: ResolveDisputeDto,
-      @Req() req,
+    @Param('id') disputeId: string,
+    @Body() dto: ResolveDisputeDto,
+    @Req() req,
   ) {
-      const specialistId = req.user.sub;
-      return this.trackingService.resolveDispute(
-          disputeId, 
-          new Types.ObjectId(specialistId),
-          dto
-      );
+    const specialistId = req.user.sub;
+    return this.trackingService.resolveDispute(
+      disputeId,
+      new Types.ObjectId(specialistId),
+      dto
+    );
   }
 
   /**
@@ -185,23 +328,23 @@ export class PayrollTrackingController {
   @ApiResponse({ status: 403, description: 'Forbidden - Requires PAYROLL_MANAGER role' })
   @ApiResponse({ status: 404, description: 'Dispute not found' })
   managerActionDispute(
-      @Param('id') disputeId: string, 
-      @Body() dto: ManagerActionDisputeDto,
-      @Req() req,
+    @Param('id') disputeId: string,
+    @Body() dto: ManagerActionDisputeDto,
+    @Req() req,
   ) {
-      const managerId = req.user.sub;
-      return this.trackingService.managerActionDispute(
-          disputeId, 
-          new Types.ObjectId(managerId),
-          dto
-      );
+    const managerId = req.user.sub;
+    return this.trackingService.managerActionDispute(
+      disputeId,
+      new Types.ObjectId(managerId),
+      dto
+    );
   }
 
   // === MAYA END ===
 
 
   // === ELENA START ===
-    
+
   /**
    * REQ-PY-18: Employee Self-Service - View Payslips with Full Breakdown
    * GET /payroll-tracking/payslips
@@ -215,7 +358,46 @@ export class PayrollTrackingController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMyPayslips(@Req() req) {
     const userId = req.user.sub;
-    return this.trackingService.getMyPayslips(userId); 
+    return this.trackingService.getMyPayslips(userId);
+  }
+
+  /**
+   * Get a specific payslip by ID
+   * GET /payroll-tracking/payslips/:id
+   */
+  @Get('payslips/:id')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get payslip by ID' })
+  @ApiResponse({ status: 200, description: 'Payslip retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Payslip not found' })
+  async getPayslipById(@Req() req, @Param('id') payslipId: string) {
+    const userId = req.user.sub;
+    return this.trackingService.getPayslipById(userId, payslipId);
+  }
+
+  /**
+   * Download payslip as PDF
+   * GET /payroll-tracking/payslips/:id/download-pdf
+   */
+  @Get('payslips/:id/download-pdf')
+  @ApiBearerAuth('JWT-auth')
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({ summary: 'Download payslip as PDF' })
+  @ApiResponse({ status: 200, description: 'Payslip PDF generated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Payslip not found' })
+  async downloadPayslipPDF(@Req() req, @Param('id') payslipId: string, @Res() res) {
+    const userId = req.user.sub;
+    const pdfBuffer = await this.trackingService.generatePayslipPDF(userId, payslipId);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=payslip-${payslipId.slice(-6)}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
   }
 
   /**
@@ -236,33 +418,102 @@ export class PayrollTrackingController {
   }
 
   /**
-   * Generate Tax Certificate for Employee
-   * POST /payroll-tracking/certificates/tax
-   * Body: { taxYear: number }
+   * Get Time Management Impact on Payroll
+   * GET /payroll-tracking/time-impact/:month/:year
+   * Returns penalties, overtime, and permission data affecting payroll
    */
-  @Post('certificates/tax')
+  @Get('time-impact/:month/:year')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Generate tax certificate' })
-  @ApiResponse({ status: 201, description: 'Tax certificate generated successfully' })
+  @ApiOperation({ summary: 'Get time-related financial impact for a pay period' })
+  @ApiParam({ name: 'month', description: 'Month (1-12)', example: '12' })
+  @ApiParam({ name: 'year', description: 'Year', example: '2024' })
+  @ApiResponse({ status: 200, description: 'Time impact data retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async generateTaxCertificate(@Req() req, @Body('taxYear') taxYear: number) {
+  async getTimeImpactData(
+    @Req() req,
+    @Param('month') month: string,
+    @Param('year') year: string,
+  ) {
     const userId = req.user.sub;
-    return this.trackingService.generateTaxCertificate(userId, taxYear);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    return this.trackingService.getTimeImpactData(userId, monthNum, yearNum);
   }
 
   /**
-   * Generate Insurance Certificate for Employee
+   * Get Enhanced Payslip with Itemized Allowances, Tax, Insurance
+   * GET /payroll-tracking/payslips/:id/enhanced
+   */
+  @Get('payslips/:id/enhanced')
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get enhanced payslip with itemized deductions and allowances' })
+  @ApiParam({ name: 'id', description: 'Payslip ID' })
+  @ApiResponse({ status: 200, description: 'Enhanced payslip data retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Payslip not found' })
+  async getEnhancedPayslip(@Req() req, @Param('id') payslipId: string) {
+    const userId = req.user.sub;
+    return this.trackingService.getEnhancedPayslipData(userId, payslipId);
+  }
+
+  /**
+   * Generate Tax Certificate PDF for Employee
+   * POST /payroll-tracking/certificates/tax
+   * Body: { year?: number } - Optional, defaults to current year
+   */
+  @Post('certificates/tax')
+  @ApiBearerAuth('JWT-auth')
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({ summary: 'Generate and download tax certificate PDF' })
+  @ApiResponse({ status: 201, description: 'Tax certificate PDF generated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'No payslips found for specified year' })
+  async generateTaxCertificate(
+    @Req() req,
+    @Body('year') year: number,
+    @Res() res,
+  ) {
+    const userId = req.user.sub;
+    const pdfBuffer = await this.trackingService.generateTaxCertificate(userId, year);
+
+    const currentYear = year || new Date().getFullYear();
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=tax-certificate-${currentYear}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
+  }
+
+  /**
+   * Generate Insurance Certificate PDF for Employee
    * POST /payroll-tracking/certificates/insurance
-   * Body: { year: number }
+   * Body: { year?: number } - Optional, defaults to current year
    */
   @Post('certificates/insurance')
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Generate insurance certificate' })
-  @ApiResponse({ status: 201, description: 'Insurance certificate generated successfully' })
+  @Header('Content-Type', 'application/pdf')
+  @ApiOperation({ summary: 'Generate and download insurance certificate PDF' })
+  @ApiResponse({ status: 201, description: 'Insurance certificate PDF generated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async generateInsuranceCertificate(@Req() req, @Body('year') year: number) {
+  @ApiResponse({ status: 404, description: 'No payslips found for specified year' })
+  async generateInsuranceCertificate(
+    @Req() req,
+    @Body('year') year: number,
+    @Res() res,
+  ) {
     const userId = req.user.sub;
-    return this.trackingService.generateInsuranceCertificate(userId, year);
+    const pdfBuffer = await this.trackingService.generateInsuranceCertificate(userId, year);
+
+    const currentYear = year || new Date().getFullYear();
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=insurance-certificate-${currentYear}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
   }
 
   /**
@@ -377,7 +628,7 @@ export class PayrollTrackingController {
       payRefundDto.payrollRunId,
     );
   }
-    
+
   // === ELENA END ===
 }
 

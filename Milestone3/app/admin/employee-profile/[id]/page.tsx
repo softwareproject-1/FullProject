@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import RouteGuard from "@/components/RouteGuard";
 import { getEmployeeProfileById, EmployeeProfile, assignEmployeeSystemRoles } from "@/utils/employeeProfileApi";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";

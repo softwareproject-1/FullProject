@@ -13,7 +13,7 @@ export class CreateTerminationBenefitsDto {
   @IsString()
   terms?: string;
 
-  @IsOptional()
-  @IsEnum(ConfigStatus)
-  status?: ConfigStatus;
+  // @IsOptional()
+  // @IsEnum(ConfigStatus)
+  // status?: ConfigStatus;
 }

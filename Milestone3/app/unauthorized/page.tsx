@@ -1,8 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
+import Card from "@/components/ui/card";
+import Button from "@/components/ui/button";
 
 export default function UnauthorizedPage() {
   const router = useRouter();
