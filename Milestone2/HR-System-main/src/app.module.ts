@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ScheduleModule } from '@nestjs/schedule'; // Import ScheduleModule
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TimeManagementModule } from './time-management/time-management.module';
@@ -26,6 +27,7 @@ import { AuthModule } from './auth/auth.module';
         uri: configService.get<string>('DB_URL', 'mongodb+srv://team2:123@cluster0.4mleald.mongodb.net/FullProject?appName=cluster0'),
       }),
     }),
+    ScheduleModule.forRoot(), // Enable Task Scheduling
     AuthModule,
     TimeManagementModule,
     RecruitmentModule,
@@ -40,4 +42,4 @@ import { AuthModule } from './auth/auth.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

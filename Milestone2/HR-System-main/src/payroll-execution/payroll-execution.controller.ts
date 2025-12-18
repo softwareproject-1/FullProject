@@ -1,5 +1,6 @@
 import { Controller, Post, Patch, Body, Get, Param, Req, UseGuards } from '@nestjs/common';
 import { PayrollExecutionService } from './payroll-execution.service';
+import { PayrollSchedulerService } from './payroll-scheduler.service';
 import { AuthenticationGuard } from '../auth/guards/authentication.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -17,7 +18,10 @@ import { UnfreezePayrollDto } from './dto/unfreeze-payroll.dto';
 @Controller('payroll-execution')
 @UseGuards(AuthenticationGuard, RolesGuard) // Apply authentication and role-based authorization to all routes
 export class PayrollExecutionController {
-    constructor(private readonly payrollService: PayrollExecutionService) { }
+    constructor(
+        private readonly payrollService: PayrollExecutionService,
+        private readonly schedulerService: PayrollSchedulerService
+    ) { }
 
     // GANNAH: INITIATION & DRAFT GENERATION
 
@@ -218,5 +222,17 @@ export class PayrollExecutionController {
     @Post('seed/clear')
     async clearTestData() {
         return this.payrollService.clearTestData();
+    }
+
+    // DEBUG: Manually trigger the Automatic Payroll Scheduler
+    // This allows testing the "25th of the month" logic immediately
+    @Post('debug/trigger-scheduler')
+    @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER, SystemRole.SYSTEM_ADMIN)
+    async triggerSchedulerManually() {
+        // We need to access the scheduler method. 
+        // Note: Ideally we should inject PayrollSchedulerService, but to avoid changing the constructor signature 
+        // significantly if not needed, we can just call the service logic directly here or add the dependency.
+        // Let's add the dependency properly.
+        return this.schedulerService.handleMonthlyPayrollRun();
     }
 }
