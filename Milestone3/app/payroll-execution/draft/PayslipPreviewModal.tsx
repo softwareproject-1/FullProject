@@ -32,6 +32,7 @@ interface PayslipData {
   bonuses: number;
   totalDeductions: number;
   netPay: number;
+  terminationPayout?: number;
   minimumWageApplied?: boolean;
 }
 
@@ -49,6 +50,20 @@ export const PayslipPreviewModal: React.FC<PayslipPreviewModalProps> = ({
   if (!payslip) return null;
 
   const totalTax = (payslip.taxBreakdown || []).reduce((sum, t) => sum + t.amount, 0);
+
+  // Proration Calculation (Frontend Derived)
+  const otherEarnings = (payslip.overtimePay || 0) + (payslip.bonuses || 0) + (payslip.terminationPayout || 0);
+  // Expected Gross if NOT Prorated = Base + OtherEarnings
+  const expectedGross = (payslip.baseSalary || 0) + otherEarnings;
+  
+  // Actual Gross comes from backend. If it's less than Expected, the diff is likely Proration (or unpaid leave).
+  // Diff = Expected - Actual
+  const salaryGap = expectedGross - (payslip.grossSalary || 0);
+  
+  // We only show "Proration" if the gap is significant (avoid floating point noise) and positive
+  const isProrated = salaryGap > 1; // Threshold of 1 for rounding errors
+  const prorationAmount = isProrated ? salaryGap : 0;
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -103,6 +118,16 @@ export const PayslipPreviewModal: React.FC<PayslipPreviewModalProps> = ({
                 <span className="text-gray-600">Base Salary</span>
                 <span className="font-medium">${(payslip.baseSalary || 0).toLocaleString()}</span>
               </div>
+              
+              {isProrated && (
+                 <div className="flex justify-between text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                   <div className="flex items-center gap-1">
+                     <TrendingDown className="w-3 h-3" />
+                     <span>Proration / Unpaid Leave</span>
+                   </div>
+                   <span className="font-medium">-${prorationAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                 </div>
+              )}
               {payslip.overtimePay > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Overtime Pay (1.5x)</span>
@@ -113,6 +138,12 @@ export const PayslipPreviewModal: React.FC<PayslipPreviewModalProps> = ({
                 <div className="flex justify-between text-green-600">
                   <span>Bonuses</span>
                   <span className="font-medium">+${(payslip.bonuses || 0).toLocaleString()}</span>
+                </div>
+              )}
+              {payslip.terminationPayout && payslip.terminationPayout > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Termination Payout</span>
+                  <span className="font-medium">+${(payslip.terminationPayout || 0).toLocaleString()}</span>
                 </div>
               )}
               <Separator />

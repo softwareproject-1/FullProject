@@ -3,17 +3,124 @@
 import { useState, useEffect } from 'react';
 import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { timeManagementApi } from '@/services/api';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { formatDistanceToNow } from 'date-fns';
+
+interface Notification {
+  _id: string;
+  to: string;
+  type: string;
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export function Topbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   // Reset image error when user changes
   useEffect(() => {
     setImageError(false);
   }, [user?._id, user?.profilePictureUrl]);
+
+  // Load notifications when user is available
+  useEffect(() => {
+    // Don't load notifications on login page
+    if (pathname === '/auth/login') {
+      return;
+    }
+    
+    if (user?._id) {
+      // Add a small delay to ensure authentication is fully established
+      const timeoutId = setTimeout(() => {
+        loadNotifications();
+      }, 1000);
+      
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(loadNotifications, 30000);
+      return () => {
+        clearTimeout(timeoutId);
+        clearInterval(interval);
+      };
+    }
+  }, [user?._id, pathname]);
+
+  const loadNotifications = async () => {
+    if (!user?._id) return;
+    
+    try {
+      setLoadingNotifications(true);
+      const response = await timeManagementApi.getNotifications(user._id);
+      setNotifications(response.data || []);
+    } catch (error: any) {
+      // Silently handle errors - don't let notification failures break the app
+      // Check if it's a 401/403 - these might happen if user doesn't have access
+      // or if the endpoint doesn't exist yet
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('Notifications not accessible for this user or endpoint not available');
+        setNotifications([]);
+      } else if (error.response?.status === 404) {
+        console.log('Notifications endpoint not found - may not be implemented yet');
+        setNotifications([]);
+      } else {
+        console.error('Error loading notifications:', error);
+        setNotifications([]);
+      }
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'MISSED_PUNCH':
+        return '⏰';
+      case 'ATTENDANCE_CORRECTED':
+        return '✅';
+      case 'EXCEPTION_ESCALATED':
+        return '⚠️';
+      case 'REQUEST_ESCALATED':
+        return '📢';
+      case 'SHIFT_ASSIGNED':
+        return '📅';
+      case 'CORRECTION_APPROVED':
+        return '✓';
+      case 'CORRECTION_REJECTED':
+        return '✗';
+      default:
+        return '🔔';
+    }
+  };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case 'MISSED_PUNCH':
+        return 'bg-yellow-50 border-yellow-200';
+      case 'ATTENDANCE_CORRECTED':
+        return 'bg-green-50 border-green-200';
+      case 'EXCEPTION_ESCALATED':
+      case 'REQUEST_ESCALATED':
+        return 'bg-red-50 border-red-200';
+      case 'CORRECTION_APPROVED':
+        return 'bg-green-50 border-green-200';
+      case 'CORRECTION_REJECTED':
+        return 'bg-red-50 border-red-200';
+      default:
+        return 'bg-blue-50 border-blue-200';
+    }
+  };
 
   // Debug: Log user data to see if profilePictureUrl is present
   useEffect(() => {
@@ -68,10 +175,54 @@ export function Topbar() {
         </div>
         
         <div className="flex items-center gap-4 ml-6">
-          <button className="relative p-2 hover:bg-slate-100 rounded-full transition-colors">
-            <Bell className="w-5 h-5 text-slate-600" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="relative p-2 hover:bg-slate-100 rounded-full transition-colors">
+                <Bell className="w-5 h-5 text-slate-600" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+              <div className="p-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm text-slate-900">Notifications</h3>
+                  {notifications.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {notifications.length}
+                    </Badge>
+                  )}
+                </div>
+                {loadingNotifications ? (
+                  <div className="text-sm text-slate-500 py-4 text-center">Loading...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="text-sm text-slate-500 py-4 text-center">No notifications</div>
+                ) : (
+                  <div className="space-y-2">
+                    {notifications.map((notification) => (
+                      <div
+                        key={notification._id}
+                        className={`p-3 rounded-lg border ${getNotificationColor(notification.type)}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-lg flex-shrink-0">{getNotificationIcon(notification.type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 break-words">
+                              {notification.message || 'New notification'}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           {user ? (
             <div className="flex items-center gap-3 pl-4 border-l border-slate-200">

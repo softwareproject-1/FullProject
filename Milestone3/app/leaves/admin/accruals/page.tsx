@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { AccrualPolicyDto } from '@/lib/types';
 import { leavesApi } from '@/services/api';
 import { employeeProfileApi } from '@/services/api';
+import axios from 'axios';
 
 
 export default function AccrualAdminPage() {
@@ -27,7 +28,7 @@ export default function AccrualAdminPage() {
     // Accrual Policy Form - Aligned with types.ts AccrualPolicyDto
     const [policy, setPolicy] = useState<AccrualPolicyDto>({
         leaveTypeCode: 'lt001',
-        accrualRate: 'MONTHLY',
+        accrualRate: 'monthly',
         carryOverCap: 0,
         resetDateType: 'CALENDAR_YEAR', // Default
         pauseDuringUnpaid: true,
@@ -39,11 +40,17 @@ export default function AccrualAdminPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch employees
-                const empRes = await employeeProfileApi.getAll();
+                // Fetch employees - Use axios directly with query params to get ALL employees
+                // Backend defaults to limit=20, so we pass limit=1000 to fetch all records
+                const empRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/employee-profile`, {
+                    params: { limit: 1000 },
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                });
                 console.log('📦 Raw employee response:', empRes);
 
-                // Handle different response structures
+                // Handle different response structures  
                 const employeeData = Array.isArray(empRes.data) ? empRes.data : (empRes.data?.data || empRes || []);
                 console.log('✅ Found', employeeData.length, 'employees');
 
@@ -88,31 +95,59 @@ export default function AccrualAdminPage() {
     }, []);
 
     const handleSearch = () => {
-        if (!employeeId) {
+        console.log('🔍 Search initiated with term:', employeeId);
+
+        // Trim and validate input
+        const trimmedSearch = employeeId.trim();
+
+        if (!trimmedSearch) {
+            console.log('⚠️ Empty search term, clearing results');
             setSearchResults([]);
+            setSelectedResult(null);
             return;
         }
 
-        // Search in fetched employees
-        const results = employees.filter((emp: any) => {
-            const searchTerm = employeeId.toLowerCase();
-            const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.toLowerCase();
-            const empNumber = (emp.employeeNumber || '').toLowerCase();
-            const empId = (emp._id || '').toLowerCase();
+        console.log('📊 Searching through', employees.length, 'employees');
 
-            return fullName.includes(searchTerm) ||
+        // Search in fetched employees with better edge case handling
+        const results = employees.filter((emp: any) => {
+            const searchTerm = trimmedSearch.toLowerCase();
+
+            // Safely handle potentially undefined/null fields
+            const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim().toLowerCase();
+            const empNumber = String(emp.employeeNumber || '').toLowerCase();
+            const empId = String(emp._id || '').toLowerCase();
+
+            const isMatch = fullName.includes(searchTerm) ||
                 empNumber.includes(searchTerm) ||
                 empId.includes(searchTerm);
+
+            if (isMatch) {
+                console.log('✓ Match found:', { name: fullName, number: empNumber, id: empId });
+            }
+
+            return isMatch;
         });
 
-        setSearchResults(results);
+        console.log(`✅ Search complete: Found ${results.length} matches`);
 
-        // Auto-select if exact match
-        if (results.length === 1) {
+        // Handle different result scenarios
+        if (results.length === 0) {
+            console.warn('❌ No matches found for:', trimmedSearch);
+            setSearchResults([]);
+            setSelectedResult(null); // Clear previous selection
+        } else if (results.length === 1) {
+            console.log('🎯 Exact match, auto-selecting employee');
+            const emp = results[0];
             setSelectedResult({
-                id: results[0]._id,
-                name: `${results[0].firstName} ${results[0].lastName} (${results[0].employeeNumber})`
+                id: emp._id,
+                name: `${emp.firstName} ${emp.lastName} (${emp.employeeNumber})`
             });
+            setSearchResults([]); // Clear dropdown since we auto-selected
+        } else {
+            console.log(`📋 Multiple matches (${results.length}), showing dropdown`);
+            setSearchResults(results);
+            setSelectedResult(null); // Clear any previous selection when showing multiple
         }
     };
 
@@ -149,23 +184,46 @@ export default function AccrualAdminPage() {
                 monthsWorked: Number(monthsWorked),
                 payload
             });
+            //  await leavesApi.configureAccrualPolicy(
+            //     selectedResult.id,
+            //     leaveType,
+            //     Number(monthsWorked),
+            //     payload
+            // );
 
-            await leavesApi.configureAccrualPolicy(
-                selectedResult.id,
-                leaveType,
-                Number(monthsWorked),
-                payload
+            // Get token from localStorage
+            const token = localStorage.getItem('token');
+
+            // Make direct API call with authentication header
+            const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+            await axios.post(
+                `${baseURL}/leaves/accrual/${selectedResult.id}/${leaveType}?monthsWorked=${Number(monthsWorked)}`,
+                payload,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    },
+                    withCredentials: true,
+                }
             );
 
             alert('Accrual policy updated successfully!');
         } catch (error: any) {
             console.error('Failed to save accrual policy:', error);
             console.error('Error response:', error.response);
+            console.error('Error response data:', error.response?.data);
+            console.error('Error message:', error.response?.data?.message);
+            console.error('Full error object:', JSON.stringify(error.response, null, 2));
 
             if (error.response?.status === 404) {
                 alert('Error: Employee or Leave Type not found in database. Please check the IDs.');
             } else if (error.response?.status === 401) {
                 alert('Error: Not authenticated. Please log in again.');
+            } else if (error.response?.status === 400) {
+                const errorMsg = error.response?.data?.message;
+                const fullError = Array.isArray(errorMsg) ? errorMsg.join(', ') : errorMsg || 'Invalid data';
+                alert(`Validation Error: ${fullError}\n\nTip: If this is a contract type error, the employee's contract type in the database might not be valid. Check the console for details.`);
             } else {
                 alert(`Failed to save: ${error.response?.data?.message || error.message || 'Unknown error'}`);
             }
@@ -197,9 +255,15 @@ export default function AccrualAdminPage() {
                     <CardContent className="space-y-4">
                         <div className="flex gap-2">
                             <Input
-                                placeholder="Employee ID..."
+                                placeholder="Employee ID, name, or number..."
                                 value={employeeId}
                                 onChange={(e) => setEmployeeId(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        console.log('⌨️ Enter key pressed, triggering search');
+                                        handleSearch();
+                                    }
+                                }}
                             />
                             <Button onClick={handleSearch} size="icon">
                                 <Search className="h-4 w-4" />
@@ -223,6 +287,15 @@ export default function AccrualAdminPage() {
                                         </p>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+
+                        {/* No Results Feedback */}
+                        {searchResults.length === 0 && employeeId.trim() && !selectedResult && (
+                            <div className="p-4 text-center border rounded-lg bg-slate-50">
+                                <p className="text-sm text-slate-500">
+                                    No employees found matching "{employeeId.trim()}"
+                                </p>
                             </div>
                         )}
 
@@ -312,9 +385,9 @@ export default function AccrualAdminPage() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="MONTHLY">Monthly</SelectItem>
-                                                <SelectItem value="YEARLY">Yearly</SelectItem>
-                                                <SelectItem value="DAILY">Daily</SelectItem>
+                                                <SelectItem value="monthly">Monthly</SelectItem>
+                                                <SelectItem value="yearly">Yearly</SelectItem>
+                                                <SelectItem value="per-term">Per Term</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

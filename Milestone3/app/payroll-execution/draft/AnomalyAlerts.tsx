@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, AlertCircle, TrendingUp, CreditCard, DollarSign } from 'lucide-react';
 
-export type AnomalyType = 'NEGATIVE_NET_PAY' | 'MISSING_BANK_INFO' | 'SALARY_SPIKE' | 'MISSING_TAX_INFO';
+export type AnomalyType = 'NEGATIVE_NET_PAY' | 'MISSING_BANK_INFO' | 'SALARY_SPIKE' | 'MISSING_TAX_INFO' | 'BACKEND_EXCEPTION';
 
 export interface Anomaly {
     type: AnomalyType;
