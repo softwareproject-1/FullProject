@@ -22,6 +22,7 @@ type Assignment = {
   status?: string;
   dueDate?: string;
   employeeRoles?: string[]; // Added to track employee roles for filtering
+  employeeDepartmentId?: string; // Added to track employee department for filtering
 };
 
 type RatingEntry = {
@@ -62,13 +63,55 @@ export default function EvaluateEmployeesPage() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [submittedAppraisalId, setSubmittedAppraisalId] = useState<string | null>(null);
   const [evaluationMode, setEvaluationMode] = useState<'team' | 'department-heads'>('team'); // For HR Admin/System Admin
+  
+  // State for department head's department
+  const [userDepartmentId, setUserDepartmentId] = useState<string | null>(null);
+  const [loadingDepartment, setLoadingDepartment] = useState(false);
+
+  // Fetch department head's department when they log in
+  useEffect(() => {
+    const fetchUserDepartment = async () => {
+      if (!loading && user && isDepartmentHead && user._id && !userDepartmentId) {
+        try {
+          setLoadingDepartment(true);
+          const userProfile = await getEmployeeProfileById(user._id, ['primaryDepartmentId']);
+          
+          // Extract department ID - handle both object and string formats
+          let deptId: string | null = null;
+          if (userProfile.primaryDepartmentId) {
+            if (typeof userProfile.primaryDepartmentId === 'object' && userProfile.primaryDepartmentId !== null) {
+              deptId = String((userProfile.primaryDepartmentId as any)._id || userProfile.primaryDepartmentId);
+            } else {
+              deptId = String(userProfile.primaryDepartmentId);
+            }
+          }
+          
+          setUserDepartmentId(deptId);
+          console.log("Department Head's Department ID for evaluation:", deptId);
+        } catch (err: any) {
+          console.error("Error fetching user department:", err);
+        } finally {
+          setLoadingDepartment(false);
+        }
+      }
+    };
+
+    fetchUserDepartment();
+  }, [loading, user, isDepartmentHead, userDepartmentId]);
 
   useEffect(() => {
     if (!loading && user && canAccess && canEvaluateEmployees && cycleId) {
-      loadAssignments();
+      // For department heads, wait for department to be loaded
+      if (isDepartmentHead && !canEvaluateDepartmentHeads) {
+        if (!loadingDepartment && userDepartmentId !== null) {
+          loadAssignments();
+        }
+      } else {
+        loadAssignments();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading, canAccess, canEvaluateEmployees, cycleId, evaluationMode]);
+  }, [user, loading, canAccess, canEvaluateEmployees, cycleId, evaluationMode, isDepartmentHead, loadingDepartment, userDepartmentId]);
 
   // Ensure key and title are always present in ratings (safety check)
   useEffect(() => {
@@ -105,21 +148,32 @@ export default function EvaluateEmployeesPage() {
             return assignment;
           }
           
-          // Fetch employee profile to get name and roles
+          // Fetch employee profile to get name, roles, and department
           if (assignment.employeeProfileId) {
             try {
-              const employeeProfile = await getEmployeeProfileById(String(assignment.employeeProfileId));
+              const employeeProfile = await getEmployeeProfileById(String(assignment.employeeProfileId), ['primaryDepartmentId']);
               if (employeeProfile) {
                 const firstName = employeeProfile.firstName || '';
                 const middleName = employeeProfile.middleName || '';
                 const lastName = employeeProfile.lastName || '';
                 const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ').trim();
                 
+                // Extract department ID
+                let empDeptId: string | undefined = undefined;
+                if (employeeProfile.primaryDepartmentId) {
+                  if (typeof employeeProfile.primaryDepartmentId === 'object' && employeeProfile.primaryDepartmentId !== null) {
+                    empDeptId = String((employeeProfile.primaryDepartmentId as any)._id || employeeProfile.primaryDepartmentId);
+                  } else {
+                    empDeptId = String(employeeProfile.primaryDepartmentId);
+                  }
+                }
+                
                 return {
                   ...assignment,
                   employeeName: fullName || employeeProfile.employeeNumber || `Employee ${String(assignment.employeeProfileId)}`,
                   employeeNumber: employeeProfile.employeeNumber || assignment.employeeNumber,
                   employeeRoles: employeeProfile.roles || [], // Store roles for filtering
+                  employeeDepartmentId: empDeptId, // Store department ID for filtering
                 };
               }
             } catch (err) {
@@ -132,26 +186,37 @@ export default function EvaluateEmployeesPage() {
         })
       );
       
-      // Fetch roles for assignments that already have names
+      // Fetch roles and department for assignments that already have names but missing data
       const assignmentsWithRoles = await Promise.all(
         assignmentsWithNames.map(async (assignment: Assignment) => {
-          // If we already have roles, return as is
-          if ((assignment as any).employeeRoles) {
+          // If we already have roles and department, return as is
+          if ((assignment as any).employeeRoles && (assignment as any).employeeDepartmentId) {
             return assignment;
           }
           
-          // Fetch employee profile to get roles
+          // Fetch employee profile to get missing data
           if (assignment.employeeProfileId) {
             try {
-              const employeeProfile = await getEmployeeProfileById(String(assignment.employeeProfileId));
+              const employeeProfile = await getEmployeeProfileById(String(assignment.employeeProfileId), ['primaryDepartmentId']);
               if (employeeProfile) {
+                // Extract department ID
+                let empDeptId: string | undefined = undefined;
+                if (employeeProfile.primaryDepartmentId) {
+                  if (typeof employeeProfile.primaryDepartmentId === 'object' && employeeProfile.primaryDepartmentId !== null) {
+                    empDeptId = String((employeeProfile.primaryDepartmentId as any)._id || employeeProfile.primaryDepartmentId);
+                  } else {
+                    empDeptId = String(employeeProfile.primaryDepartmentId);
+                  }
+                }
+                
                 return {
                   ...assignment,
-                  employeeRoles: employeeProfile.roles || [],
+                  employeeRoles: (assignment as any).employeeRoles || employeeProfile.roles || [],
+                  employeeDepartmentId: (assignment as any).employeeDepartmentId || empDeptId,
                 };
               }
             } catch (err) {
-              console.error(`Failed to fetch employee roles for ${assignment.employeeProfileId}:`, err);
+              console.error(`Failed to fetch employee data for ${assignment.employeeProfileId}:`, err);
             }
           }
           
@@ -163,11 +228,25 @@ export default function EvaluateEmployeesPage() {
       let filteredAssignments = assignmentsWithRoles;
       
       if (isDepartmentHead && !canEvaluateDepartmentHeads) {
-        // Department Head: Filter out self-assignments (cannot evaluate themselves)
+        // Department Head: 
+        // 1. Filter to only show employees from the same department
+        // 2. Filter out self-assignments (cannot evaluate themselves)
         filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
           const employeeId = String(assignment.employeeProfileId || assignment.employeeProfileId?._id || '');
           const userId = String(user?._id || '');
-          return employeeId !== userId;
+          
+          // Skip self-assignments
+          if (employeeId === userId) {
+            return false;
+          }
+          
+          // If we have department IDs, check if employee is in the same department
+          if (userDepartmentId && assignment.employeeDepartmentId) {
+            return assignment.employeeDepartmentId === userDepartmentId;
+          }
+          
+          // If no department ID match, exclude (safety check)
+          return false;
         });
       } else if (canEvaluateDepartmentHeads && evaluationMode === 'department-heads') {
         // HR Admin/System Admin: Show only department heads

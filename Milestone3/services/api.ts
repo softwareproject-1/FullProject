@@ -978,6 +978,13 @@ export const timeManagementApi = {
 
     createHoliday: (data: any) =>
         axiosInstance.post('/time-management/holidays', data),
+
+    // Notification methods
+    getNotifications: (employeeId: string) =>
+        axiosInstance.get(`/time-management/notifications/employee/${employeeId}`),
+    
+    checkMissedPunches: () =>
+        axiosInstance.post('/time-management/attendance/missed-punches/check'),
 };
 
 // ============================================================

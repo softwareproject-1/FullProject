@@ -88,16 +88,30 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status === 401) {
       console.error('❌ 401 Unauthorized - Authentication required');
       console.error('💡 You need to be logged in to access this resource');
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+      
+      // Don't redirect on notification endpoints - they might fail for various reasons
+      // and shouldn't break the login flow
+      const url = error.config?.url || '';
+      const isNotificationEndpoint = url.includes('/notifications/');
+      
+      if (typeof window !== 'undefined' && !isNotificationEndpoint) {
+        // Only redirect if we're not already on login page and it's not a notification endpoint
         if (window.location.pathname !== '/auth/login') {
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
           window.location.href = '/auth/login';
         }
       }
     } else if (error.response?.status === 403) {
       console.error('❌ 403 Forbidden - Insufficient permissions');
       console.error('💡 You do not have permission to access this resource');
+      
+      // Don't redirect on notification endpoints for 403 either
+      const url = error.config?.url || '';
+      const isNotificationEndpoint = url.includes('/notifications/');
+      if (isNotificationEndpoint) {
+        console.log('💡 Notification endpoint access denied - this is expected for some users');
+      }
     }
     return Promise.reject(error);
   }
