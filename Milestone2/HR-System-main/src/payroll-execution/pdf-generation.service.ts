@@ -3,6 +3,11 @@ import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface PayslipItem {
+    label: string;
+    amount: number;
+}
+
 export interface PayslipData {
     runId: string;
     period: Date;
@@ -10,18 +15,8 @@ export interface PayslipData {
     employeeId: string;
     department: string;
     bankAccount: string;
-    earnings: {
-        baseSalary: number;
-        allowances: number;
-        bonuses: number;
-        overtime: number;
-    };
-    deductions: {
-        tax: number;
-        insurance: number;
-        penalties: number;
-        unpaidLeave: number;
-    };
+    earnings: PayslipItem[];
+    deductions: PayslipItem[];
     netPay: number;
 }
 
@@ -77,36 +72,33 @@ export class PdfGenerationService {
                 doc.moveDown();
 
                 // 3. Earnings Section
-                this.generateTable(doc, 'EARNINGS', [
-                    { label: 'Base Salary', amount: data.earnings.baseSalary },
-                    { label: 'Allowances', amount: data.earnings.allowances },
-                    { label: 'Bonuses', amount: data.earnings.bonuses },
-                    { label: 'Overtime', amount: data.earnings.overtime },
-                ], 50);
+                this.generateTable(doc, 'EARNINGS', data.earnings, 50);
 
                 // 4. Deductions Section
+                // Calculate where to start deductions (same height as earnings)
+                // However, tables might have different lengths. For simplicity, we keep them separate or side-by-side if they fit.
+                // Let's keep them side-by-side if they fit, or one after another.
+                // Side-by-side is better for space.
+                const tableY = doc.y; // Capture Y before rendering deductions if we wanted side-by-side
+                // Actually generateTable moves doc.y
+
                 doc.moveDown();
-                this.generateTable(doc, 'DEDUCTIONS', [
-                    { label: 'Tax', amount: data.deductions.tax },
-                    { label: 'Insurance', amount: data.deductions.insurance },
-                    { label: 'Penalties', amount: data.deductions.penalties },
-                    { label: 'Unpaid Leave', amount: data.deductions.unpaidLeave },
-                ], 300, true);
+                this.generateTable(doc, 'DEDUCTIONS', data.deductions, 50, true);
 
                 doc.moveDown();
                 doc.moveDown();
 
                 // 5. Totals
-                const totalEarnings = Object.values(data.earnings).reduce((a, b) => a + b, 0);
-                const totalDeductions = Object.values(data.deductions).reduce((a, b) => a + b, 0);
+                const totalEarnings = data.earnings.reduce((a, b) => a + b.amount, 0);
+                const totalDeductions = data.deductions.reduce((a, b) => a + b.amount, 0);
 
                 doc.fontSize(12).font('Helvetica-Bold');
-                doc.text(`Total Earnings: $${totalEarnings.toFixed(2)}`, 50);
-                doc.text(`Total Deductions: $${totalDeductions.toFixed(2)}`, 300);
+                doc.text(`Total Earnings: $${totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 50);
+                doc.text(`Total Deductions: $${totalDeductions.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 50);
 
                 doc.moveDown();
                 doc.fontSize(14).fillColor('blue');
-                doc.text(`NET PAY: $${data.netPay.toFixed(2)}`, { align: 'right' });
+                doc.text(`NET PAY: $${data.netPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, { align: 'right' });
                 doc.fillColor('black');
 
                 // Footer
@@ -132,15 +124,22 @@ export class PdfGenerationService {
         });
     }
 
-    private generateTable(doc: typeof PDFDocument, title: string, rows: { label: string, amount: number }[], x: number, isRightColumn = false) {
+    private generateTable(doc: typeof PDFDocument, title: string, rows: PayslipItem[], x: number, isDeduction = false) {
         doc.fontSize(12).font('Helvetica-Bold').text(title, x);
         doc.moveDown(0.5);
         doc.fontSize(10).font('Helvetica');
 
+        if (rows.length === 0) {
+            doc.text('None', x);
+            doc.moveDown();
+            return;
+        }
+
         rows.forEach(row => {
+            const currentY = doc.y;
             doc.text(row.label, x);
-            doc.text(`$${row.amount.toFixed(2)}`, x + 150, doc.y - 10, { align: 'right', width: 100 });
-            doc.moveDown(0.5);
+            doc.text(`$${row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, x + 300, currentY, { align: 'right', width: 100 });
+            doc.moveDown(0.2);
         });
     }
 }

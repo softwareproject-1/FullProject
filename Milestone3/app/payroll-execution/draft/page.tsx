@@ -355,10 +355,15 @@ function PayrollDraftContent() {
           anomalies: [] as Anomaly[],
         };
 
-        return {
-          ...employeeData,
-          anomalies: detectAnomalies(employeeData),
-        };
+        const anomalies = detectAnomalies(employeeData);
+        if (anomalies.length > 0) {
+          console.log(`⚠️ Anomaly detected for ${employeeName}:`, anomalies);
+          console.log(`   Tax Breakdown length: ${employeeData.taxBreakdown?.length}`);
+          console.log(`   Breakdown data:`, employeeData.taxBreakdown);
+        } else {
+          console.log(`✅ ${employeeName} is clean.`);
+        }
+        return { ...employeeData, anomalies };
       });
 
       // Calculate anomaly statistics
@@ -429,10 +434,9 @@ function PayrollDraftContent() {
   const handlePublishToManager = async () => {
     if (!runId) return;
 
-    // Prevent submission if there are critical anomalies
+    // ALLOW SUBMISSION WITH ANOMALIES (User Requirement)
     if (criticalAnomalies > 0) {
-      toast.error('Cannot publish payroll with critical anomalies. Please resolve all critical issues first.');
-      return;
+      console.warn('Publishing with critical anomalies as requested by user.');
     }
 
     setProcessingAction(true);
@@ -733,7 +737,7 @@ function PayrollDraftContent() {
           {isPayrollSpecialist && !isPayrollManager && (isDraft || isCalculated) && draftData?.totalEmployees > 0 && (
             <Button
               onClick={handlePublishToManager}
-              disabled={processingAction || criticalAnomalies > 0}
+              disabled={processingAction}
               className="bg-blue-600 hover:bg-blue-700"
               title={criticalAnomalies > 0 ? 'Cannot publish: Critical anomalies must be resolved first' : 'Publish payroll to Payroll Manager for review'}
             >

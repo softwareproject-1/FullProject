@@ -40,6 +40,7 @@ interface PayrollRun {
     paymentStatus: string;
     employeeCount: number;
     totalAnomalies?: number;
+    entity?: string;
     createdAt: string;
     createdBy: string;
 }
@@ -315,8 +316,8 @@ export default function PayrollHistoryPage() {
                                                 <div className="text-sm font-semibold text-blue-600">{run.runId}</div>
                                                 <div className="text-xs text-gray-500">{formatPeriod(run.period)}</div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-900">{run.cycleName || 'Company A (US)'}</span>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {run.entity || 'Company A (US)'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <Badge
@@ -342,7 +343,7 @@ export default function PayrollHistoryPage() {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-900">{run.createdBy || 'Sarah Johnson'}</div>
+                                                <div className="text-sm text-gray-900">{run.createdBy}</div>
                                                 <div className="text-xs text-gray-500">
                                                     {new Date(run.createdAt).toLocaleDateString()}
                                                 </div>
