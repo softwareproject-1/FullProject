@@ -2,8 +2,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import RouteGuard from "@/components/RouteGuard";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 
@@ -105,7 +105,7 @@ export default function RecruiterPage() {
                 {canViewCandidates && (
                   <Button 
                     onClick={() => router.push("/admin/employee-profile")} 
-                    variant="primary" 
+                    variant="default" 
                     className="w-full"
                   >
                     Manage Candidates
@@ -116,7 +116,7 @@ export default function RecruiterPage() {
                 {canCreateCandidate && (
                   <Button 
                     onClick={() => router.push("/admin/employee-profile/candidates/new")} 
-                    variant="primary" 
+                    variant="default" 
                     className="w-full"
                   >
                     Create New Candidate

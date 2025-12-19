@@ -15,14 +15,14 @@ import { Public } from './decorators/public.decorator';
 export class AuthController {
   constructor(
     private authService: AuthService,
-  ) {}
+  ) { }
 
   @Public()
   @Post('login')
-  async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res) {
+  async signIn(@Body() signInDto: LoginDto, @Res({ passthrough: true }) res, @Req() req) {
     try {
       const identifier = signInDto.workEmail || signInDto.personalEmail || signInDto.nationalId;
-      
+
       if (!identifier) {
         throw new HttpException(
           {
@@ -35,16 +35,24 @@ export class AuthController {
 
       const result = await this.authService.signIn(identifier, signInDto.password);
 
+      // Determine if we need cross-site cookies (Vercel -> Render)
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+      const requestOrigin = req.headers?.origin || '';
+      const isCrossSite = requestOrigin.includes('vercel.app') || isProduction;
+
+      console.log('Login Cookie Setup:', { isProduction, requestOrigin, isCrossSite });
+
       res.cookie('token', result.access_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isCrossSite, // Must be true for SameSite=None
+        sameSite: isCrossSite ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Login successful',
+        access_token: result.access_token,  // Include token in response for frontend localStorage
         user: result.payload,
       };
     } catch (error) {
@@ -55,7 +63,7 @@ export class AuthController {
         name: error?.name,
         code: error?.code,
       });
-      
+
       if (error instanceof HttpException) {
         throw error;
       }
@@ -152,12 +160,12 @@ export class AuthController {
 
   private getConflictField(message: string): string | null {
     if (!message) return null;
-    
+
     if (message.includes('National ID')) return 'nationalId';
     if (message.includes('Employee number')) return 'employeeNumber';
     if (message.includes('Work email')) return 'workEmail';
     if (message.includes('email')) return 'workEmail';
-    
+
     return null;
   }
 
@@ -167,7 +175,7 @@ export class AuthController {
     try {
       const userId = req.user.sub;
       const employeeProfile = await this.authService.findById(userId);
-      
+
       if (!employeeProfile) {
         throw new HttpException(
           {
@@ -180,11 +188,23 @@ export class AuthController {
 
       // Fetch fresh roles from database instead of using JWT token roles
       const freshRoles = await this.authService.getUserRoles(userId);
-      
+
       console.log('GET /auth/me - User ID:', userId);
       console.log('GET /auth/me - JWT roles:', req.user.roles);
       console.log('GET /auth/me - Fresh roles from DB:', freshRoles.roles);
       console.log('GET /auth/me - Fresh permissions from DB:', freshRoles.permissions);
+
+      // Use JWT roles as fallback if database lookup returns empty
+      // This ensures the user's roles are always available even if DB query fails
+      const roles = freshRoles.roles && freshRoles.roles.length > 0
+        ? freshRoles.roles
+        : (req.user.roles || []);
+
+      const permissions = freshRoles.permissions && freshRoles.permissions.length > 0
+        ? freshRoles.permissions
+        : (req.user.permissions || []);
+
+      console.log('GET /auth/me - Final roles being returned:', roles);
 
       return {
         id: employeeProfile._id,
@@ -197,8 +217,8 @@ export class AuthController {
         workEmail: employeeProfile.workEmail,
         mobilePhone: employeeProfile.mobilePhone,
         profilePictureUrl: employeeProfile.profilePictureUrl,
-        roles: freshRoles.roles || [],
-        permissions: freshRoles.permissions || [],
+        roles: roles,
+        permissions: permissions,
         status: employeeProfile.status,
       };
     } catch (error) {
@@ -218,11 +238,16 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthenticationGuard)
-  logout(@Res({ passthrough: true }) res) {
+  logout(@Res({ passthrough: true }) res, @Req() req) {
+    // Determine if we need cross-site cookies (Vercel -> Render)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+    const requestOrigin = req.headers?.origin || '';
+    const isCrossSite = requestOrigin.includes('vercel.app') || isProduction;
+    
     res.cookie('token', '', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isCrossSite,
+      sameSite: isCrossSite ? 'none' : 'lax',
       expires: new Date(0),
     });
 

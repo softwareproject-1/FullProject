@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { financeStaffApi, DisputeDto } from '@/services/api';
@@ -21,6 +22,7 @@ export default function FinanceDisputeProcessPage() {
     const [dispute, setDispute] = useState<DisputeDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [refundAmount, setRefundAmount] = useState<string>('');
 
     useEffect(() => {
         fetchDispute();
@@ -40,9 +42,16 @@ export default function FinanceDisputeProcessPage() {
     };
 
     const handleProcess = async () => {
+        // Validate refund amount
+        const amount = parseFloat(refundAmount);
+        if (!refundAmount || isNaN(amount) || amount <= 0) {
+            toast.error('Please enter a valid refund amount greater than 0');
+            return;
+        }
+
         setSubmitting(true);
         try {
-            await financeStaffApi.processDisputeRefund(disputeId);
+            await financeStaffApi.processDisputeRefund(disputeId, amount);
             toast.success('Refund processed successfully - Status updated to COMPLETED');
             router.push('/payroll/payroll-tracking/finance/disputes');
         } catch (err: any) {
@@ -220,23 +229,43 @@ export default function FinanceDisputeProcessPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex gap-3">
-                        <Button
-                            onClick={handleProcess}
-                            disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                        >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            {submitting ? 'Processing...' : 'Process Refund'}
-                        </Button>
-                        <Button
-                            onClick={handleReject}
-                            disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
-                            variant="destructive"
-                        >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Reject
-                        </Button>
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="refundAmount">Refund Amount ($)</Label>
+                            <Input
+                                id="refundAmount"
+                                type="number"
+                                placeholder="Enter refund amount"
+                                value={refundAmount}
+                                onChange={(e) => setRefundAmount(e.target.value)}
+                                min="0"
+                                step="0.01"
+                                className="mt-1"
+                                disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
+                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                                Enter the amount to refund to the employee's next payslip
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                onClick={handleProcess}
+                                disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                            >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                {submitting ? 'Processing...' : 'Process Refund'}
+                            </Button>
+                            <Button
+                                onClick={handleReject}
+                                disabled={submitting || (dispute.status !== 'APPROVED' && dispute.status !== 'approved')}
+                                variant="destructive"
+                            >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Reject
+                            </Button>
+                        </div>
                     </div>
                     {(dispute.status !== 'APPROVED' && dispute.status !== 'approved') && (
                         <p className="text-sm text-amber-600 mt-3">

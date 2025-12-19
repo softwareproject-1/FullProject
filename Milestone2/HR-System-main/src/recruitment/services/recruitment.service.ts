@@ -12,7 +12,9 @@ import { AssessmentResult, AssessmentResultDocument } from '../models/assessment
 import { Referral, ReferralDocument } from '../models/referral.schema';
 import { Offer, OfferDocument } from '../models/offer.schema';
 import { Contract, ContractDocument } from '../models/contract.schema';
-import { EmployeeProfile } from '../../employee-profile/models/employee-profile.schema';
+import { Document, DocumentDocument } from '../models/document.schema';
+import { EmployeeProfile, EmployeeProfileDocument } from '../../employee-profile/models/employee-profile.schema';
+import { Candidate, CandidateDocument } from '../../employee-profile/models/candidate.schema';
 import { ShiftAssignment } from '../../time-management/models/shift-assignment.schema';
 import { Shift } from '../../time-management/models/shift.schema';
 import { NotificationLog, NotificationLogDocument } from '../../time-management/models/notification-log.schema';
@@ -21,6 +23,7 @@ import { NotificationLog, NotificationLogDocument } from '../../time-management/
 import { ApplicationStage } from '../enums/application-stage.enum';
 import { ApplicationStatus } from '../enums/application-status.enum';
 import { InterviewStatus } from '../enums/interview-status.enum';
+import { DocumentType } from '../enums/document-type.enum';
 import { ApprovalStatus } from '../enums/approval-status.enum';
 import { OfferFinalStatus } from '../enums/offer-final-status.enum';
 import { OfferResponseStatus } from '../enums/offer-response-status.enum';
@@ -82,10 +85,13 @@ export class RecruitmentService {
     @InjectModel(Referral.name) private referralModel: Model<ReferralDocument>,
     @InjectModel(Offer.name) private offerModel: Model<OfferDocument>,
     @InjectModel(Contract.name) private contractModel: Model<ContractDocument>,
+    @InjectModel(Document.name) private documentModel: Model<DocumentDocument>,
     @InjectModel(NotificationLog.name) private notificationLogModel: Model<NotificationLogDocument>,
+    @InjectModel(EmployeeProfile.name) private employeeProfileModel: Model<EmployeeProfileDocument>,
+    @InjectModel(Candidate.name) private candidateModel: Model<CandidateDocument>,
     private readonly organizationStructureService: OrganizationStructureService,
     private readonly onboardingService: OnboardingService,
-  ) {}
+  ) { }
 
   // ==================== REC-003: Job Description Templates ====================
 
@@ -138,14 +144,14 @@ export class RecruitmentService {
   getStageProgressByName(stageName: string): { stage: string; progress: number; mappedTo: ApplicationStage } {
     const normalizedName = stageName.toLowerCase().trim();
     const mappedStage = this.stageNameMapping[normalizedName];
-    
+
     if (!mappedStage) {
       const validStages = Object.keys(this.stageNameMapping).join(', ');
       throw new NotFoundException(
         `Stage '${stageName}' not found. Valid stages: ${validStages}`
       );
     }
-    
+
     return {
       stage: stageName,
       progress: this.stageProgressMap[mappedStage],
@@ -209,11 +215,11 @@ export class RecruitmentService {
   async previewJobPosting(id: string): Promise<{ requisition: JobRequisitionDocument; template: JobTemplateDocument | null }> {
     const requisition = await this.getJobRequisitionById(id);
     let template: JobTemplateDocument | null = null;
-    
+
     if (requisition.templateId) {
       template = await this.jobTemplateModel.findById(requisition.templateId).exec();
     }
-    
+
     return { requisition, template };
   }
 
@@ -222,11 +228,11 @@ export class RecruitmentService {
     if (!requisition) {
       throw new NotFoundException(`Job requisition with ID ${id} not found`);
     }
-    
+
     if (requisition.publishStatus === 'published') {
       throw new BadRequestException('Job is already published');
     }
-    
+
     requisition.publishStatus = 'published';
     requisition.postingDate = new Date();
     return requisition.save();
@@ -237,7 +243,7 @@ export class RecruitmentService {
     if (!requisition) {
       throw new NotFoundException(`Job requisition with ID ${id} not found`);
     }
-    
+
     requisition.publishStatus = 'closed';
     return requisition.save();
   }
@@ -260,17 +266,51 @@ export class RecruitmentService {
       throw new BadRequestException('Cannot apply to a job that is not published');
     }
 
+    // Resolve the correct candidateId
+    // The frontend may pass EmployeeProfile ID (from user.id when logged in)
+    // We need to find the corresponding Candidate profile
+    let resolvedCandidateId = dto.candidateId;
+
+    // First, check if the provided ID is a Candidate ID
+    let candidate = await this.candidateModel.findById(dto.candidateId).exec();
+    
+    if (!candidate) {
+      // Not a candidate ID - try to find by EmployeeProfile ID
+      // Look up the EmployeeProfile first to get nationalId
+      const employeeProfile = await this.employeeProfileModel.findById(dto.candidateId).exec();
+      
+      if (employeeProfile) {
+        // Find the Candidate with matching nationalId
+        candidate = await this.candidateModel.findOne({ 
+          nationalId: employeeProfile.nationalId 
+        }).exec();
+        
+        if (candidate) {
+          resolvedCandidateId = candidate._id.toString();
+          console.log(`Resolved candidateId from EmployeeProfile: ${dto.candidateId} -> ${resolvedCandidateId}`);
+        } else {
+          // No matching candidate found - create a minimal error message
+          throw new BadRequestException(
+            `No candidate profile found for this user. Please ensure your candidate registration is complete.`
+          );
+        }
+      } else {
+        // Neither Candidate nor EmployeeProfile found
+        throw new BadRequestException(`Invalid candidate ID: ${dto.candidateId}`);
+      }
+    }
+
     const existingApplication = await this.applicationModel.findOne({
-      candidateId: new Types.ObjectId(dto.candidateId),
+      candidateId: new Types.ObjectId(resolvedCandidateId),
       requisitionId: new Types.ObjectId(dto.requisitionId),
     }).exec();
-    
+
     if (existingApplication) {
       throw new BadRequestException('Candidate has already applied for this position');
     }
 
     const application = new this.applicationModel({
-      candidateId: new Types.ObjectId(dto.candidateId),
+      candidateId: new Types.ObjectId(resolvedCandidateId),
       requisitionId: new Types.ObjectId(dto.requisitionId),
       assignedHr: dto.assignedHr ? new Types.ObjectId(dto.assignedHr) : undefined,
       currentStage: ApplicationStage.SCREENING,
@@ -293,11 +333,36 @@ export class RecruitmentService {
   }
 
   async getAllApplications(): Promise<ApplicationDocument[]> {
-    return this.applicationModel
+    const applications = await this.applicationModel
       .find()
       .populate('candidateId')
       .populate('requisitionId')
       .exec();
+
+    // Helper function to extract candidateId string whether populated or not
+    const getCandidateIdString = (candidateId: any): string | null => {
+      if (!candidateId) return null;
+      // If populated, candidateId is an object with _id
+      if (candidateId._id) return candidateId._id.toString();
+      // If not populated, candidateId is the ObjectId directly
+      return candidateId.toString();
+    };
+
+    // REC-030: Get ALL referrals from database
+    const allReferrals = await this.referralModel.find().exec();
+    
+    // Create a Set of all referred candidate IDs for fast lookup
+    const referredCandidateIds = new Set(
+      allReferrals.map(ref => ref.candidateId.toString())
+    );
+
+    // Mark applications as referrals - add isReferral property dynamically
+    return applications.map(app => {
+      const appObj: any = app.toObject();
+      const candIdStr = getCandidateIdString(app.candidateId);
+      appObj.isReferral = candIdStr && referredCandidateIds.has(candIdStr);
+      return appObj;
+    }) as ApplicationDocument[];
   }
 
   async getApplicationsByRequisition(requisitionId: string): Promise<ApplicationDocument[]> {
@@ -310,7 +375,12 @@ export class RecruitmentService {
   async getApplicationsByCandidate(candidateId: string): Promise<ApplicationDocument[]> {
     return this.applicationModel
       .find({ candidateId: new Types.ObjectId(candidateId) })
-      .populate('requisitionId')
+      .populate({
+        path: 'requisitionId',
+        populate: {
+          path: 'templateId',
+        },
+      })
       .exec();
   }
 
@@ -360,8 +430,8 @@ export class RecruitmentService {
       .exec();
   }
 
-  async getApplicationProgress(applicationId: string): Promise<{ 
-    stage: ApplicationStage; 
+  async getApplicationProgress(applicationId: string): Promise<{
+    stage: ApplicationStage;
     progress: number;
     status: ApplicationStatus;
     stagesCompleted: ApplicationStage[];
@@ -370,7 +440,7 @@ export class RecruitmentService {
     const application = await this.getApplicationById(applicationId);
     const allStages = this.getAllStagesWithProgress();
     const currentStageIndex = allStages.findIndex(s => s.stage === application.currentStage);
-    
+
     return {
       stage: application.currentStage,
       progress: this.getStageProgress(application.currentStage),
@@ -495,7 +565,7 @@ export class RecruitmentService {
     const interview = await this.interviewModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .exec();
-    
+
     if (!interview) {
       throw new NotFoundException(`Interview with ID ${id} not found`);
     }
@@ -591,7 +661,7 @@ export class RecruitmentService {
   async getAverageInterviewScore(interviewId: string): Promise<number> {
     const feedback = await this.getInterviewFeedback(interviewId);
     if (feedback.length === 0) return 0;
-    
+
     const totalScore = feedback.reduce((sum, f) => sum + f.score, 0);
     return Math.round((totalScore / feedback.length) * 100) / 100;
   }
@@ -701,7 +771,7 @@ export class RecruitmentService {
     progress: Awaited<ReturnType<typeof this.getRecruitmentProgress>>;
   }>> {
     const requisitions = await this.jobRequisitionModel.find().populate('templateId').exec();
-    
+
     const progressList = await Promise.all(
       requisitions.map(async (req) => ({
         requisitionId: req._id.toString(),
@@ -1203,12 +1273,39 @@ export class RecruitmentService {
       .exec();
   }
 
-  async getAllContracts(): Promise<ContractDocument[]> {
-    return this.contractModel
+  async getAllContracts(): Promise<any[]> {
+    const contracts = await this.contractModel
       .find()
-      .populate('offerId')
+      .populate({
+        path: 'offerId',
+        populate: {
+          path: 'candidateId',
+          model: 'Candidate',
+        },
+      })
       .sort({ createdAt: -1 })
       .exec();
+
+    // Map contracts to include candidate name
+    return contracts.map((contract) => {
+      const offer = contract.offerId as any;
+      const candidate = offer?.candidateId;
+      return {
+        _id: contract._id,
+        contractId: contract._id?.toString(),
+        offerId: offer?._id?.toString(),
+        candidateId: candidate?._id?.toString(),
+        candidateName: candidate ? `${candidate.firstName} ${candidate.lastName}` : 'Unknown',
+        role: contract.role || offer?.role || 'N/A',
+        grossSalary: contract.grossSalary,
+        signingBonus: contract.signingBonus,
+        benefits: contract.benefits,
+        acceptanceDate: contract.acceptanceDate,
+        employeeSignedAt: contract.employeeSignedAt,
+        employerSignedAt: contract.employerSignedAt,
+        isFullySigned: !!(contract.employeeSignedAt && contract.employerSignedAt),
+      };
+    });
   }
 
   // ==================== Private Helper Methods ====================
@@ -1328,6 +1425,32 @@ export class RecruitmentService {
     const result = await this.validateDepartment(departmentName);
     return result.department;
   }
+
+  // ==================== Document Upload (REC-007) ====================
+
+  /**
+   * Upload a CV document for a candidate
+   * Returns the document record with filePath that can be used as resumeUrl
+   */
+  async uploadCVDocument(candidateId: string, filePath: string): Promise<DocumentDocument> {
+    const document = new this.documentModel({
+      ownerId: new Types.ObjectId(candidateId),
+      type: DocumentType.CV,
+      filePath: filePath,
+      uploadedAt: new Date(),
+    });
+
+    return document.save();
+  }
+
+  /**
+   * Get all documents for a candidate
+   */
+  async getCandidateDocuments(candidateId: string): Promise<DocumentDocument[]> {
+    return this.documentModel
+      .find({ ownerId: new Types.ObjectId(candidateId) })
+      .exec();
+  }
 }
 
 @Injectable()
@@ -1344,7 +1467,7 @@ export class InterviewStatusService {
 
     @InjectModel(Interview.name)
     private interviewModel: Model<Interview>,
-  ) {}
+  ) { }
 
   async getInterviewerStatus(employeeId: string) {
     const id = new Types.ObjectId(employeeId);

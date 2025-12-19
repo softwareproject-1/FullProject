@@ -15,14 +15,14 @@
  */
 
 import { OnboardingTaskStatus } from '../enums/onboarding-task-status.enum';
-import { 
-  IsString, 
-  IsNotEmpty, 
-  IsOptional, 
-  IsBoolean, 
-  IsArray, 
-  IsNumber, 
-  ValidateNested, 
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsNumber,
+  ValidateNested,
   ArrayMinSize,
   IsDate
 } from 'class-validator';
@@ -401,6 +401,11 @@ export class OnboardingTrackerDto {
   employeeName?: string;
 
   /**
+   * Employee Number (for display)
+   */
+  employeeNumber?: string;
+
+  /**
    * All tasks
    */
   tasks: OnboardingTaskDto[];
@@ -728,11 +733,18 @@ export class UploadSignedContractDto {
   contractId: string;
 
   /**
-   * File path to the signed contract
+   * File path to the signed contract (optional, use signatureUrl if not provided)
    */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  filePath: string;
+  filePath?: string;
+
+  /**
+   * Signature URL (from frontend - can be used as filePath)
+   */
+  @IsOptional()
+  @IsString()
+  signatureUrl?: string;
 
   /**
    * Employee signature URL/path
@@ -740,6 +752,13 @@ export class UploadSignedContractDto {
   @IsOptional()
   @IsString()
   employeeSignatureUrl?: string;
+
+  /**
+   * When the contract was signed
+   */
+  @IsOptional()
+  @IsString()
+  signedAt?: string;
 }
 
 /**
@@ -761,11 +780,25 @@ export class UploadOnboardingFormDto {
   formType: string;
 
   /**
-   * File path
+   * File path (optional - use formUrl if not provided)
    */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  filePath: string;
+  filePath?: string;
+
+  /**
+   * Form URL (from frontend - can be used as filePath)
+   */
+  @IsOptional()
+  @IsString()
+  formUrl?: string;
+
+  /**
+   * File name (from frontend)
+   */
+  @IsOptional()
+  @IsString()
+  fileName?: string;
 
   /**
    * Task index this form is for (if applicable)
@@ -893,12 +926,17 @@ export class SystemProvisioningStatusDto {
   /**
    * Status
    */
-  status: 'not_started' | 'pending' | 'provisioned' | 'failed' | 'revoked';
+  status: 'not_started' | 'pending' | 'scheduled' | 'provisioned' | 'failed' | 'revoked';
 
   /**
    * Provisioned at
    */
   provisionedAt?: Date;
+
+  /**
+   * Scheduled for (when provisioning is scheduled to occur)
+   */
+  scheduledFor?: Date;
 
   /**
    * Error message if failed
@@ -910,6 +948,7 @@ export class SystemProvisioningStatusDto {
    */
   details?: Record<string, any>;
 }
+
 
 /**
  * DTO for overall provisioning status
@@ -928,7 +967,8 @@ export class ProvisioningStatusDto {
   /**
    * Overall status
    */
-  overallStatus: 'not_started' | 'in_progress' | 'completed' | 'failed';
+  overallStatus: 'not_started' | 'scheduled' | 'in_progress' | 'completed' | 'failed';
+
 
   /**
    * Individual system statuses
@@ -1378,11 +1418,19 @@ export class InitiatePayrollDto {
   contractId: string;
 
   /**
-   * Effective date (usually contract signing date or start date)
+   * Employee ID (optional - can be derived from onboarding)
    */
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  /**
+   * Effective date (optional - defaults to contract signing date or start date)
+   */
+  @IsOptional()
   @Type(() => Date)
   @IsDate()
-  effectiveDate: Date;
+  effectiveDate?: Date;
 
   /**
    * Payroll cycle to start in
@@ -1392,10 +1440,11 @@ export class InitiatePayrollDto {
   payrollCycle?: 'current' | 'next';
 
   /**
-   * Pro-rate first salary
+   * Pro-rate first salary (defaults to true)
    */
+  @IsOptional()
   @IsBoolean()
-  proRateFirstSalary: boolean;
+  proRateFirstSalary?: boolean;
 }
 
 /**

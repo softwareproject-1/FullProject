@@ -8,8 +8,8 @@ import { LeavePolicy, LeavePolicySchema } from './schemas/leave-policy.schema';
 import { LeaveEntitlement, LeaveEntitlementSchema } from './schemas/leave-entitlement.schema';
 import { LeaveCategory, LeaveCategorySchema } from './schemas/leave-category.schema';
 import { LeaveAdjustment, LeaveAdjustmentSchema } from './schemas/leave-adjustment.schema';
-import { Calendar, CalendarSchema} from './schemas/calendar.schema';
-import { Attachment,AttachmentSchema } from './schemas/attachment.schema';
+import { Calendar, CalendarSchema } from './schemas/calendar.schema';
+import { Attachment, AttachmentSchema } from './schemas/attachment.schema';
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
 import { TimeManagementModule } from '../time-management/time-management.module';
 // Seif's work - Additional imports
@@ -24,17 +24,17 @@ import { EmployeeProfile, EmployeeProfileSchema } from '../employee-profile/mode
 import { PositionAssignment, PositionAssignmentSchema } from '../organization-structure/models/position-assignment.schema';
 
 @Module({
-  imports:[
+  imports: [
     MongooseModule.forFeature([
       // Omar's work - Original schemas
-      {name:LeaveType.name,schema:LeaveTypeSchema},
-      {name:LeaveRequest.name, schema: LeaveRequestSchema},
-      {name:LeavePolicy.name, schema:LeavePolicySchema},
-      {name:LeaveEntitlement.name, schema:LeaveEntitlementSchema},
-      {name: LeaveCategory.name, schema:LeaveCategorySchema},
-      {name: LeaveAdjustment.name, schema:LeaveAdjustmentSchema},
-      {name:Calendar.name, schema:CalendarSchema},
-      {name:Attachment.name, schema: AttachmentSchema},
+      { name: LeaveType.name, schema: LeaveTypeSchema },
+      { name: LeaveRequest.name, schema: LeaveRequestSchema },
+      { name: LeavePolicy.name, schema: LeavePolicySchema },
+      { name: LeaveEntitlement.name, schema: LeaveEntitlementSchema },
+      { name: LeaveCategory.name, schema: LeaveCategorySchema },
+      { name: LeaveAdjustment.name, schema: LeaveAdjustmentSchema },
+      { name: Calendar.name, schema: CalendarSchema },
+      { name: Attachment.name, schema: AttachmentSchema },
       // Seif's work - Additional schemas
       { name: employeePenalties.name, schema: employeePenaltiesSchema },
       { name: payGrade.name, schema: payGradeSchema },
@@ -49,11 +49,11 @@ import { PositionAssignment, PositionAssignmentSchema } from '../organization-st
     forwardRef(() => EmployeeProfileModule),
     forwardRef(() => TimeManagementModule),
     // Seif's work - Additional module import
-    forwardRef(() => PayrollExecutionModule)
+    //forwardRef(() => PayrollExecutionModule)
   ],
   controllers: [LeavesController],
   providers: [LeavesService],
-  exports:[LeavesService]
+  exports: [LeavesService]
 })
-export class LeavesModule {}
+export class LeavesModule { }
 

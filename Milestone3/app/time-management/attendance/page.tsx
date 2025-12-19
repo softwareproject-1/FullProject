@@ -810,7 +810,9 @@ export default function AttendancePage() {
                         <div className="flex items-center gap-2">
                           {employeeName}
                           {isLate && (
-                            <AlertTriangle className="w-4 h-4 text-amber-500" title="Employee punched in after shift start time" />
+                            <span title="Employee punched in after shift start time">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                            </span>
                           )}
                         </div>
                       </td>

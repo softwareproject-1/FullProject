@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import axiosInstance from "@/utils/ApiClient";
 import { isSystemAdmin } from "@/utils/roleUtils";
 
@@ -113,7 +113,7 @@ export default function AdminDebugPage() {
               </div>
             </div>
 
-            <Button onClick={() => window.location.href = "/admin"} variant="primary" className="w-full">
+            <Button onClick={() => window.location.href = "/admin"} variant="default" className="w-full">
               Try Accessing Admin Dashboard
             </Button>
           </div>

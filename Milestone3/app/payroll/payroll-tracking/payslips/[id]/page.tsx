@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { payrollTrackingApi, PayslipDto } from '@/services/api';
+import { payrollTrackingApi, EnhancedPayslipDataDto } from '@/services/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ export default function PayslipDetailPage() {
     const router = useRouter();
     const payslipId = params.id as string;
 
-    const [payslip, setPayslip] = useState<PayslipDto | null>(null);
+    const [payslip, setPayslip] = useState<EnhancedPayslipDataDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -25,28 +25,16 @@ export default function PayslipDetailPage() {
 
             try {
                 setLoading(true);
-                console.log('🔍 DEBUG: Fetching payslip from API...');
-                const response = await payrollTrackingApi.getPayslipById(payslipId);
+                console.log('🔍 DEBUG: Fetching enhanced payslip from API...');
+                const response = await payrollTrackingApi.getEnhancedPayslip(payslipId);
                 console.log('🔍 DEBUG: API response successful');
-                setPayslip(response.data);
+                setPayslip(response.data.data);
             } catch (err: any) {
                 console.error('🔍 DEBUG: Error fetching payslip:', err);
-                // Use mock data fallback on auth errors AND 404 (backend route not found)
-                if (err.response?.status === 401 || err.response?.status === 403 || err.response?.status === 404) {
-                    console.log('🔍 DEBUG: Using mock data fallback...');
-                    const { MOCK_PAYSLIPS } = await import('@/lib/mockData');
-                    const mockPayslip = MOCK_PAYSLIPS.find(p => p._id === payslipId);
-                    if (mockPayslip) {
-                        console.log('🔍 DEBUG: Mock payslip found:', mockPayslip._id);
-                        setPayslip(mockPayslip as PayslipDto);
-                        setError(null);
-                    } else {
-                        console.log('🔍 DEBUG: Mock payslip NOT found');
-                        setError('Payslip not found');
-                    }
-                } else {
-                    setError(err.response?.data?.message || 'Failed to load payslip');
-                }
+                // Note: Enhanced payslip requires real backend, fallback not available
+                console.error('🔍 DEBUG: Error details:', err);
+                setError(err.response?.data?.message || 'Failed to load payslip details');
+
             } finally {
                 setLoading(false);
                 console.log('🔍 DEBUG: Page load complete');
@@ -89,26 +77,20 @@ export default function PayslipDetailPage() {
     }
 
 
-    // Extract data from mock data structure
-    // Mock data has: earnings: { baseSalary, allowances[], bonuses[], benefits[], refunds[] }
-    // Mock data has: deductions: { taxes[], insurance[], penalties: { penalties[] } }
-    const baseSalary = payslip.earnings.baseSalary;
-    const allowances = payslip.earnings.allowances || [];
-    const bonuses = payslip.earnings.bonuses || [];
-    const benefits = payslip.earnings.benefits || [];
-    const refunds = payslip.earnings.refunds || [];
+    // Extract data from enhanced payslip structure
+    const baseSalary = payslip.baseSalary;
+    const allowances = payslip.allowances || [];
+    const bonuses: any[] = []; // Enhanced payslip doesn't have bonuses array currently
+    const benefits: any[] = []; // Enhanced payslip doesn't have benefits array currently
+    const refunds: any[] = []; // Enhanced payslip doesn't have refunds array currently
 
-    const taxDeductions = payslip.deductions.taxes || [];
-    const insuranceDeductions = payslip.deductions.insurance || [];
-    const penalties = payslip.deductions.penalties?.penalties || [];
+    const taxDeductions = payslip.taxDeductions || [];
+    const insuranceDeductions = payslip.insuranceDeductions || [];
+    const penalties: any[] = []; // Penalties are handled via timeBasedPenalties number
 
-    // Calculate employer contributions from insurance
-    const employerContributions = insuranceDeductions.map(ins => ({
-        ...ins,
-        employeeAmount: (baseSalary * ins.employeeRate) / 100,
-        employerAmount: (baseSalary * ins.employerRate) / 100
-    }));
-    const totalEmployerContributions = employerContributions.reduce((sum, c) => sum + c.employerAmount, 0);
+    // Employer contributions are already calculated in enhanced payslip
+    const employerContributions = payslip.employerContributions || [];
+    const totalEmployerContributions = payslip.totalEmployerContributions || 0;
 
     return (
         <div className="space-y-6">
@@ -122,7 +104,7 @@ export default function PayslipDetailPage() {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Payslip Details</h1>
                         <p className="text-sm text-slate-600">
-                            Period: {new Date(payslip.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                            Period: {payslip.month} {payslip.year}
                         </p>
                     </div>
                 </div>
@@ -144,7 +126,7 @@ export default function PayslipDetailPage() {
                     <CardHeader className="pb-3">
                         <CardDescription>Gross Salary</CardDescription>
                         <CardTitle className="text-2xl">
-                            ${payslip.totalGrossSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${payslip.grossPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -186,7 +168,7 @@ export default function PayslipDetailPage() {
                     {refunds.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold text-green-700">Leave Compensation & Refunds</h3>
-                            {refunds.map((refund, idx) => (
+                            {refunds.map((refund: any, idx: number) => (
                                 <div key={idx} className="flex justify-between items-center py-2 bg-green-50 px-3 rounded">
                                     <div>
                                         <p className="font-medium text-green-800">{refund.description}</p>
@@ -203,7 +185,7 @@ export default function PayslipDetailPage() {
                     {allowances.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold">Allowances</h3>
-                            {allowances.map((allowance, idx) => (
+                            {allowances.map((allowance: any, idx: number) => (
                                 <div key={idx} className="flex justify-between items-center py-2">
                                     <div>
                                         <p className="font-medium">{allowance.name}</p>
@@ -218,7 +200,7 @@ export default function PayslipDetailPage() {
                     {bonuses.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold">Bonuses</h3>
-                            {bonuses.map((bonus, idx) => (
+                            {bonuses.map((bonus: any, idx: number) => (
                                 <div key={idx} className="flex justify-between items-center py-2">
                                     <div>
                                         <p className="font-medium">{bonus.name}</p>
@@ -233,7 +215,7 @@ export default function PayslipDetailPage() {
                     {benefits.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold">Benefits</h3>
-                            {benefits.map((benefit, idx) => (
+                            {benefits.map((benefit: any, idx: number) => (
                                 <div key={idx} className="flex justify-between items-center py-2">
                                     <div>
                                         <p className="font-medium">{benefit.name}</p>
@@ -247,7 +229,7 @@ export default function PayslipDetailPage() {
                     {/* Total Earnings */}
                     <div className="flex justify-between items-center py-3 border-t-2 border-slate-300 font-bold text-lg">
                         <p>Total Earnings</p>
-                        <p className="text-green-600">${payslip.totalGrossSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-green-600">${payslip.grossPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -263,18 +245,17 @@ export default function PayslipDetailPage() {
                     {taxDeductions.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold">Tax Deductions</h3>
-                            {taxDeductions.map((tax, idx) => {
-                                const taxAmount = (baseSalary * tax.rate) / 100;
+                            {taxDeductions.map((tax: any, idx: number) => {
                                 return (
                                     <div key={idx} className="flex justify-between items-center py-2 border-b">
                                         <div>
                                             <p className="font-medium">{tax.name}</p>
                                             <p className="text-sm text-gray-500">
-                                                {tax.description} • {tax.rate}% rate
+                                                {tax.lawReference}
                                             </p>
                                         </div>
                                         <p className="font-semibold text-red-600">
-                                            -${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            -${tax.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                         </p>
                                     </div>
                                 );
@@ -286,8 +267,7 @@ export default function PayslipDetailPage() {
                     {insuranceDeductions.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold">Insurance Deductions</h3>
-                            {insuranceDeductions.map((ins, idx) => {
-                                const empAmount = (baseSalary * ins.employeeRate) / 100;
+                            {insuranceDeductions.map((ins: any, idx: number) => {
                                 return (
                                     <div key={idx} className="border rounded-lg p-3 bg-blue-50">
                                         <div className="flex justify-between items-start mb-2">
@@ -295,17 +275,17 @@ export default function PayslipDetailPage() {
                                                 <p className="font-medium">{ins.name}</p>
                                             </div>
                                             <p className="font-semibold text-red-600">
-                                                -${empAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                -${ins.employeeContribution.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                             </p>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 text-sm">
                                             <div>
-                                                <p className="text-gray-500">Employee Rate:</p>
-                                                <p className="font-medium">{ins.employeeRate}%</p>
+                                                <p className="text-gray-500">Employee Contribution:</p>
+                                                <p className="font-medium">${ins.employeeContribution.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                                             </div>
                                             <div>
-                                                <p className="text-gray-500">Employer Rate:</p>
-                                                <p className="font-medium">{ins.employerRate}%</p>
+                                                <p className="text-gray-500">Employer Contribution:</p>
+                                                <p className="font-medium">${ins.employerContribution.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -318,7 +298,7 @@ export default function PayslipDetailPage() {
                     {penalties.length > 0 && (
                         <div className="space-y-2">
                             <h3 className="font-semibold text-red-700">Penalties</h3>
-                            {penalties.map((penalty, idx) => (
+                            {penalties.map((penalty: any, idx: number) => (
                                 <div key={idx} className="flex justify-between items-center py-2 bg-red-50 px-3 rounded border border-red-200">
                                     <div>
                                         <p className="font-medium text-red-800">{penalty.reason}</p>
@@ -355,16 +335,16 @@ export default function PayslipDetailPage() {
                         <CardDescription>Contributions made by your employer on your behalf</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        {employerContributions.map((contrib, idx) => (
+                        {employerContributions.map((contrib: any, idx: number) => (
                             <div key={idx} className="flex justify-between items-center py-2 border-b">
                                 <div>
                                     <p className="font-medium">{contrib.name}</p>
                                     <p className="text-sm text-gray-500">
-                                        Employer pays {contrib.employerRate}% • Base: ${contrib.employeeAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                        Total contribution
                                     </p>
                                 </div>
                                 <p className="font-semibold text-green-600">
-                                    ${contrib.employerAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    ${contrib.employerContribution.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                         ))}
@@ -385,15 +365,13 @@ export default function PayslipDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                     <div className="flex justify-between">
-                        <span className="text-gray-600">Payment Status:</span>
-                        <Badge variant={payslip.paymentStatus === 'PAID' ? 'default' : 'secondary'}>
-                            {payslip.paymentStatus}
-                        </Badge>
+                        <span className="text-gray-600">Pay Grade:</span>
+                        <span className="font-medium">{payslip.payGrade || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-gray-600">Period:</span>
                         <span className="font-medium">
-                            {new Date(payslip.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                            {payslip.month} {payslip.year}
                         </span>
                     </div>
                 </CardContent>

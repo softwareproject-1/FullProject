@@ -1,8 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function UnauthorizedPage() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function UnauthorizedPage() {
               Go to Home
             </Button>
             {user && (
-              <Button onClick={() => router.push("/auth/login")} variant="primary">
+              <Button onClick={() => router.push("/auth/login")} variant="default">
                 Login Again
               </Button>
             )}

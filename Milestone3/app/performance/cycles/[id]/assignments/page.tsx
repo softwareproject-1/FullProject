@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import RouteGuard from "@/components/RouteGuard";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
@@ -243,8 +243,8 @@ export default function CreateAssignmentsPage() {
       console.log("Employee list count:", employeeList.length);
       if (employeeList.length > 0) {
         console.log("First employee raw:", JSON.stringify(employeeList[0], null, 2));
-        console.log("First employee primaryDepartmentId:", employeeList[0].primaryDepartmentId);
-        console.log("First employee primaryDepartmentId type:", typeof employeeList[0].primaryDepartmentId);
+        console.log("First employee primaryDepartmentId:", (employeeList[0] as any).primaryDepartmentId);
+        console.log("First employee primaryDepartmentId type:", typeof (employeeList[0] as any).primaryDepartmentId);
       }
 
       // Fetch all positions to map position IDs to names
@@ -368,7 +368,7 @@ export default function CreateAssignmentsPage() {
       // Debug: Log first employee's department data structure
       if (employeeList.length > 0) {
         console.log("Sample employee raw data:", employeeList[0]);
-        console.log("Sample employee primaryDepartmentId:", employeeList[0].primaryDepartmentId);
+        console.log("Sample employee primaryDepartmentId:", (employeeList[0] as any).primaryDepartmentId);
         console.log("Sample employee enriched:", enrichedEmployees[0]);
       }
 
@@ -454,7 +454,7 @@ export default function CreateAssignmentsPage() {
         {
           employeeProfileId: employeeId,
           managerProfileId: employee.managerId || user?._id || "",
-          departmentId: employee.departmentId, // This should not be empty now
+          departmentId: employee.departmentId || "", // Ensure string type
           positionId: employee.positionId || undefined,
           dueDate: dueDate || undefined,
         },
@@ -607,7 +607,7 @@ export default function CreateAssignmentsPage() {
                       // Extract template name
                       const templateName = assignment.templateName || 
                         (assignment.templateId && typeof assignment.templateId === 'object'
-                          ? (assignment.templateId.name || assignment.templateId.title)
+                          ? ((assignment.templateId as any).name || (assignment.templateId as any).title)
                           : '') || 
                         'Unknown Template';
                       
@@ -787,7 +787,7 @@ export default function CreateAssignmentsPage() {
                   </select>
                 </div>
                 {selectedTemplateId && (
-                  <Button onClick={loadEmployees} isLoading={loadingEmployees} variant="primary">
+                  <Button onClick={loadEmployees} isLoading={loadingEmployees} variant="default">
                     Load Employees
                   </Button>
                 )}
@@ -893,7 +893,7 @@ export default function CreateAssignmentsPage() {
                       onClick={handleCreateAssignments}
                       isLoading={saving}
                       disabled={selectedEmployeeIds.size === 0 || !selectedTemplateId}
-                      variant="primary"
+                      variant="default"
                     >
                       Create Assignments
                     </Button>

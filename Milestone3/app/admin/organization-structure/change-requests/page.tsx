@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { recordApprovalDecision, updateStructureRequestStatus, StructureChangeRequest } from "@/utils/organizationStructureApi";
 import { isSystemAdmin } from "@/utils/roleUtils";
 import axiosInstance from "@/utils/ApiClient";
@@ -178,12 +179,14 @@ export default function StructureChangeRequestsPage() {
         {/* Manual Request ID Input */}
         <Card title="Manage Change Request by ID" className="mb-6">
           <div className="space-y-4">
-            <Input
-              label="Change Request ID"
-              placeholder="Enter MongoDB ObjectId of the change request"
-              value={requestId}
-              onChange={(e) => setRequestId(e.target.value)}
-            />
+            <div className="grid gap-2">
+              <Label>Change Request ID</Label>
+              <Input
+                placeholder="Enter MongoDB ObjectId of the change request"
+                value={requestId}
+                onChange={(e) => setRequestId(e.target.value)}
+              />
+            </div>
             <div className="flex gap-2">
               <Button
                 onClick={() => {
@@ -193,7 +196,7 @@ export default function StructureChangeRequestsPage() {
                     setError("Please enter a request ID");
                   }
                 }}
-                variant="primary"
+                variant="default"
                 disabled={!requestId}
               >
                 Manage Request
@@ -229,7 +232,7 @@ export default function StructureChangeRequestsPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => handleApprove(showApprovalModal)}
-                  variant="primary"
+                  variant="default"
                   isLoading={processingId === showApprovalModal}
                   disabled={processingId !== null}
                 >

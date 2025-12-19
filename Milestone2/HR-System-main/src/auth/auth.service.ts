@@ -34,7 +34,7 @@ export class AuthService {
     @InjectModel(Candidate.name)
     private candidateModel: Model<CandidateDocument>,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async register(registerDto: RegisterDto) {
     const existingByNationalId = await this.employeeProfileModel
@@ -316,13 +316,13 @@ export class AuthService {
     // Handle both string and ObjectId formats
     // WRAP ENTIRE ROLE LOOKUP IN A TIMEOUT PROMISE TO PREVENT HANGING
     let systemRole: EmployeeSystemRoleDocument | null = null;
-    
+
     // Declare these outside try block so they're available in the else block below
-    const employeeProfileId = employeeProfile._id instanceof Types.ObjectId 
-      ? employeeProfile._id 
+    const employeeProfileId = employeeProfile._id instanceof Types.ObjectId
+      ? employeeProfile._id
       : new Types.ObjectId(employeeProfile._id);
     const employeeProfileIdString = String(employeeProfile._id);
-    
+
     // SIMPLIFIED ROLE LOOKUP - Fast and non-blocking
     // If it fails or times out, user can still login with empty roles
     try {
@@ -330,7 +330,7 @@ export class AuthService {
         asObjectId: employeeProfileId.toString(),
         asString: employeeProfileIdString,
       });
-      
+
       // Simple, fast query - just get the first active role
       // Use a very short timeout (2 seconds) to prevent hanging
       const systemRoles = await this.employeeSystemRoleModel
@@ -344,9 +344,9 @@ export class AuthService {
         .sort({ updatedAt: -1 })
         .maxTimeMS(2000) // Very short timeout - 2 seconds max
         .exec();
-      
+
       systemRole = systemRoles;
-      
+
       if (systemRole) {
         console.log('signIn - Found role for employee:', employeeProfile.employeeNumber);
       } else {
@@ -384,20 +384,30 @@ export class AuthService {
           .sort({ updatedAt: -1 })
           .maxTimeMS(5000) // 5 second timeout
           .exec();
-      
-      if (anyRole) {
-        const anyRoleObj = anyRole.toObject();
-        console.warn('signIn - No active role found, but found inactive role:', {
-          _id: anyRole._id,
-          roles: anyRole.roles,
-          isActive: anyRole.isActive,
-          updatedAt: (anyRoleObj as any).updatedAt,
-        });
-        console.warn('signIn - This employee has no active system role!');
-      } else {
-        console.warn('signIn - No system role document found at all for this employee!');
-      }
+
+        if (anyRole) {
+          const anyRoleObj = anyRole.toObject();
+          console.warn('signIn - No active role found, but found inactive role:', {
+            _id: anyRole._id,
+            roles: anyRole.roles,
+            isActive: anyRole.isActive,
+            updatedAt: (anyRoleObj as any).updatedAt,
+          });
+          console.warn('signIn - This employee has no active system role!');
+
+          // OFF-007: If a role exists but is inactive, access has been revoked
+          // Block login for terminated/offboarded employees
+          if (anyRole.isActive === false) {
+            throw new UnauthorizedException('Your system access has been revoked. Please contact HR.');
+          }
+        } else {
+          console.warn('signIn - No system role document found at all for this employee!');
+        }
       } catch (anyRoleError: any) {
+        // If it's an UnauthorizedException, re-throw it to block login
+        if (anyRoleError instanceof UnauthorizedException) {
+          throw anyRoleError;
+        }
         console.error('signIn - Error checking for any role:', anyRoleError);
       }
     }
@@ -405,10 +415,10 @@ export class AuthService {
     // Ensure roles is always an array and normalize them
     // Wrap in try-catch to ensure we always return something even if role processing fails
     let rolesArray: string[] = [];
-    
+
     try {
       let roles: any = systemRole?.roles || [];
-      
+
       if (Array.isArray(roles)) {
         // Normalize roles to match enum values
         const validRoles = Object.values(SystemRole);
@@ -432,7 +442,7 @@ export class AuthService {
           })
           .filter(role => role && role.length > 0);
       }
-      
+
       console.log('signIn - Roles from DB (raw):', roles);
       console.log('signIn - Roles array (normalized):', rolesArray);
       console.log('signIn - Has System Admin:', rolesArray.includes(SystemRole.SYSTEM_ADMIN));
@@ -488,9 +498,13 @@ export class AuthService {
   }
 
   async getUserRoles(userId: string) {
+    // Try with both ObjectId and string to handle any format
     const systemRole = await this.employeeSystemRoleModel
       .findOne({
-        employeeProfileId: userId,
+        $or: [
+          { employeeProfileId: userId },
+          { employeeProfileId: new Types.ObjectId(userId) }
+        ],
         isActive: true,
       })
       .exec();
@@ -558,11 +572,11 @@ export class AuthService {
 
     // Update the password
     employeeProfile.password = hashedPassword;
-    
+
     // If forcePasswordChange is true, you could add a flag to the employee profile
     // For now, we'll just update the password
     // In a more advanced implementation, you could add a `mustChangePassword` field
-    
+
     await employeeProfile.save();
 
     return {

@@ -35,45 +35,77 @@ export const hasAnyRole = (userRoles: string[] | undefined | null, targetRoles: 
 
 /**
  * Checks if user is System Admin (handles various formats)
- * This function prioritizes System Admin role even if user has multiple roles
  */
 export const isSystemAdmin = (userRoles: string[] | undefined | null): boolean => {
   if (!userRoles) {
-    console.log("isSystemAdmin: No roles provided", { userRoles });
     return false;
   }
   
-  // Ensure it's an array
   const rolesArray = Array.isArray(userRoles) ? userRoles : [];
   
   if (rolesArray.length === 0) {
-    console.log("isSystemAdmin: Empty roles array");
     return false;
   }
   
-  // Normalize all roles (lowercase, trim)
   const normalizedRoles = rolesArray.map(r => {
     if (typeof r !== 'string') {
-      console.warn("isSystemAdmin: Non-string role found:", r);
       return "";
     }
     return normalizeRole(r);
   });
   
-  const hasSystemAdmin = normalizedRoles.includes("system admin") || 
-                        normalizedRoles.includes("system_admin") ||
-                        normalizedRoles.includes("systemadmin");
-  
-  // Log for debugging (only if roles exist)
-  console.log("isSystemAdmin check:", {
-    originalRoles: rolesArray,
-    normalizedRoles: normalizedRoles,
-    hasSystemAdmin: hasSystemAdmin,
-    rolesType: typeof userRoles,
-    isArray: Array.isArray(userRoles),
-  });
-  
-  return hasSystemAdmin;
+  return normalizedRoles.includes("system admin") || 
+         normalizedRoles.includes("system_admin") ||
+         normalizedRoles.includes("systemadmin");
+};
+
+/**
+ * Checks if user is HR Manager
+ */
+export const isHRManager = (userRoles: string[] | undefined | null): boolean => {
+  return hasRole(userRoles, 'HR Manager');
+};
+
+/**
+ * Checks if user is HR Employee
+ */
+export const isHREmployee = (userRoles: string[] | undefined | null): boolean => {
+  return hasRole(userRoles, 'HR Employee');
+};
+
+/**
+ * Checks if user is Recruiter
+ */
+export const isRecruiter = (userRoles: string[] | undefined | null): boolean => {
+  return hasRole(userRoles, 'Recruiter');
+};
+
+/**
+ * Checks if user is Job Candidate
+ */
+export const isCandidate = (userRoles: string[] | undefined | null): boolean => {
+  return hasRole(userRoles, 'Job Candidate');
+};
+
+/**
+ * Checks if user is New Hire
+ */
+export const isNewHire = (userRoles: string[] | undefined | null): boolean => {
+  return hasRole(userRoles, 'New Hire');
+};
+
+/**
+ * Checks if user has any recruitment-related role
+ */
+export const hasRecruitmentAccess = (userRoles: string[] | undefined | null): boolean => {
+  const recruitmentRoles = [
+    'System Admin',
+    'HR Admin',
+    'HR Manager',
+    'HR Employee',
+    'Recruiter',
+  ];
+  return hasAnyRole(userRoles, recruitmentRoles);
 };
 
 /**
@@ -86,3 +118,25 @@ export const getUserRoles = (userRoles: string[] | undefined | null): string[] =
   return userRoles;
 };
 
+/**
+ * Get display-friendly role name
+ */
+export const getRoleDisplayName = (role: string): string => {
+  const roleMap: Record<string, string> = {
+    'system admin': 'System Admin',
+    'hr admin': 'HR Admin',
+    'hr manager': 'HR Manager',
+    'hr employee': 'HR Employee',
+    'department head': 'Department Head',
+    'department employee': 'Department Employee',
+    'payroll manager': 'Payroll Manager',
+    'payroll specialist': 'Payroll Specialist',
+    'recruiter': 'Recruiter',
+    'legal & policy admin': 'Legal & Policy Admin',
+    'finance staff': 'Finance Staff',
+    'job candidate': 'Job Candidate',
+    'new hire': 'New Hire',
+  };
+  
+  return roleMap[normalizeRole(role)] || role;
+};

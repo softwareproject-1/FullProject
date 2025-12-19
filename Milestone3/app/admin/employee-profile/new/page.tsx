@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import Card from "@/components/ui/card";
-import Button from "@/components/ui/button";
-import Input from "@/components/ui/Input";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import RouteGuard from "@/components/RouteGuard";
 import { createEmployeeProfile, EmployeeProfile } from "@/utils/employeeProfileApi";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
@@ -111,22 +112,22 @@ export default function CreateEmployeeProfilePage() {
 
       // Prepare orgLinks object
       const deptId = typeof formData.primaryDepartmentId === 'object'
-        ? String(formData.primaryDepartmentId._id || formData.primaryDepartmentId)
+        ? String((formData.primaryDepartmentId as any)._id || formData.primaryDepartmentId)
         : (formData.primaryDepartmentId ? String(formData.primaryDepartmentId) : undefined);
 
       const posId = typeof formData.primaryPositionId === 'object'
-        ? String(formData.primaryPositionId._id || formData.primaryPositionId)
+        ? String((formData.primaryPositionId as any)._id || formData.primaryPositionId)
         : (formData.primaryPositionId ? String(formData.primaryPositionId) : undefined);
 
       const supervisorPosId = formData.supervisorPositionId
         ? (typeof formData.supervisorPositionId === 'object'
-            ? String(formData.supervisorPositionId._id || formData.supervisorPositionId)
+            ? String((formData.supervisorPositionId as any)._id || formData.supervisorPositionId)
             : String(formData.supervisorPositionId))
         : undefined;
 
       const payGradeId = formData.payGradeId
         ? (typeof formData.payGradeId === 'object'
-            ? String(formData.payGradeId._id || formData.payGradeId)
+            ? String((formData.payGradeId as any)._id || formData.payGradeId)
             : String(formData.payGradeId))
         : undefined;
 
@@ -205,7 +206,7 @@ export default function CreateEmployeeProfilePage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card title="Access Denied" className="max-w-md w-full text-center">
           <p className="text-slate-600 mb-4">You do not have permission to create employee profiles.</p>
-          <Button onClick={() => router.push("/admin/employee-profile")} variant="primary">
+          <Button onClick={() => router.push("/admin/employee-profile")} variant="default">
             Back to Employee List
           </Button>
         </Card>
@@ -253,58 +254,72 @@ export default function CreateEmployeeProfilePage() {
               <Card title="Basic Information">
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Employee Number *"
-                      value={formData.employeeNumber || ""}
-                      onChange={(e) => handleInputChange("employeeNumber", e.target.value)}
-                      required
-                      placeholder="e.g., EMP001"
-                    />
-                    <Input
-                      label="National ID *"
-                      value={formData.nationalId || ""}
-                      onChange={(e) => handleInputChange("nationalId", e.target.value)}
-                      required
-                      placeholder="National ID"
-                    />
+                    <div className="grid gap-2">
+                      <Label>Employee Number *</Label>
+                      <Input
+                        value={formData.employeeNumber || ""}
+                        onChange={(e) => handleInputChange("employeeNumber", e.target.value)}
+                        required
+                        placeholder="e.g., EMP001"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>National ID *</Label>
+                      <Input
+                        value={formData.nationalId || ""}
+                        onChange={(e) => handleInputChange("nationalId", e.target.value)}
+                        required
+                        placeholder="National ID"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Input
-                      label="First Name *"
-                      value={formData.firstName || ""}
-                      onChange={(e) => handleInputChange("firstName", e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="Middle Name"
-                      value={formData.middleName || ""}
-                      onChange={(e) => handleInputChange("middleName", e.target.value)}
-                    />
-                    <Input
-                      label="Last Name *"
-                      value={formData.lastName || ""}
-                      onChange={(e) => handleInputChange("lastName", e.target.value)}
-                      required
-                    />
+                    <div className="grid gap-2">
+                      <Label>First Name *</Label>
+                      <Input
+                        value={formData.firstName || ""}
+                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Middle Name</Label>
+                      <Input
+                        value={formData.middleName || ""}
+                        onChange={(e) => handleInputChange("middleName", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Last Name *</Label>
+                      <Input
+                        value={formData.lastName || ""}
+                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Date of Hire *"
-                      type="date"
-                      value={formData.dateOfHire || ""}
-                      onChange={(e) => handleInputChange("dateOfHire", e.target.value)}
-                      required
-                    />
-                    <Input
-                      label="Date of Birth"
-                      type="date"
-                      value={formData.dateOfBirth || ""}
-                      onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
-                    />
+                    <div className="grid gap-2">
+                      <Label>Date of Hire *</Label>
+                      <Input
+                        type="date"
+                        value={formData.dateOfHire || ""}
+                        onChange={(e) => handleInputChange("dateOfHire", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Date of Birth</Label>
+                      <Input
+                        type="date"
+                        value={formData.dateOfBirth || ""}
+                        onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="label">Gender</label>
+                      <Label>Gender</Label>
                       <select
                         className="input"
                         value={formData.gender || ""}
@@ -316,7 +331,7 @@ export default function CreateEmployeeProfilePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="label">Marital Status</label>
+                      <Label>Marital Status</Label>
                       <select
                         className="input"
                         value={formData.maritalStatus || ""}
@@ -337,32 +352,39 @@ export default function CreateEmployeeProfilePage() {
               <Card title="Authentication & Contact Information">
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Work Email"
-                      type="email"
-                      value={formData.workEmail || ""}
-                      onChange={(e) => handleInputChange("workEmail", e.target.value)}
-                      placeholder="employee@company.com"
-                    />
-                    <Input
-                      label="Personal Email"
-                      type="email"
-                      value={formData.personalEmail || ""}
-                      onChange={(e) => handleInputChange("personalEmail", e.target.value)}
-                      placeholder="personal@email.com"
-                    />
+                    <div className="grid gap-2">
+                      <Label>Work Email</Label>
+                      <Input
+                        type="email"
+                        value={formData.workEmail || ""}
+                        onChange={(e) => handleInputChange("workEmail", e.target.value)}
+                        placeholder="employee@company.com"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Personal Email</Label>
+                      <Input
+                        type="email"
+                        value={formData.personalEmail || ""}
+                        onChange={(e) => handleInputChange("personalEmail", e.target.value)}
+                        placeholder="personal@email.com"
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Password"
-                      type="password"
-                      value={formData.password || ""}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
-                      placeholder="Set initial password (min 6 characters)"
-                      helperText="Password will be hashed and stored securely"
-                    />
+                    <div className="grid gap-2">
+                      <Label>Password</Label>
+                      <Input
+                        type="password"
+                        value={formData.password || ""}
+                        onChange={(e) => handleInputChange("password", e.target.value)}
+                        placeholder="Set initial password (min 6 characters)"
+                        // Helper text not supported on Input, moved below
+                      />
+                      <p className="text-xs text-muted-foreground">Password will be hashed and stored securely</p>
+                    </div>
                     <div>
-                      <label className="label">Status *</label>
+                      <Label>Status *</Label>
                       <select
                         className="input"
                         value={formData.status || "ACTIVE"}
@@ -380,25 +402,31 @@ export default function CreateEmployeeProfilePage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Mobile Phone</Label>
+                      <Input
+                        value={formData.mobilePhone || ""}
+                        onChange={(e) => handleInputChange("mobilePhone", e.target.value)}
+                        placeholder="+1234567890"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Home Phone</Label>
+                      <Input
+                        value={formData.homePhone || ""}
+                        onChange={(e) => handleInputChange("homePhone", e.target.value)}
+                        placeholder="+1234567890"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Profile Picture URL</Label>
                     <Input
-                      label="Mobile Phone"
-                      value={formData.mobilePhone || ""}
-                      onChange={(e) => handleInputChange("mobilePhone", e.target.value)}
-                      placeholder="+1234567890"
-                    />
-                    <Input
-                      label="Home Phone"
-                      value={formData.homePhone || ""}
-                      onChange={(e) => handleInputChange("homePhone", e.target.value)}
-                      placeholder="+1234567890"
+                      value={formData.profilePictureUrl || ""}
+                      onChange={(e) => handleInputChange("profilePictureUrl", e.target.value)}
+                      placeholder="https://example.com/profile.jpg"
                     />
                   </div>
-                  <Input
-                    label="Profile Picture URL"
-                    value={formData.profilePictureUrl || ""}
-                    onChange={(e) => handleInputChange("profilePictureUrl", e.target.value)}
-                    placeholder="https://example.com/profile.jpg"
-                  />
                 </div>
               </Card>
 
@@ -412,7 +440,7 @@ export default function CreateEmployeeProfilePage() {
                   ) : (
                     <>
                       <div>
-                        <label className="label">Primary Department *</label>
+                        <Label>Primary Department *</Label>
                         <select
                           className="input"
                           value={formData.primaryDepartmentId || ""}
@@ -430,7 +458,7 @@ export default function CreateEmployeeProfilePage() {
                         </select>
                       </div>
                       <div>
-                        <label className="label">Primary Position *</label>
+                        <Label>Primary Position *</Label>
                         <select
                           className="input"
                           value={formData.primaryPositionId || ""}
@@ -448,7 +476,7 @@ export default function CreateEmployeeProfilePage() {
                         </select>
                       </div>
                       <div>
-                        <label className="label">Supervisor Position</label>
+                        <Label>Supervisor Position</Label>
                         <select
                           className="input"
                           value={formData.supervisorPositionId || ""}
@@ -464,12 +492,14 @@ export default function CreateEmployeeProfilePage() {
                             ))}
                         </select>
                       </div>
-                      <Input
-                        label="Pay Grade ID"
-                        value={formData.payGradeId || ""}
-                        onChange={(e) => handleInputChange("payGradeId", e.target.value || undefined)}
-                        placeholder="Pay Grade ID (Optional)"
-                      />
+                      <div className="grid gap-2">
+                        <Label>Pay Grade ID</Label>
+                        <Input
+                          value={formData.payGradeId || ""}
+                          onChange={(e) => handleInputChange("payGradeId", e.target.value || undefined)}
+                          placeholder="Pay Grade ID (Optional)"
+                        />
+                      </div>
                     </>
                   )}
                 </div>
@@ -480,7 +510,7 @@ export default function CreateEmployeeProfilePage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="label">Contract Type</label>
+                      <Label>Contract Type</Label>
                       <select
                         className="input"
                         value={formData.contractType || ""}
@@ -492,7 +522,7 @@ export default function CreateEmployeeProfilePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="label">Work Type</label>
+                      <Label>Work Type</Label>
                       <select
                         className="input"
                         value={formData.workType || ""}
@@ -505,21 +535,25 @@ export default function CreateEmployeeProfilePage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Contract Start Date"
-                      type="date"
-                      value={formData.contractStartDate || ""}
-                      onChange={(e) => handleInputChange("contractStartDate", e.target.value)}
-                    />
-                    <Input
-                      label="Contract End Date"
-                      type="date"
-                      value={formData.contractEndDate || ""}
-                      onChange={(e) => handleInputChange("contractEndDate", e.target.value)}
-                    />
+                    <div className="grid gap-2">
+                      <Label>Contract Start Date</Label>
+                      <Input
+                        type="date"
+                        value={formData.contractStartDate || ""}
+                        onChange={(e) => handleInputChange("contractStartDate", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                       <Label>Contract End Date</Label>
+                      <Input
+                        type="date"
+                        value={formData.contractEndDate || ""}
+                        onChange={(e) => handleInputChange("contractEndDate", e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="label">Biography</label>
+                    <Label>Biography</Label>
                     <textarea
                       className="input min-h-[100px]"
                       value={formData.biography || ""}
@@ -533,25 +567,31 @@ export default function CreateEmployeeProfilePage() {
               {/* Address Information */}
               <Card title="Address">
                 <div className="space-y-4">
-                  <Input
-                    label="Street Address"
-                    value={formData.address?.streetAddress || ""}
-                    onChange={(e) => handleAddressChange("streetAddress", e.target.value)}
-                    placeholder="Street address"
-                  />
+                  <div className="grid gap-2">
+                    <Label>Street Address</Label>
+                    <Input
+                      value={formData.address?.streetAddress || ""}
+                      onChange={(e) => handleAddressChange("streetAddress", e.target.value)}
+                      placeholder="Street address"
+                    />
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="City"
-                      value={formData.address?.city || ""}
-                      onChange={(e) => handleAddressChange("city", e.target.value)}
-                      placeholder="City"
-                    />
-                    <Input
-                      label="Country"
-                      value={formData.address?.country || ""}
-                      onChange={(e) => handleAddressChange("country", e.target.value)}
-                      placeholder="Country"
-                    />
+                    <div className="grid gap-2">
+                      <Label>City</Label>
+                      <Input
+                        value={formData.address?.city || ""}
+                        onChange={(e) => handleAddressChange("city", e.target.value)}
+                        placeholder="City"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Country</Label>
+                      <Input
+                        value={formData.address?.country || ""}
+                        onChange={(e) => handleAddressChange("country", e.target.value)}
+                        placeholder="Country"
+                      />
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -568,7 +608,7 @@ export default function CreateEmployeeProfilePage() {
                 </Button>
                 <Button
                   type="submit"
-                  variant="primary"
+                  variant="default"
                   isLoading={saving}
                   disabled={saving}
                 >
@@ -582,4 +622,3 @@ export default function CreateEmployeeProfilePage() {
     </RouteGuard>
   );
 }
-

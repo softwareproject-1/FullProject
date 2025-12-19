@@ -58,7 +58,7 @@ interface DraftEmployee {
     exceptions?: string;
 }
 
-export default function ManagerReviewPage() {
+function ManagerReviewContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const runIdParam = searchParams.get('runId');
@@ -483,5 +483,18 @@ export default function ManagerReviewPage() {
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+export default function ManagerReviewPage() {
+    return (
+        <React.Suspense fallback={
+            <div className="flex items-center justify-center p-12">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                <span className="ml-3 text-gray-600">Loading manager review...</span>
+            </div>
+        }>
+            <ManagerReviewContent />
+        </React.Suspense>
     );
 }

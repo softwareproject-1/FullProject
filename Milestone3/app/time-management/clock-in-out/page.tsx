@@ -58,7 +58,7 @@ export default function ClockInOutPage() {
               <p className="text-slate-700">
                 {user?.firstName && user?.lastName 
                   ? `${user.firstName} ${user.lastName}`
-                  : user?.firstName || user?.lastName || user?.employeeNumber || user?.fullName || 'Current User'}
+                  : user?.firstName || user?.lastName || user?.employeeNumber || (user as any)?.fullName || 'Current User'}
                 {user?.employeeNumber && ` (${user.employeeNumber})`}
               </p>
             </div>

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/Card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/Input";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RouteGuard from "@/components/RouteGuard";
@@ -105,7 +105,7 @@ export default function MyPerformancePage() {
       
       // Filter to show only the current user's records
       const myRecords = allRecords.filter((record: PerformanceRecord) => {
-        const recordEmployeeId = record.employeeProfileId?._id || record.employeeProfileId;
+        const recordEmployeeId = (record.employeeProfileId as any)?._id || record.employeeProfileId;
         const userId = user._id;
         return String(recordEmployeeId) === String(userId);
       });
@@ -458,7 +458,7 @@ export default function MyPerformancePage() {
                   <div className="flex gap-4 pt-4 border-t border-slate-300">
                     {!isViewingStatusOnly && (
                       <Button
-                        variant="primary"
+                        variant="default"
                         onClick={() => {
                           const id = selectedRecord._id || selectedRecord.id || "";
                           if (id) {

@@ -14,6 +14,7 @@ interface RouteGuardProps {
 
 /**
  * RouteGuard component that protects routes based on user roles and permissions
+ * Uses OR logic: user needs either a matching role OR a matching feature (not both)
  */
 export default function RouteGuard({
   children,
@@ -34,57 +35,51 @@ export default function RouteGuard({
         return;
       }
 
-      // Check route access - support prefix matching for sub-routes
+      const userRoles = user.roles || [];
+
+      // Check route access
       if (requiredRoute) {
-        const access = getCombinedAccess(user.roles);
-        // Check if pathname matches any of the user's allowed routes (with prefix matching)
-        // or if pathname starts with the requiredRoute
+        const access = getCombinedAccess(userRoles);
         const hasAccess = access.routes.some(route => {
-          // Exact match or pathname starts with route + "/" (prefix match)
           return pathname === route || pathname.startsWith(route + "/");
         }) || pathname === requiredRoute || pathname.startsWith(requiredRoute + "/");
-        
+
         if (!hasAccess) {
-          // User doesn't have access to this route - redirect to default route
-          const defaultRoute = redirectTo || getDefaultRoute(user.roles);
-          console.warn(`Access denied to ${requiredRoute} (current: ${pathname}). Redirecting to ${defaultRoute}`);
+          const defaultRoute = redirectTo || getDefaultRoute(userRoles);
+          console.warn(`Access denied to ${requiredRoute}. Redirecting to ${defaultRoute}`);
           router.replace(defaultRoute);
           return;
         }
       }
 
-      // Check role requirements
-      if (requiredRoles && requiredRoles.length > 0) {
-        const hasRequiredRole = requiredRoles.some(role => {
+      // Check role OR feature requirements (user needs at least one of them)
+      const hasRolesRequirement = requiredRoles && requiredRoles.length > 0;
+      const hasFeaturesRequirement = requiredFeatures && requiredFeatures.length > 0;
+
+      if (hasRolesRequirement || hasFeaturesRequirement) {
+        // Check if user has any of the required roles
+        const hasRequiredRole = hasRolesRequirement ? requiredRoles.some(role => {
           const normalizedRole = role.toLowerCase().trim();
-          return (user.roles || []).some(userRole => 
+          return userRoles.some((userRole: string) =>
             userRole.toLowerCase().trim() === normalizedRole
           );
-        });
+        }) : false;
 
-        if (!hasRequiredRole) {
-          const defaultRoute = redirectTo || getDefaultRoute(user.roles);
-          console.warn(`User does not have required role. Redirecting to ${defaultRoute}`);
-          router.replace(defaultRoute);
-          return;
-        }
-      }
+        // Check if user has any of the required features
+        const hasRequiredFeature = hasFeaturesRequirement ? requiredFeatures.some(feature =>
+          hasFeature(userRoles, feature)
+        ) : false;
 
-      // Check feature requirements
-      if (requiredFeatures && requiredFeatures.length > 0) {
-        const hasRequiredFeature = requiredFeatures.some(feature => 
-          hasFeature(user.roles, feature)
-        );
-
-        if (!hasRequiredFeature) {
-          const defaultRoute = redirectTo || getDefaultRoute(user.roles);
-          console.warn(`User does not have required feature. Redirecting to ${defaultRoute}`);
+        // User must have either a matching role OR a matching feature (OR logic)
+        if (!hasRequiredRole && !hasRequiredFeature) {
+          const defaultRoute = redirectTo || getDefaultRoute(userRoles);
+          console.warn(`User does not have required role or feature. Roles: ${userRoles.join(', ')}. Redirecting to ${defaultRoute}`);
           router.replace(defaultRoute);
           return;
         }
       }
     }
-  }, [user, loading, requiredRoute, requiredRoles, requiredFeatures, redirectTo, router]);
+  }, [user, loading, requiredRoute, requiredRoles, requiredFeatures, redirectTo, router, pathname]);
 
   // Show loading state
   if (loading) {
@@ -103,42 +98,38 @@ export default function RouteGuard({
     return null;
   }
 
-  // Check route access - support prefix matching for sub-routes
+  const userRoles = user.roles || [];
+
+  // Check route access
   if (requiredRoute) {
-    const access = getCombinedAccess(user.roles);
-    // Check if pathname matches any of the user's allowed routes (with prefix matching)
-    // or if pathname starts with the requiredRoute
+    const access = getCombinedAccess(userRoles);
     const hasAccess = access.routes.some(route => {
-      // Exact match or pathname starts with route + "/" (prefix match)
       return pathname === route || pathname.startsWith(route + "/");
     }) || pathname === requiredRoute || pathname.startsWith(requiredRoute + "/");
-    
+
     if (!hasAccess) {
       return null;
     }
   }
 
-  // Check role requirements
-  if (requiredRoles && requiredRoles.length > 0) {
-    const hasRequiredRole = requiredRoles.some(role => {
+  // Check role OR feature requirements (user needs at least one)
+  const hasRolesRequirement = requiredRoles && requiredRoles.length > 0;
+  const hasFeaturesRequirement = requiredFeatures && requiredFeatures.length > 0;
+
+  if (hasRolesRequirement || hasFeaturesRequirement) {
+    const hasRequiredRole = hasRolesRequirement ? requiredRoles.some(role => {
       const normalizedRole = role.toLowerCase().trim();
-      return (user.roles || []).some(userRole => 
+      return userRoles.some((userRole: string) =>
         userRole.toLowerCase().trim() === normalizedRole
       );
-    });
+    }) : false;
 
-    if (!hasRequiredRole) {
-      return null;
-    }
-  }
+    const hasRequiredFeature = hasFeaturesRequirement ? requiredFeatures.some(feature =>
+      hasFeature(userRoles, feature)
+    ) : false;
 
-  // Check feature requirements
-  if (requiredFeatures && requiredFeatures.length > 0) {
-    const hasRequiredFeature = requiredFeatures.some(feature => 
-      hasFeature(user.roles, feature)
-    );
-
-    if (!hasRequiredFeature) {
+    // User must have either a matching role OR a matching feature (OR logic)
+    if (!hasRequiredRole && !hasRequiredFeature) {
       return null;
     }
   }
@@ -146,4 +137,3 @@ export default function RouteGuard({
   // Render children if all checks pass
   return <>{children}</>;
 }
-

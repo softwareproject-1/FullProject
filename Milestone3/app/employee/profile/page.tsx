@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/Input";
+import { Input } from "@/components/ui/input";
 import RouteGuard from "@/components/RouteGuard";
 import { getEmployeeProfileById, updateMyEmployeeProfile, EmployeeProfile } from "@/utils/employeeProfileApi";
 import { canAccessRoute } from "@/utils/roleAccess";

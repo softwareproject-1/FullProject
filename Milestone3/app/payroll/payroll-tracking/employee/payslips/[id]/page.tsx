@@ -251,7 +251,7 @@ export default function PayslipDetailPage() {
                     <CardHeader className="pb-3">
                         <CardDescription>Gross Salary</CardDescription>
                         <CardTitle className="text-2xl">
-                            ${payslip.totalGrossSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${(enhancedData?.grossPay || payslip.totalGrossSalary).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -259,7 +259,7 @@ export default function PayslipDetailPage() {
                     <CardHeader className="pb-3">
                         <CardDescription>Total Deductions</CardDescription>
                         <CardTitle className="text-2xl text-red-600">
-                            -${payslip.totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            -${(enhancedData?.totalDeductions || payslip.totalDeductions).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -267,7 +267,7 @@ export default function PayslipDetailPage() {
                     <CardHeader className="pb-3">
                         <CardDescription>Net Pay</CardDescription>
                         <CardTitle className="text-2xl text-blue-600">
-                            ${payslip.netPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${(enhancedData?.netPay || payslip.netPay).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
