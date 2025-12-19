@@ -67,6 +67,8 @@ export default function EvaluateEmployeesPage() {
   // State for department head's department
   const [userDepartmentId, setUserDepartmentId] = useState<string | null>(null);
   const [loadingDepartment, setLoadingDepartment] = useState(false);
+  // State to track if department head is part of the cycle
+  const [isDepartmentHeadInCycle, setIsDepartmentHeadInCycle] = useState(false);
 
   // Fetch department head's department when they log in
   useEffect(() => {
@@ -100,6 +102,9 @@ export default function EvaluateEmployeesPage() {
   }, [loading, user, isDepartmentHead, userDepartmentId]);
 
   useEffect(() => {
+    // Reset cycle participation state when cycle changes
+    setIsDepartmentHeadInCycle(false);
+    
     if (!loading && user && canAccess && canEvaluateEmployees && cycleId) {
       // For department heads, wait for department to be loaded
       if (isDepartmentHead && !canEvaluateDepartmentHeads) {
@@ -138,6 +143,35 @@ export default function EvaluateEmployeesPage() {
       setError(null);
       const res = await PerformanceApi.listAssignmentsForCycle(cycleId);
       const assignmentsData = res.data || [];
+      
+      // Check if department head is part of this cycle (has an assignment)
+      // Use local variable instead of state to avoid async state update issues
+      let departmentHeadInCycle = false;
+      if (isDepartmentHead && !canEvaluateDepartmentHeads && user?._id) {
+        const userId = String(user._id);
+        console.log("Checking if department head is in cycle. User ID:", userId);
+        console.log("Total assignments in cycle:", assignmentsData.length);
+        
+        departmentHeadInCycle = assignmentsData.some((assignment: any) => {
+          // Handle different possible structures of employeeProfileId
+          let employeeId: string = '';
+          if (assignment.employeeProfileId) {
+            if (typeof assignment.employeeProfileId === 'object' && assignment.employeeProfileId !== null) {
+              employeeId = String(assignment.employeeProfileId._id || assignment.employeeProfileId);
+            } else {
+              employeeId = String(assignment.employeeProfileId);
+            }
+          }
+          
+          const matches = employeeId === userId;
+          if (matches) {
+            console.log("Found matching assignment for department head:", assignment);
+          }
+          return matches;
+        });
+        setIsDepartmentHeadInCycle(departmentHeadInCycle); // Update state for UI display
+        console.log("Department Head is part of cycle:", departmentHeadInCycle);
+      }
       
       // Fetch employee profiles to get names and roles
       const assignmentsWithNames = await Promise.all(
@@ -229,25 +263,40 @@ export default function EvaluateEmployeesPage() {
       
       if (isDepartmentHead && !canEvaluateDepartmentHeads) {
         // Department Head: 
-        // 1. Filter to only show employees from the same department
-        // 2. Filter out self-assignments (cannot evaluate themselves)
-        filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
-          const employeeId = String(assignment.employeeProfileId || assignment.employeeProfileId?._id || '');
-          const userId = String(user?._id || '');
-          
-          // Skip self-assignments
-          if (employeeId === userId) {
+        // If department head is part of the cycle (has an assignment), they can evaluate ALL employees in the cycle
+        // Otherwise, they can only evaluate employees from their own department
+        // Use local variable 'departmentHeadInCycle' instead of state to ensure we have the current value
+        if (departmentHeadInCycle) {
+          // Department head is in the cycle: show all assignments except self
+          console.log("Department Head is in cycle - showing all assignments except self");
+          filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
+            const employeeId = String(assignment.employeeProfileId || assignment.employeeProfileId?._id || '');
+            const userId = String(user?._id || '');
+            
+            // Skip self-assignments (cannot evaluate themselves)
+            return employeeId !== userId;
+          });
+          console.log(`Filtered assignments count: ${filteredAssignments.length} out of ${assignmentsWithRoles.length}`);
+        } else {
+          // Department head is NOT in the cycle: only show employees from the same department
+          filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
+            const employeeId = String(assignment.employeeProfileId || assignment.employeeProfileId?._id || '');
+            const userId = String(user?._id || '');
+            
+            // Skip self-assignments
+            if (employeeId === userId) {
+              return false;
+            }
+            
+            // If we have department IDs, check if employee is in the same department
+            if (userDepartmentId && assignment.employeeDepartmentId) {
+              return assignment.employeeDepartmentId === userDepartmentId;
+            }
+            
+            // If no department ID match, exclude (safety check)
             return false;
-          }
-          
-          // If we have department IDs, check if employee is in the same department
-          if (userDepartmentId && assignment.employeeDepartmentId) {
-            return assignment.employeeDepartmentId === userDepartmentId;
-          }
-          
-          // If no department ID match, exclude (safety check)
-          return false;
-        });
+          });
+        }
       } else if (canEvaluateDepartmentHeads && evaluationMode === 'department-heads') {
         // HR Admin/System Admin: Show only department heads
         filteredAssignments = assignmentsWithRoles.filter((assignment: any) => {
@@ -518,7 +567,9 @@ export default function EvaluateEmployeesPage() {
                   {evaluationMode === 'department-heads' 
                     ? 'Evaluate department heads for this appraisal cycle'
                     : isDepartmentHead
-                    ? 'Evaluate your team members for this appraisal cycle (excluding yourself)'
+                    ? isDepartmentHeadInCycle
+                      ? 'You are part of this cycle. Evaluate all employees in this cycle (excluding yourself)'
+                      : 'Evaluate your team members for this appraisal cycle (excluding yourself)'
                     : 'Evaluate your team members for this appraisal cycle'}
                 </p>
               </div>
