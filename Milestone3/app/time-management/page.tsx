@@ -22,18 +22,21 @@ export default function TimeManagement() {
   // HR Employee is treated the same as Department Employee
   const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
   
+  // Recruiter is treated the same as Department Employee for time management
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
+  
   // Other roles that should only see Clock In/Out
   const isDepartmentHead = user ? hasRole(user.roles, SystemRole.DEPARTMENT_HEAD) : false;
   const isPayrollManager = user ? hasRole(user.roles, SystemRole.PAYROLL_MANAGER) : false;
   const isLegalPolicyAdmin = user ? hasRole(user.roles, SystemRole.LEGAL_POLICY_ADMIN) : false;
-  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
   const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
   const isJobCandidate = user ? hasRole(user.roles, SystemRole.JOB_CANDIDATE) : false;
   
   // Check if user has any of the "other roles" (not configured roles)
   // Job Candidates are excluded - they should see nothing
+  // Recruiter is excluded - they are treated like Department Employee
   const isOtherRole = isDepartmentHead || isPayrollManager || 
-                      isLegalPolicyAdmin || isRecruiter || isFinanceStaff;
+                      isLegalPolicyAdmin || isFinanceStaff;
   
   // Job Candidates should not see anything in time management - redirect them
   useEffect(() => {
@@ -159,11 +162,12 @@ export default function TimeManagement() {
   // HR Managers should NOT see: Shifts, Holidays
   // Payroll Specialists can see: Attendance Records (to flag missed punches), Reports (to view and export overtime and exception reports), Clock In/Out
   // HR Employee is treated the same as Department Employee (same modules)
-  // Other roles (Department Head, Payroll Manager, Legal Policy Admin, Recruiter, Finance Staff, Job Candidate) can only see: Clock In/Out
+  // Recruiter is treated the same as Department Employee (same modules)
+  // Other roles (Department Head, Payroll Manager, Legal Policy Admin, Finance Staff, Job Candidate) can only see: Clock In/Out
   let menuItems = allMenuItems;
   
-  if (isDepartmentEmployee || isHREmployee) {
-    // Department Employee and HR Employee see the same modules
+  if (isDepartmentEmployee || isHREmployee || isRecruiter) {
+    // Department Employee, HR Employee, and Recruiter see the same modules
     menuItems = allMenuItems.filter(item => 
       ['clock-in-out', 'attendance', 'correction-requests', 'shift-assignments', 'time-exceptions', 'holidays'].includes(item.id)
     );
@@ -204,8 +208,8 @@ export default function TimeManagement() {
   }
 
   // Update descriptions based on role
-  if (isDepartmentEmployee || isHREmployee) {
-    // Department Employee and HR Employee have the same descriptions
+  if (isDepartmentEmployee || isHREmployee || isRecruiter) {
+    // Department Employee, HR Employee, and Recruiter have the same descriptions
     menuItems = menuItems.map(item => {
       const updatedDescriptions: Record<string, string> = {
         'shift-assignments': 'View your assigned shifts',

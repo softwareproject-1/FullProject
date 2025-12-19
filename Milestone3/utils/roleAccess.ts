@@ -459,6 +459,13 @@ export const roleAccess = {
       '/admin/organization-structure', // View organizational structure (to understand open positions)
       '/recruiter', // Recruiter dashboard
       '/recruitment',
+      '/time-management', // Time management access (same as Department Employee)
+      '/time-management/clock-in-out',
+      '/time-management/attendance',
+      '/time-management/correction-requests',
+      '/time-management/shift-assignments',
+      '/time-management/time-exceptions',
+      '/time-management/holidays',
       '/payroll/payroll-tracking/employee',
     ],
     features: {
