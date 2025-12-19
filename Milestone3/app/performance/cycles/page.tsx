@@ -119,6 +119,7 @@ export default function CyclesPage() {
         cycleType: form.cycleType,
         startDate: new Date(form.startDate).toISOString(),
         endDate: new Date(form.endDate).toISOString(),
+        templateAssignments: [], // Required by backend - can be empty, templates are assigned later
       };
       
       if (form.managerDueDate) {
@@ -158,6 +159,28 @@ export default function CyclesPage() {
       await loadCycles();
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || "Failed to update status");
+    }
+  };
+
+  const deleteCycle = async (id: string) => {
+    const cycle = items.find((c) => (c._id || c.id) === id);
+    const cycleName = cycle?.title || cycle?.name || "this cycle";
+    
+    if (!confirm(`Are you sure you want to delete "${cycleName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setStatusUpdate((s) => ({ ...s, [id]: "DELETING" }));
+    try {
+      await PerformanceApi.deleteCycle(id);
+      await loadCycles();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || "Failed to delete cycle");
+      setStatusUpdate((s) => {
+        const newState = { ...s };
+        delete newState[id];
+        return newState;
+      });
     }
   };
 
@@ -369,10 +392,11 @@ export default function CyclesPage() {
                             </Button>
                             <Button
                               variant="outline"
-                              onClick={() => updateStatus(id, "DELETED")}
-                              className="text-xs px-3 bg-white text-slate-900 border-slate-300 hover:bg-slate-100"
+                              onClick={() => deleteCycle(id)}
+                              disabled={statusUpdate[id] === "DELETING"}
+                              className="text-xs px-3 bg-red-500/20 text-red-600 border-red-500/30 hover:bg-red-500/30"
                             >
-                              Delete
+                              {statusUpdate[id] === "DELETING" ? "Deleting..." : "Delete"}
                             </Button>
                           </>
                         )}

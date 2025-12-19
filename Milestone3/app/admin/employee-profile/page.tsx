@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import RouteGuard from "@/components/RouteGuard";
-import { listEmployeeProfiles, archiveEmployeeProfile, reactivateEmployeeProfile, EmployeeProfile, EmployeeProfileFilter } from "@/utils/employeeProfileApi";
+import { listEmployeeProfiles, archiveEmployeeProfile, reactivateEmployeeProfile, getEmployeeProfileById, EmployeeProfile, EmployeeProfileFilter } from "@/utils/employeeProfileApi";
 import { candidateApi, Candidate, CandidateFilter } from "@/utils/candidateApi";
 import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 
@@ -55,6 +55,12 @@ export default function EmployeeProfileListPage() {
   const isLegalPolicyAdmin = user ? hasRole(user.roles, SystemRole.LEGAL_POLICY_ADMIN) : false;
   const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
+  const isDepartmentHead = user ? hasRole(user.roles, SystemRole.DEPARTMENT_HEAD) : false;
+  const canViewTeamEmployees = user ? hasFeature(user.roles, "viewTeamEmployees") : false;
+  
+  // State for department head's department
+  const [userDepartmentId, setUserDepartmentId] = useState<string | null>(null);
+  const [loadingDepartment, setLoadingDepartment] = useState(false);
 
   // Redirect department employees to their own profile
   useEffect(() => {
@@ -63,6 +69,38 @@ export default function EmployeeProfileListPage() {
       return;
     }
   }, [authLoading, user, canAccess, isDepartmentEmployee, canViewAllEmployees, router]);
+
+  // Fetch department head's department when they log in
+  useEffect(() => {
+    const fetchUserDepartment = async () => {
+      if (!authLoading && user && isDepartmentHead && canViewTeamEmployees && user._id && !userDepartmentId) {
+        try {
+          setLoadingDepartment(true);
+          const userProfile = await getEmployeeProfileById(user._id, ['primaryDepartmentId']);
+          
+          // Extract department ID - handle both object and string formats
+          let deptId: string | null = null;
+          if (userProfile.primaryDepartmentId) {
+            if (typeof userProfile.primaryDepartmentId === 'object' && userProfile.primaryDepartmentId !== null) {
+              deptId = String((userProfile.primaryDepartmentId as any)._id || userProfile.primaryDepartmentId);
+            } else {
+              deptId = String(userProfile.primaryDepartmentId);
+            }
+          }
+          
+          setUserDepartmentId(deptId);
+          console.log("Department Head's Department ID:", deptId);
+        } catch (err: any) {
+          console.error("Error fetching user department:", err);
+          setError("Failed to load your department information");
+        } finally {
+          setLoadingDepartment(false);
+        }
+      }
+    };
+
+    fetchUserDepartment();
+  }, [authLoading, user, isDepartmentHead, canViewTeamEmployees, userDepartmentId]);
 
   // Fetch data when filters or user changes
   useEffect(() => {
@@ -73,6 +111,12 @@ export default function EmployeeProfileListPage() {
       } else if (canViewAllEmployees) {
         // Other roles need viewAllEmployees to see employees
         fetchEmployees();
+      } else if (isDepartmentHead && canViewTeamEmployees) {
+        // Department heads can view team employees in their department
+        // Wait for department ID to be loaded (or if loading failed, still try to show message)
+        if (!loadingDepartment) {
+          fetchEmployees();
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +136,11 @@ export default function EmployeeProfileListPage() {
     canAccess, 
     isRecruiter,
     canViewAllEmployees,
-    canViewCandidates
+    canViewCandidates,
+    isDepartmentHead,
+    canViewTeamEmployees,
+    userDepartmentId,
+    loadingDepartment
   ]);
 
   const fetchCandidates = async () => {
@@ -152,11 +200,17 @@ export default function EmployeeProfileListPage() {
     try {
       setLoading(true);
       setError(null);
-      const updatedFilters = {
+      const updatedFilters: EmployeeProfileFilter = {
         ...filters,
         search: searchTerm || undefined,
         status: statusFilter || undefined,
       };
+      
+      // If user is a department head, filter by their department
+      if (isDepartmentHead && canViewTeamEmployees && userDepartmentId) {
+        updatedFilters.departmentIds = [userDepartmentId];
+      }
+      
       const response = await listEmployeeProfiles(updatedFilters);
       
       if (Array.isArray(response)) {
@@ -271,12 +325,14 @@ export default function EmployeeProfileListPage() {
     return statusClasses[status] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || (isDepartmentHead && loadingDepartment)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-slate-600 text-lg">Loading employees...</p>
+          <p className="text-slate-600 text-lg">
+            {isDepartmentHead && loadingDepartment ? "Loading department information..." : "Loading employees..."}
+          </p>
         </div>
       </div>
     );
@@ -296,6 +352,13 @@ export default function EmployeeProfileListPage() {
             <p className="text-slate-600 text-lg">Redirecting to your profile...</p>
           </div>
         </div>
+      ) : isDepartmentHead && canViewTeamEmployees && !loadingDepartment && !userDepartmentId ? (
+        // Department head but no department assigned (only show after loading is complete)
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <p className="text-slate-600 text-lg">No department assigned. Please contact your administrator.</p>
+          </div>
+        </div>
       ) : (
         <div className="min-h-screen bg-slate-50 p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
@@ -303,11 +366,13 @@ export default function EmployeeProfileListPage() {
             <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                  {isRecruiter ? "Candidate Management" : "Employee Profiles"}
+                  {isRecruiter ? "Candidate Management" : isDepartmentHead ? "Team Members" : "Employee Profiles"}
                 </h1>
                 <p className="text-slate-600 text-base md:text-lg">
                   {isRecruiter 
                     ? (canCreateCandidate ? "Manage and view all candidates" : "View candidates")
+                    : isDepartmentHead
+                    ? "View team members in your department"
                     : (canCreateEmployee ? "Manage and view all employee profiles" : "View employee profiles")
                   }
                 </p>

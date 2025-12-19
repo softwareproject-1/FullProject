@@ -5,8 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import RouteGuard from "@/components/RouteGuard";
-import { hasFeature } from "@/utils/roleAccess";
+import { hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
+import { getEmployeeProfileById } from "@/utils/employeeProfileApi";
 
 type PerformanceRecord = {
   _id?: string;
@@ -40,6 +41,7 @@ export default function TeamResultsPage() {
   
   // Check role-based access (RouteGuard handles route access, this is just for feature checks)
   const canViewTeamPerformance = user ? hasFeature(user.roles, "viewTeamPerformance") : false;
+  const isDepartmentHead = user ? hasRole(user.roles, SystemRole.DEPARTMENT_HEAD) : false;
   
   const [records, setRecords] = useState<PerformanceRecord[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -49,6 +51,41 @@ export default function TeamResultsPage() {
   const [cycles, setCycles] = useState<Array<{ _id?: string; id?: string; name?: string; title?: string }>>([]);
   const [selectedRecord, setSelectedRecord] = useState<PerformanceRecord | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>(""); // Show all by default, user can filter
+  
+  // State for department head's department
+  const [userDepartmentId, setUserDepartmentId] = useState<string | null>(null);
+  const [loadingDepartment, setLoadingDepartment] = useState(false);
+
+  // Fetch department head's department when they log in
+  useEffect(() => {
+    const fetchUserDepartment = async () => {
+      if (!loading && user && isDepartmentHead && user._id && !userDepartmentId) {
+        try {
+          setLoadingDepartment(true);
+          const userProfile = await getEmployeeProfileById(user._id, ['primaryDepartmentId']);
+          
+          // Extract department ID - handle both object and string formats
+          let deptId: string | null = null;
+          if (userProfile.primaryDepartmentId) {
+            if (typeof userProfile.primaryDepartmentId === 'object' && userProfile.primaryDepartmentId !== null) {
+              deptId = String((userProfile.primaryDepartmentId as any)._id || userProfile.primaryDepartmentId);
+            } else {
+              deptId = String(userProfile.primaryDepartmentId);
+            }
+          }
+          
+          setUserDepartmentId(deptId);
+          console.log("Department Head's Department ID for team results:", deptId);
+        } catch (err: any) {
+          console.error("Error fetching user department:", err);
+        } finally {
+          setLoadingDepartment(false);
+        }
+      }
+    };
+
+    fetchUserDepartment();
+  }, [loading, user, isDepartmentHead, userDepartmentId]);
 
   // Load available cycles on mount
   useEffect(() => {
@@ -109,10 +146,53 @@ export default function TeamResultsPage() {
       if (canViewAllPerformance) {
         // HR roles see all records
         filteredRecords = allRecords;
-      } else if (canViewTeamPerformance) {
+      } else if (canViewTeamPerformance && isDepartmentHead && userDepartmentId) {
         // Department Heads can see:
-        // 1. Published records (HR_PUBLISHED)
+        // 1. Published records (HR_PUBLISHED) for employees in their department
         // 2. Records they submitted (MANAGER_SUBMITTED) - so they can verify their submissions
+        // 3. Filter by department to only show team members
+        
+        // First filter by status
+        const statusFiltered = allRecords.filter((r: PerformanceRecord) => 
+          r.status === "HR_PUBLISHED" || 
+          r.status === "MANAGER_SUBMITTED" ||
+          r.status === "EMPLOYEE_ACKNOWLEDGED"
+        );
+        
+        // Then filter by department - fetch employee profiles in parallel
+        const recordsWithDepartments = await Promise.all(
+          statusFiltered.map(async (record: PerformanceRecord) => {
+            if (!record.employeeProfileId) {
+              return { record, departmentId: null };
+            }
+            
+            try {
+              const employeeProfile = await getEmployeeProfileById(String(record.employeeProfileId), ['primaryDepartmentId']);
+              let empDeptId: string | null = null;
+              
+              if (employeeProfile.primaryDepartmentId) {
+                if (typeof employeeProfile.primaryDepartmentId === 'object' && employeeProfile.primaryDepartmentId !== null) {
+                  empDeptId = String((employeeProfile.primaryDepartmentId as any)._id || employeeProfile.primaryDepartmentId);
+                } else {
+                  empDeptId = String(employeeProfile.primaryDepartmentId);
+                }
+              }
+              
+              return { record, departmentId: empDeptId };
+            } catch (err) {
+              console.error(`Failed to fetch department for employee ${record.employeeProfileId}:`, err);
+              return { record, departmentId: null };
+            }
+          })
+        );
+        
+        // Filter to only records from the same department
+        filteredRecords = recordsWithDepartments
+          .filter(({ departmentId }) => departmentId === userDepartmentId)
+          .map(({ record }) => record);
+      } else if (canViewTeamPerformance) {
+        // Department Heads without department or other roles with viewTeamPerformance
+        // Fallback: filter by status only
         filteredRecords = allRecords.filter((r: PerformanceRecord) => 
           r.status === "HR_PUBLISHED" || 
           r.status === "MANAGER_SUBMITTED" ||
