@@ -3398,6 +3398,7 @@ export class PayrollExecutionService {
       } : { employeeAmount: 0, employerAmount: 0, total: 0 },
       penalties: empDetails?.penalties || 0,
       bonuses: empDetails?.bonus || 0,
+      terminationPayout: (payslip.earningsDetails as any)?.terminationPayout || 0,
       overtimePay: 0, // Placeholder, overtime not fully implemented in schema yet
       minimumWageApplied: empDetails?.exceptions?.includes('Minimum Wage') || false,
       baseSalary: payslip.earningsDetails.baseSalary,
