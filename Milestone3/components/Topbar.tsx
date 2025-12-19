@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { timeManagementApi } from '@/services/api';
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ interface Notification {
 export function Topbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [imageError, setImageError] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
@@ -36,13 +37,25 @@ export function Topbar() {
 
   // Load notifications when user is available
   useEffect(() => {
+    // Don't load notifications on login page
+    if (pathname === '/auth/login') {
+      return;
+    }
+    
     if (user?._id) {
-      loadNotifications();
+      // Add a small delay to ensure authentication is fully established
+      const timeoutId = setTimeout(() => {
+        loadNotifications();
+      }, 1000);
+      
       // Poll for new notifications every 30 seconds
       const interval = setInterval(loadNotifications, 30000);
-      return () => clearInterval(interval);
+      return () => {
+        clearTimeout(timeoutId);
+        clearInterval(interval);
+      };
     }
-  }, [user?._id]);
+  }, [user?._id, pathname]);
 
   const loadNotifications = async () => {
     if (!user?._id) return;
@@ -51,9 +64,20 @@ export function Topbar() {
       setLoadingNotifications(true);
       const response = await timeManagementApi.getNotifications(user._id);
       setNotifications(response.data || []);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-      setNotifications([]);
+    } catch (error: any) {
+      // Silently handle errors - don't let notification failures break the app
+      // Check if it's a 401/403 - these might happen if user doesn't have access
+      // or if the endpoint doesn't exist yet
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('Notifications not accessible for this user or endpoint not available');
+        setNotifications([]);
+      } else if (error.response?.status === 404) {
+        console.log('Notifications endpoint not found - may not be implemented yet');
+        setNotifications([]);
+      } else {
+        console.error('Error loading notifications:', error);
+        setNotifications([]);
+      }
     } finally {
       setLoadingNotifications(false);
     }
