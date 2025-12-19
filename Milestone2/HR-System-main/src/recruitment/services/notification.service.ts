@@ -29,8 +29,15 @@ export type NotificationType =
   | 'OFFER_SENT'
   | 'OFFER_SIGNED'
   | 'CONTRACT_READY'
+  // ONB-009: IT Provisioning notifications
   | 'IT_PROVISIONING_REQUESTED'
+  | 'IT_PROVISIONING_COMPLETED'
   | 'SYSTEM_ACCESS_GRANTED'
+  // ONB-012: Resource reservation notifications (to Facilities/Admin)
+  | 'EQUIPMENT_RESERVED'
+  | 'DESK_RESERVED'
+  | 'ACCESS_CARD_RESERVED'
+  | 'RESOURCE_READY'
   // Offboarding notification types
   | 'TERMINATION_INITIATED'
   | 'RESIGNATION_SUBMITTED'
@@ -223,6 +230,82 @@ export class NotificationService {
       subject: `🎉 Onboarding Complete!`,
       message,
       metadata: { completedAt: new Date().toISOString() },
+    });
+  }
+
+  /**
+   * ONB-009: Send IT provisioning notification
+   * Notifies IT/System Admin about provisioning requests
+   */
+  async sendProvisioningNotification(
+    recipientId: string,
+    employeeName: string,
+    systems: string[],
+    notificationType: 'IT_PROVISIONING_REQUESTED' | 'IT_PROVISIONING_COMPLETED' | 'SYSTEM_ACCESS_GRANTED',
+    recipientEmail?: string,
+  ): Promise<NotificationRecord> {
+    const subjects = {
+      'IT_PROVISIONING_REQUESTED': `💻 IT Provisioning Request: ${employeeName}`,
+      'IT_PROVISIONING_COMPLETED': `✅ IT Provisioning Complete: ${employeeName}`,
+      'SYSTEM_ACCESS_GRANTED': `🔑 System Access Granted: ${employeeName}`,
+    };
+    const messages = {
+      'IT_PROVISIONING_REQUESTED': `System access provisioning requested for ${employeeName}. Systems: ${systems.join(', ')}. Please set up access before their start date.`,
+      'IT_PROVISIONING_COMPLETED': `System access provisioning completed for ${employeeName}. Systems: ${systems.join(', ')}.`,
+      'SYSTEM_ACCESS_GRANTED': `${employeeName} has been granted access to: ${systems.join(', ')}.`,
+    };
+
+    return this.sendNotification({
+      recipientId,
+      recipientEmail,
+      type: notificationType,
+      subject: subjects[notificationType],
+      message: messages[notificationType],
+      metadata: { employeeName, systems, requestedAt: new Date().toISOString() },
+    });
+  }
+
+  /**
+   * ONB-012: Send resource reservation notification
+   * Notifies Facilities/Admin about equipment, desk, or access card reservations
+   */
+  async sendResourceReservationNotification(
+    recipientId: string,
+    employeeName: string,
+    resourceType: 'equipment' | 'desk' | 'access_card',
+    resourceDetails: string,
+    neededByDate: string,
+    recipientEmail?: string,
+  ): Promise<NotificationRecord> {
+    const typeMap = {
+      'equipment': 'EQUIPMENT_RESERVED' as NotificationType,
+      'desk': 'DESK_RESERVED' as NotificationType,
+      'access_card': 'ACCESS_CARD_RESERVED' as NotificationType,
+    };
+    const subjectMap = {
+      'equipment': `🖥️ Equipment Reserved: ${employeeName}`,
+      'desk': `🪑 Desk Reserved: ${employeeName}`,
+      'access_card': `🔏 Access Card Reserved: ${employeeName}`,
+    };
+    const messageMap = {
+      'equipment': `Equipment reservation for ${employeeName}: ${resourceDetails}. Please prepare by ${neededByDate}.`,
+      'desk': `Desk/workspace reservation for ${employeeName}: ${resourceDetails}. Please prepare by ${neededByDate}.`,
+      'access_card': `Access card reservation for ${employeeName}: ${resourceDetails}. Please prepare by ${neededByDate}.`,
+    };
+
+    return this.sendNotification({
+      recipientId,
+      recipientEmail,
+      type: typeMap[resourceType],
+      subject: subjectMap[resourceType],
+      message: messageMap[resourceType],
+      metadata: {
+        employeeName,
+        resourceType,
+        resourceDetails,
+        neededByDate,
+        reservedAt: new Date().toISOString()
+      },
     });
   }
 
