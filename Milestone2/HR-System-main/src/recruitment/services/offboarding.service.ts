@@ -517,7 +517,7 @@ export class OffboardingService {
       throw new NotFoundException('Termination request not found');
     }
 
-    const defaultDepts = dto.departments || ['IT', 'Finance', 'Facilities', 'HR', 'Line Manager'];
+    const defaultDepts = dto.departments || ['IT', 'Finance', 'Facilities', 'HR', 'Line_Manager', 'System_Access'];
 
     const items = defaultDepts.map((dept) => ({
       department: dept,
@@ -748,19 +748,23 @@ export class OffboardingService {
     const systemRoleDeactivated = await this.deactivateSystemRole(dto.employeeId);
 
     // Notify IT department that access has been revoked
-    await this.notificationService.sendNotification({
-      recipientId: 'IT_DEPARTMENT',
-      type: 'ACCESS_REVOKED',
-      subject: '✅ System Access Revoked',
-      message: `Employee ${dto.employeeId} system access has been immediately revoked. Systems affected: ${revokedSystems.join(', ')}. Reason: ${dto.reason}.`,
-      metadata: {
-        employeeId: dto.employeeId,
-        terminationId: dto.terminationId,
-        revokedSystems,
-        reason: dto.reason,
-        revokedAt: new Date().toISOString(),
-      },
-    });
+    try {
+      await this.notificationService.sendNotification({
+        recipientId: 'IT_DEPARTMENT',
+        type: 'ACCESS_REVOKED',
+        subject: '✅ System Access Revoked',
+        message: `Employee ${dto.employeeId} system access has been immediately revoked. Systems affected: ${revokedSystems.join(', ')}. Reason: ${dto.reason}.`,
+        metadata: {
+          employeeId: dto.employeeId,
+          terminationId: dto.terminationId,
+          revokedSystems,
+          reason: dto.reason,
+          revokedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      console.warn('Failed to notify IT department (invalid recipient ID):', error.message);
+    }
 
     // Update checklist to mark access as revoked (use items array)
     let checklistUpdated = false;
@@ -1063,8 +1067,10 @@ export class OffboardingService {
 
       // INTEGRATION: Mark as settled in comments to avoid showing in pending list again
       // (Since we cannot change schema/enum to add 'SETTLED' status)
+      // Also update status to APPROVED if it isn't already
       await this.terminationRequestModel.findByIdAndUpdate(terminationId, {
         $set: {
+          status: TerminationStatus.APPROVED, // Ensure status is APPROVED after settlement
           hrComments: `${termination.hrComments || ''}\n\n[System] Final Settlement Processed on ${new Date().toISOString()}`
         }
       });

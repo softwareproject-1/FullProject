@@ -29,9 +29,9 @@ export default function FinanceDisputesPage() {
         }
     };
 
-    const handleQuickProcess = async (id: string) => {
+    const handleQuickProcess = async (id: string, amount: number) => {
         try {
-            await financeStaffApi.processDisputeRefund(id);
+            await financeStaffApi.processDisputeRefund(id, amount);
             toast.success('Refund processed - Status updated to COMPLETED');
             fetchDisputes();
         } catch (err) {
@@ -119,7 +119,7 @@ export default function FinanceDisputesPage() {
                                             <Button
                                                 size="sm"
                                                 className="bg-green-600 hover:bg-green-700"
-                                                onClick={() => handleQuickProcess(dispute._id)}
+                                                onClick={() => handleQuickProcess(dispute._id, dispute.amount || 0)}
                                             >
                                                 <CheckCircle className="w-4 h-4 mr-1" />
                                                 Process Refund

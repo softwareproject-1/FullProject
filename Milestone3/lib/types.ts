@@ -829,6 +829,92 @@ export interface LeaveRequest {
   submittedDate: string;
 }
 
+// ==================== Leaves Module DTOs ====================
+
+export interface AccrualPolicyDto {
+  leaveTypeCode: string;
+  accrualRate: 'MONTHLY' | 'YEARLY' | 'DAILY';
+  carryOverCap: number;
+  resetDateType: 'CALENDAR_YEAR' | 'JOINING_DATE' | 'FISCAL_YEAR';
+  pauseDuringUnpaid: boolean;
+  isProrated: boolean;
+  accrualStartAfterMonths: number;
+}
+
+export interface CreateLeaveTypeDto {
+  code: string;
+  name: string;
+  categoryId: string;
+  description?: string;
+  paid: boolean;
+  deductible: boolean;
+  requiresAttachment: boolean;
+  attachmentType?: string;
+  minTenureMonths?: number;
+  maxDurationDays?: number;
+  payrollCode: string;
+  approvalWorkflow?: ApprovalStepDto[];
+}
+
+export interface ApprovalStepDto {
+  role: string;
+  level: number;
+}
+
+export interface UpdateLeaveTypeDto {
+  code?: string;
+  name?: string;
+  categoryId?: string;
+  description?: string;
+  paid?: boolean;
+  deductible?: boolean;
+  requiresAttachment?: boolean;
+  attachmentType?: string;
+  minTenureMonths?: number;
+  maxDurationDays?: number;
+  payrollCode?: string;
+  approvalWorkflow?: ApprovalStepDto[];
+}
+
+export interface EntitlementRuleDto {
+  leaveTypeCode: string;
+  daysPerYear: number;
+  eligibilityCriteria?: {
+    minTenure?: number;
+    grade?: string;
+    contractType?: string;
+    positionsAllowed?: string[];
+    locationsAllowed?: string[];
+  };
+}
+
+export interface PersonalizedEntitlementDto {
+  leaveTypeId: string;
+  yearlyEntitlement: number;
+  reason?: string;
+  employeeId?: string;
+  groupCriteria?: {
+    departmentIds?: string[];
+    positionIds?: string[];
+    locations?: string[];
+    contractTypes?: string[];
+    employeeIds?: string[];
+  };
+}
+
+export interface AddHolidayDto {
+  name: string;
+  date: string;
+  isOptional?: boolean;
+  applicableTo?: string[];
+}
+
+export interface BlockedDayDto {
+  startDate: string;
+  endDate: string;
+  reason?: string;
+}
+
 export interface PayrollRun {
   id: string;
   month: string;

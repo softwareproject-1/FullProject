@@ -988,23 +988,81 @@ export const timeManagementApi = {
 // ============================================================
 
 export const leavesApi = {
-    getAll: () =>
-        axiosInstance.get('/leaves'),
+    // Leave Types
+    getLeaveTypes: () => axiosInstance.get('/leaves/types'),
 
-    getById: (id: string) =>
-        axiosInstance.get(`/leaves/${id}`),
+    createLeaveType: (data: any) => axiosInstance.post('/leaves/types', data),
 
-    create: (data: any) =>
-        axiosInstance.post('/leaves', data),
+    updateLeaveType: (id: string, data: any) => axiosInstance.patch(`/leaves/types/${id}`, data),
 
-    update: (id: string, data: any) =>
-        axiosInstance.patch(`/leaves/${id}`, data),
+    // Entitlement Rules
+    setEntitlementRule: (leaveTypeId: string, data: any) =>
+        axiosInstance.post(`/leaves/types/${leaveTypeId}/entitlement-rule`, data),
 
-    approve: (id: string) =>
-        axiosInstance.patch(`/leaves/${id}/approve`),
+    // Personalized Entitlements
+    setPersonalizedEntitlement: (data: { employeeId: string; leaveTypeId: string; yearlyEntitlement: number; reason?: string }) =>
+        axiosInstance.post('/leaves/entitlement/personalized', data),
 
-    reject: (id: string) =>
-        axiosInstance.patch(`/leaves/${id}/reject`),
+    setPersonalizedEntitlementGroup: (data: any) =>
+        axiosInstance.post('/leaves/entitlement/personalized/group', data),
+
+    // Accrual Policy
+    configureAccrualPolicy: (employeeId: string, leaveTypeId: string, monthsWorked: number, data: any) =>
+        axiosInstance.post(`/leaves/accrual/${employeeId}/${leaveTypeId}?monthsWorked=${monthsWorked}`, data),
+
+    // Approval Workflow
+    configureApprovalWorkflow: (leaveTypeId: string, data: { approvalWorkflow: any[]; payrollCode: string }) =>
+        axiosInstance.patch(`/leaves/types/${leaveTypeId}/workflow`, data),
+
+    // Holiday Calendar
+    addHoliday: (year: number, data: any) =>
+        axiosInstance.post(`/leaves/calendar/${year}/holiday`, data),
+
+    addBlockedPeriod: (year: number, data: any) =>
+        axiosInstance.post(`/leaves/calendar/${year}/blocked`, data),
+
+    // Net Leave Calculation
+    calculateNetLeaveDuration: (startDate: string, endDate: string, year: number, employeeId?: string) =>
+        axiosInstance.get('/leaves/net-duration', {
+            params: { startDate, endDate, year, employeeId }
+        }),
+
+    // Leave Requests
+    submitLeaveRequest: (data: any) =>
+        axiosInstance.post('/leaves/request', data),
+
+    approveLeaveRequest: (id: string, data: any) =>
+        axiosInstance.post(`/leaves/request/${id}/approve`, data),
+
+    reviewLeaveRequest: (id: string, data: any) =>
+        axiosInstance.post(`/leaves/request/${id}/review`, data),
+
+    getLeaveBalance: (employeeId: string, leaveTypeId: string) =>
+        axiosInstance.get(`/leaves/balance/${employeeId}/${leaveTypeId}`),
+
+    // Escalation
+    checkAutoEscalation: () =>
+        axiosInstance.post('/leaves/escalation/check'),
+
+    // Retroactive Deduction
+    applyRetroactiveDeduction: (data: any) =>
+        axiosInstance.post('/leaves/deduction/retroactive', data),
+
+    // Delegation
+    setDelegation: (data: any) =>
+        axiosInstance.post('/leaves/delegation/set', data),
+
+    revokeDelegation: (data: any) =>
+        axiosInstance.post('/leaves/delegation/revoke', data),
+
+    getDelegationStatus: (managerId: string) =>
+        axiosInstance.get(`/leaves/delegation/status/${managerId}`),
+
+    acceptDelegation: (data: any) =>
+        axiosInstance.post('/leaves/delegation/accept', data),
+
+    rejectDelegation: (data: any) =>
+        axiosInstance.post('/leaves/delegation/reject', data),
 };
 
 // ============================================================
@@ -1220,8 +1278,8 @@ export const financeStaffApi = {
     getDispute: (id: string) =>
         axiosInstance.get<{ data: DisputeDto }>(`/finance/disputes/${id}`),
 
-    processDisputeRefund: (id: string) =>
-        axiosInstance.post<{ data: DisputeDto }>(`/finance/disputes/${id}/process`),
+    processDisputeRefund: (id: string, refundAmount: number) =>
+        axiosInstance.post<{ data: DisputeDto }>(`/finance/disputes/${id}/process`, { refundAmount }),
 
     rejectDispute: (id: string, reason: string) =>
         axiosInstance.post<{ data: DisputeDto }>(`/finance/disputes/${id}/reject`, { reason }),
