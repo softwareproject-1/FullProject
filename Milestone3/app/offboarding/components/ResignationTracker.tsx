@@ -2,11 +2,11 @@
 
 import { Card } from '../../../components/Card';
 import { TerminationRequest, TerminationStatus } from '../../../lib/types';
-import { 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  Eye, 
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Eye,
   RefreshCw,
   FileText,
   Calendar,
@@ -106,13 +106,12 @@ export function ResignationTracker({
                       return (
                         <div key={step.status} className="flex flex-col items-center relative z-10">
                           <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                              isCompleted
-                                ? isCurrent
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-green-600 text-white'
-                                : 'bg-slate-200 text-slate-400'
-                            }`}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isCompleted
+                              ? isCurrent
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-green-600 text-white'
+                              : 'bg-slate-200 text-slate-400'
+                              }`}
                           >
                             {isCompleted && !isCurrent ? (
                               <CheckCircle2 className="w-5 h-5" />

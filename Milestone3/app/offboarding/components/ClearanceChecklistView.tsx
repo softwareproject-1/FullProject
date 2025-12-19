@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { offboardingApi } from '../../../services/api';
 import { ClearanceChecklist, ApprovalStatus } from '../../../lib/types';
-import { 
-  CheckCircle2, 
-  XCircle, 
-  Clock, 
-  Building2, 
-  Package, 
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Building2,
+  Package,
   CreditCard,
   Plus,
   Trash2,
@@ -34,8 +34,8 @@ export function ClearanceChecklistView({
   const approvedDepartments = checklist.items.filter(item => item.status === ApprovalStatus.APPROVED).length;
   const totalEquipment = checklist.equipmentList.length;
   const returnedEquipment = checklist.equipmentList.filter(item => item.returned).length;
-  const progressPercentage = totalDepartments > 0 
-    ? Math.round((approvedDepartments / totalDepartments) * 100) 
+  const progressPercentage = totalDepartments > 0
+    ? Math.round((approvedDepartments / totalDepartments) * 100)
     : 0;
   const equipmentPercentage = totalEquipment > 0
     ? Math.round((returnedEquipment / totalEquipment) * 100)
@@ -72,7 +72,7 @@ export function ClearanceChecklistView({
   // Handle add equipment
   const handleAddEquipment = async () => {
     if (!newEquipmentName.trim()) return;
-    
+
     try {
       await offboardingApi.clearance.addEquipment(checklist._id, {
         name: newEquipmentName.trim(),
@@ -103,13 +103,12 @@ export function ClearanceChecklistView({
         <h4 className="font-semibold text-slate-900 mb-3">Clearance Progress</h4>
         <div className="w-full bg-slate-200 rounded-full h-3">
           <div
-            className={`h-3 rounded-full transition-all ${
-              progressPercentage === 100
-                ? 'bg-green-600'
-                : progressPercentage >= 50
+            className={`h-3 rounded-full transition-all ${progressPercentage === 100
+              ? 'bg-green-600'
+              : progressPercentage >= 50
                 ? 'bg-blue-600'
                 : 'bg-yellow-500'
-            }`}
+              }`}
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
@@ -124,19 +123,18 @@ export function ClearanceChecklistView({
         <h4 className="font-semibold text-slate-900 mb-4">Department Exit Clearances</h4>
         <div className="space-y-2">
           {checklist.items.map((item, index) => (
-            <div 
+            <div
               key={index}
               className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${
-                  item.status === ApprovalStatus.APPROVED ? 'bg-green-500' :
+                <div className={`w-2 h-2 rounded-full ${item.status === ApprovalStatus.APPROVED ? 'bg-green-500' :
                   item.status === ApprovalStatus.REJECTED ? 'bg-red-500' :
-                  'bg-yellow-500'
-                }`} />
+                    'bg-yellow-500'
+                  }`} />
                 <span className="font-medium text-slate-900">{item.department}</span>
               </div>
-              
+
               {item.status === ApprovalStatus.PENDING ? (
                 <div className="flex items-center gap-2">
                   <button
@@ -153,11 +151,10 @@ export function ClearanceChecklistView({
                   </button>
                 </div>
               ) : (
-                <span className={`px-3 py-1 text-xs font-medium rounded ${
-                  item.status === ApprovalStatus.APPROVED
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}>
+                <span className={`px-3 py-1 text-xs font-medium rounded ${item.status === ApprovalStatus.APPROVED
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+                  }`}>
                   {item.status === ApprovalStatus.APPROVED ? 'Approved' : 'Rejected'}
                 </span>
               )}
@@ -179,7 +176,7 @@ export function ClearanceChecklistView({
             {equipmentPercentage}%
           </span>
         </div>
-        
+
         <div className="mb-4">
           <h5 className="font-medium text-slate-900 mb-2">IT Assets & Equipment</h5>
           <p className="text-sm text-slate-500 mb-3">
@@ -217,11 +214,10 @@ export function ClearanceChecklistView({
         {checklist.equipmentList.length > 0 && (
           <div className="space-y-2">
             {checklist.equipmentList.map((item, index) => (
-              <div 
+              <div
                 key={item.equipmentId || index}
-                className={`flex items-center justify-between p-3 border rounded-lg ${
-                  item.returned ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'
-                }`}
+                className={`flex items-center justify-between p-3 border rounded-lg ${item.returned ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <input
@@ -234,9 +230,8 @@ export function ClearanceChecklistView({
                     className="w-5 h-5 text-green-600 border-slate-300 rounded focus:ring-green-500"
                   />
                   <div>
-                    <p className={`font-medium text-sm ${
-                      item.returned ? 'text-green-700 line-through' : 'text-slate-900'
-                    }`}>
+                    <p className={`font-medium text-sm ${item.returned ? 'text-green-700 line-through' : 'text-slate-900'
+                      }`}>
                       {item.name}
                     </p>
                     {item.condition && (
@@ -264,11 +259,10 @@ export function ClearanceChecklistView({
             />
             <span className="text-slate-700">Returned</span>
           </div>
-          <span className={`px-3 py-1 text-xs font-medium rounded ${
-            checklist.cardReturned
-              ? 'bg-green-100 text-green-700'
-              : 'bg-slate-100 text-slate-600'
-          }`}>
+          <span className={`px-3 py-1 text-xs font-medium rounded ${checklist.cardReturned
+            ? 'bg-green-100 text-green-700'
+            : 'bg-slate-100 text-slate-600'
+            }`}>
             {checklist.cardReturned ? 'Returned' : 'Pending'}
           </span>
         </div>

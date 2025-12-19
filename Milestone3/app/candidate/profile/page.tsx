@@ -22,7 +22,9 @@ export default function CandidateProfile() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [contractId, setContractId] = useState('');
   const [onboardingId, setOnboardingId] = useState('');
-  
+  const [loadingIds, setLoadingIds] = useState(true);
+
+  // Profile editing form data (from incoming changes)
   const [formData, setFormData] = useState<UpdateCandidateData>({
     firstName: '',
     middleName: '',
@@ -41,15 +43,49 @@ export default function CandidateProfile() {
     },
   });
 
-  // Fetch candidate profile
+  // ISSUE-005 FIX: Auto-fetch Contract and Onboarding IDs when component loads (our changes)
+  useEffect(() => {
+    const fetchUserOnboardingData = async () => {
+      if (!user?.id) {
+        setLoadingIds(false);
+        return;
+      }
+
+      try {
+        // Use the new getByUserId endpoint that works for both candidates and employees
+        const response = await onboardingApi.tracker.getByUserId(user.id);
+        if (response.data) {
+          setContractId(response.data.contractId || '');
+          // Use onboardingId if available, otherwise try common ID fields
+          const fetchedOnboardingId = (response.data as any).onboardingId ||
+            (response.data as any)._id ||
+            '';
+          setOnboardingId(fetchedOnboardingId);
+          console.log('[PROFILE] Auto-fetched onboarding data:', {
+            contractId: response.data.contractId,
+            onboardingId: fetchedOnboardingId,
+          });
+        }
+      } catch (err) {
+        // User doesn't have an onboarding record yet - this is expected for new candidates
+        console.log('[PROFILE] No onboarding record found - IDs will stay empty');
+      } finally {
+        setLoadingIds(false);
+      }
+    };
+
+    fetchUserOnboardingData();
+  }, [user?.id]);
+
+  // Fetch candidate profile (from incoming changes)
   useEffect(() => {
     const fetchCandidateProfile = async () => {
       if (!user || authLoading) return;
-      
+
       try {
         setLoading(true);
         let candidateData: Candidate | null = null;
-        
+
         // Try to get candidate profile by email first
         if (user.personalEmail) {
           try {
@@ -58,7 +94,7 @@ export default function CandidateProfile() {
             console.log('Could not find candidate by email, trying national ID...');
           }
         }
-        
+
         // If not found by email, try by national ID
         if (!candidateData && user.nationalId) {
           try {
@@ -67,7 +103,7 @@ export default function CandidateProfile() {
             console.log('Could not find candidate by national ID');
           }
         }
-        
+
         if (candidateData) {
           setCandidate(candidateData);
           setFormData({
@@ -96,9 +132,9 @@ export default function CandidateProfile() {
         }
       } catch (err: any) {
         console.error('Error fetching candidate profile:', err);
-        setMessage({ 
-          type: 'error', 
-          text: err.response?.data?.message || 'Failed to load candidate profile' 
+        setMessage({
+          type: 'error',
+          text: err.response?.data?.message || 'Failed to load candidate profile'
         });
       } finally {
         setLoading(false);
@@ -134,9 +170,9 @@ export default function CandidateProfile() {
     try {
       setSaving(true);
       setMessage(null);
-      
+
       const candidateId = candidate._id || candidate.id || '';
-      
+
       // Prepare update data - only include fields that backend accepts
       // Backend AddressDto only accepts: city, streetAddress, country (not state or postalCode)
       const updateData: UpdateCandidateData = {
@@ -156,13 +192,13 @@ export default function CandidateProfile() {
           // Exclude state and postalCode as backend doesn't accept them
         },
       };
-      
+
       await candidateApi.updateMyCandidateProfile(candidateId, updateData);
-      
+
       // Reload candidate data
       const updatedCandidate = await candidateApi.getCandidateById(candidateId);
       setCandidate(updatedCandidate);
-      
+
       // Update formData to match the response (which won't have state/postalCode)
       if (updatedCandidate) {
         setFormData({
@@ -174,14 +210,14 @@ export default function CandidateProfile() {
           },
         });
       }
-      
+
       setEditing(false);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
     } catch (err: any) {
       console.error('Error updating candidate profile:', err);
-      setMessage({ 
-        type: 'error', 
-        text: err.response?.data?.message || 'Failed to update profile' 
+      setMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Failed to update profile'
       });
     } finally {
       setSaving(false);
@@ -265,18 +301,40 @@ export default function CandidateProfile() {
     setMessage(null);
 
     try {
-      // Simulate file upload to storage and get URL
-      // In production, upload to S3/Azure/etc and get the URL
-      const signatureUrl = `https://storage.example.com/contracts/${contractId}/${file.name}`;
+      // Convert file to base64 for storage
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
 
+      // 1. Update the contract with signature URL (original functionality)
+      const signatureUrl = `https://storage.example.com/contracts/${contractId}/${file.name}`;
       await onboardingApi.contracts.uploadSigned(contractId, {
         signatureUrl,
         signedAt: new Date().toISOString(),
       });
 
+      // 2. ALSO upload to Documents collection so HR can see it in Documents tab (ONB-007)
+      if (onboardingId) {
+        try {
+          await onboardingApi.documents.upload({
+            onboardingId: onboardingId,
+            documentType: 'CONTRACT',
+            filePath: base64Data,
+            documentName: file.name,
+          });
+          console.log('[PROFILE] Document also uploaded to Documents collection for HR visibility');
+        } catch (docErr) {
+          console.warn('[PROFILE] Could not upload to Documents collection:', docErr);
+          // Don't fail the whole operation if this secondary upload fails
+        }
+      }
+
       setMessage({ type: 'success', text: 'Signed contract uploaded successfully! HR will review it shortly.' });
       e.target.value = ''; // Reset input
-      setContractId(''); // Clear contract ID
     } catch (error: any) {
       console.error('Failed to upload contract:', error);
       setMessage({
@@ -362,11 +420,10 @@ export default function CandidateProfile() {
 
         {/* Message Banner */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
-            message.type === 'success' 
-              ? 'bg-green-50 border border-green-200 text-green-700' 
+          <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${message.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-700'
               : 'bg-red-50 border border-red-200 text-red-700'
-          }`}>
+            }`}>
             {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
             <p>{message.text}</p>
           </div>
@@ -640,9 +697,9 @@ export default function CandidateProfile() {
                 {candidate.resumeUrl ? (
                   <div className="p-4 bg-slate-50 rounded-lg">
                     <p className="text-sm text-slate-600 mb-2">Resume uploaded</p>
-                    <a 
-                      href={candidate.resumeUrl} 
-                      target="_blank" 
+                    <a
+                      href={candidate.resumeUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 text-sm underline"
                     >
@@ -677,107 +734,107 @@ export default function CandidateProfile() {
                 )}
               </div>
 
-            {/* Signed Contract Section */}
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <FileCheck className="w-5 h-5" />
-                Signed Contract
-              </h3>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Enter Contract ID"
-                  value={contractId}
-                  onChange={(e) => setContractId(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
-                  <FileCheck className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-600 mb-2">
-                    Upload your signed employment contract
-                  </p>
-                  <p className="text-sm text-slate-400">
-                    Supports PDF (max 10MB)
-                  </p>
+              {/* Signed Contract Section */}
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <FileCheck className="w-5 h-5" />
+                  Signed Contract
+                </h3>
+                <div className="space-y-3">
                   <input
-                    type="file"
-                    id="contract-upload"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={handleContractUpload}
-                    disabled={uploadingContract || !contractId}
+                    type="text"
+                    placeholder="Enter Contract ID"
+                    value={contractId}
+                    onChange={(e) => setContractId(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <button
-                    onClick={() => document.getElementById('contract-upload')?.click()}
-                    disabled={uploadingContract || !contractId}
-                    className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploadingContract ? 'Uploading...' : 'Upload Signed Contract'}
-                  </button>
-                  {!contractId && (
-                    <p className="text-xs text-amber-600 mt-2">Please enter your Contract ID first</p>
-                  )}
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                    <FileCheck className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-600 mb-2">
+                      Upload your signed employment contract
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      Supports PDF (max 10MB)
+                    </p>
+                    <input
+                      type="file"
+                      id="contract-upload"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={handleContractUpload}
+                      disabled={uploadingContract || !contractId}
+                    />
+                    <button
+                      onClick={() => document.getElementById('contract-upload')?.click()}
+                      disabled={uploadingContract || !contractId}
+                      className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingContract ? 'Uploading...' : 'Upload Signed Contract'}
+                    </button>
+                    {!contractId && (
+                      <p className="text-xs text-amber-600 mt-2">Please enter your Contract ID first</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Onboarding Forms Section */}
-            <div>
-              <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Required Onboarding Forms
-              </h3>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Enter Onboarding ID (provided by HR)"
-                  value={onboardingId}
-                  onChange={(e) => setOnboardingId(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
-                  <Upload className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-600 mb-2">
-                    Upload completed onboarding forms and templates
-                  </p>
-                  <p className="text-sm text-slate-400">
-                    Supports PDF, DOC, DOCX (max 10MB)
-                  </p>
+              {/* Onboarding Forms Section */}
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Required Onboarding Forms
+                </h3>
+                <div className="space-y-3">
                   <input
-                    type="file"
-                    id="form-upload"
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    onChange={handleFormUpload}
-                    disabled={uploadingForm || !onboardingId}
+                    type="text"
+                    placeholder="Enter Onboarding ID (provided by HR)"
+                    value={onboardingId}
+                    onChange={(e) => setOnboardingId(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <button
-                    onClick={() => document.getElementById('form-upload')?.click()}
-                    disabled={uploadingForm || !onboardingId}
-                    className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploadingForm ? 'Uploading...' : 'Upload Form'}
-                  </button>
-                  {!onboardingId && (
-                    <p className="text-xs text-amber-600 mt-2">Please enter your Onboarding ID first</p>
-                  )}
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
+                    <Upload className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-600 mb-2">
+                      Upload completed onboarding forms and templates
+                    </p>
+                    <p className="text-sm text-slate-400">
+                      Supports PDF, DOC, DOCX (max 10MB)
+                    </p>
+                    <input
+                      type="file"
+                      id="form-upload"
+                      accept=".pdf,.doc,.docx"
+                      className="hidden"
+                      onChange={handleFormUpload}
+                      disabled={uploadingForm || !onboardingId}
+                    />
+                    <button
+                      onClick={() => document.getElementById('form-upload')?.click()}
+                      disabled={uploadingForm || !onboardingId}
+                      className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingForm ? 'Uploading...' : 'Upload Form'}
+                    </button>
+                    {!onboardingId && (
+                      <p className="text-xs text-amber-600 mt-2">Please enter your Onboarding ID first</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Tips */}
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">💡 Profile Tips</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Keep your resume updated with your latest experience</li>
-                <li>• Upload your signed contract once you receive it from HR</li>
-                <li>• Complete all required onboarding forms to start your journey</li>
-                <li>• Contact HR if you haven't received your Contract ID or Onboarding ID</li>
-              </ul>
+              {/* Tips */}
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">💡 Profile Tips</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Keep your resume updated with your latest experience</li>
+                  <li>• Upload your signed contract once you receive it from HR</li>
+                  <li>• Complete all required onboarding forms to start your journey</li>
+                  <li>• Contact HR if you haven't received your Contract ID or Onboarding ID</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </RouteGuard>
   );
