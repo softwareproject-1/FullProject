@@ -336,6 +336,7 @@ export const roleAccess = {
     routes: [
       '/performance',
       '/performance/my-performance', // View own performance
+      '/performance/cycles', // View own appraisal cycles
       '/performance/disputes', // Can submit disputes
       '/admin/employee-profile', // Can view own profile
       '/employee/profile', // Self-service profile editing

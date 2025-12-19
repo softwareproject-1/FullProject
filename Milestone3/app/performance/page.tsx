@@ -23,6 +23,8 @@ export default function PerformanceHub() {
   const canViewPerformanceStatus = user ? hasFeature(user.roles, "viewPerformanceStatus") : false;
   const canSubmitDisputes = user ? hasFeature(user.roles, "submitDisputes") : false;
   const canResolveDisputes = user ? hasFeature(user.roles, "resolveDisputes") : false;
+  const canAccessCycles = user ? canAccessRoute(user.roles, "/performance/cycles") : false;
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
 
   return (
     <RouteGuard 
@@ -92,9 +94,9 @@ export default function PerformanceHub() {
                       {canCreateTemplates ? "Templates" : "View Templates"}
                     </Button>
                   )}
-                  {(canManageCycles || canAssistCycles || canEvaluateEmployees) && (
+                  {(canManageCycles || canAssistCycles || canEvaluateEmployees || (canAccessCycles && isDepartmentEmployee)) && (
                     <Button onClick={() => router.push("/performance/cycles")} variant="outline" className="w-full text-slate-900 border-slate-300 hover:bg-slate-100">
-                      {canManageCycles ? "Cycles & Assignments" : canAssistCycles ? "Cycles (Assist)" : canEvaluateEmployees ? "View Cycles & Evaluate" : "Cycles & Assignments"}
+                      {canManageCycles ? "Cycles & Assignments" : canAssistCycles ? "Cycles (Assist)" : canEvaluateEmployees ? "View Cycles & Evaluate" : isDepartmentEmployee ? "My Appraisal Cycles" : "Cycles & Assignments"}
                     </Button>
                   )}
                   {(canResolveDisputes || canSubmitDisputes) && (
@@ -115,7 +117,8 @@ export default function PerformanceHub() {
                 </div>
                 {/* Show message if no modules available */}
                 {!canCreateTemplates && !canViewTemplates && !canManageCycles && !canAssistCycles && !canEvaluateEmployees && 
-                 !canResolveDisputes && !canSubmitDisputes && !canViewTeamPerformance && !canViewOwnPerformance && !canViewPerformanceStatus && (
+                 !canResolveDisputes && !canSubmitDisputes && !canViewTeamPerformance && !canViewOwnPerformance && !canViewPerformanceStatus &&
+                 !(canAccessCycles && isDepartmentEmployee) && (
                   <div className="text-center py-8 text-slate-600">
                     <p>No performance modules available for your role.</p>
                     <p className="text-sm mt-2">Contact your administrator if you believe you should have access.</p>

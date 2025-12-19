@@ -397,14 +397,15 @@ export default function Dashboard() {
       const canManageCycles = hasFeature(user.roles, 'manageAppraisalCycles');
       const canAssistCycles = hasFeature(user.roles, 'assistAppraisalCycles');
       const canEvaluateEmployees = hasFeature(user.roles, 'evaluateEmployees');
+      const isDepartmentEmployee = hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE);
       
       console.log('Can access cycles page:', canAccessCyclesPage);
-      // Only navigate to cycles page if user has management/evaluation features
-      if (canAccessCyclesPage && (canManageCycles || canAssistCycles || canEvaluateEmployees)) {
+      // Navigate to cycles page if user has management/evaluation features OR is a department employee
+      if (canAccessCyclesPage && (canManageCycles || canAssistCycles || canEvaluateEmployees || isDepartmentEmployee)) {
         console.log('Navigating to /performance/cycles');
         router.push('/performance/cycles');
       } else {
-        // Department employees should go to performance hub
+        // Fallback to performance hub
         console.log('Navigating to /performance');
         router.push('/performance');
       }

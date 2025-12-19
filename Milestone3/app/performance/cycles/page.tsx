@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import RouteGuard from "@/components/RouteGuard";
-import { canAccessRoute, hasFeature } from "@/utils/roleAccess";
+import { canAccessRoute, hasFeature, hasRole, SystemRole } from "@/utils/roleAccess";
 import { PerformanceApi } from "@/utils/performanceApi";
 
 type Cycle = {
@@ -38,6 +38,7 @@ export default function CyclesPage() {
   const canManageCycles = user ? hasFeature(user.roles, "manageAppraisalCycles") : false;
   const canAssistCycles = user ? hasFeature(user.roles, "assistAppraisalCycles") : false;
   const canEvaluateEmployees = user ? hasFeature(user.roles, "evaluateEmployees") : false;
+  const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const [items, setItems] = useState<Cycle[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [form, setForm] = useState<FormData>({ 
@@ -75,6 +76,36 @@ export default function CyclesPage() {
         cycles = res;
       } else if (res.data?.data && Array.isArray(res.data.data)) {
         cycles = res.data.data;
+      }
+      
+      // For department employees, filter to show only cycles where they have an assignment
+      if (isDepartmentEmployee && user?._id) {
+        const filteredCycles: Cycle[] = [];
+        for (const cycle of cycles) {
+          const cycleId = cycle._id || cycle.id;
+          if (!cycleId) continue;
+          
+          try {
+            // Check if employee has an assignment in this cycle
+            const assignmentsRes = await PerformanceApi.listAssignmentsForCycle(String(cycleId));
+            const assignments = assignmentsRes.data || [];
+            
+            const hasAssignment = assignments.some((assignment: any) => {
+              const employeeId = String(assignment.employeeProfileId || assignment.employeeProfileId?._id || '');
+              const userId = String(user._id);
+              return employeeId === userId;
+            });
+            
+            if (hasAssignment) {
+              filteredCycles.push(cycle);
+            }
+          } catch (err) {
+            console.error(`Error checking assignments for cycle ${cycleId}:`, err);
+            // If we can't check, don't include the cycle for safety
+          }
+        }
+        cycles = filteredCycles;
+        console.log("Filtered cycles for department employee:", cycles.length);
       }
       
       console.log("Parsed cycles:", cycles.length, cycles);
@@ -187,7 +218,7 @@ export default function CyclesPage() {
   return (
     <RouteGuard 
       requiredRoute="/performance/cycles" 
-      requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "department head"]}
+      requiredRoles={["System Admin", "HR Admin", "HR Manager", "HR Employee", "department head", "department employee"]}
     >
       {loading || loadingData ? (
         <main className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -211,6 +242,8 @@ export default function CyclesPage() {
                     ? "View cycles and assist in setup under HR Manager supervision." 
                     : canEvaluateEmployees 
                     ? "View cycles and evaluate employees." 
+                    : isDepartmentEmployee
+                    ? "View your appraisal cycles and create disputes."
                     : "View appraisal cycles."}
                 </p>
               </div>
@@ -372,6 +405,15 @@ export default function CyclesPage() {
                             className="text-xs px-3"
                           >
                             Evaluate Employees
+                          </Button>
+                        )}
+                        {isDepartmentEmployee && (
+                          <Button
+                            variant="default"
+                            onClick={() => router.push(`/performance/disputes?cycleId=${id}`)}
+                            className="text-xs px-3"
+                          >
+                            View & Create Dispute
                           </Button>
                         )}
                         {canManageCycles && (

@@ -99,16 +99,27 @@ function DisputesPageContent() {
     }
   }, [showSubmitForm, canSubmitDisputes, user?._id]);
 
+  // Helper function to validate MongoDB ObjectId format
+  const isValidObjectId = (id: string): boolean => {
+    if (!id || typeof id !== 'string') return false;
+    // MongoDB ObjectId is 24 hex characters
+    return /^[0-9a-fA-F]{24}$/.test(id.trim());
+  };
+
   // Load URL parameters on mount
   useEffect(() => {
     try {
       const urlCycleId = searchParams?.get('cycleId');
       const urlAppraisalId = searchParams?.get('appraisalId');
       
+      // Only set cycleId in the cycle selector, NOT in the form's appraisalId field
       if (urlCycleId) {
         const trimmedCycleId = urlCycleId.trim();
         setCycleId(trimmedCycleId);
-        setSubmitFormData(prev => ({ ...prev, cycleId: trimmedCycleId }));
+        // Only set cycleId in form if it's a valid ObjectId and not being used as appraisalId
+        if (isValidObjectId(trimmedCycleId)) {
+          setSubmitFormData(prev => ({ ...prev, cycleId: trimmedCycleId }));
+        }
       }
       
       if (urlAppraisalId) {
@@ -363,13 +374,6 @@ function DisputesPageContent() {
     }
   };
 
-  // Helper function to validate MongoDB ObjectId format
-  const isValidObjectId = (id: string): boolean => {
-    if (!id || typeof id !== 'string') return false;
-    // MongoDB ObjectId is 24 hex characters
-    return /^[0-9a-fA-F]{24}$/.test(id.trim());
-  };
-
   const submitDispute = async () => {
     // Validate required fields - Only Appraisal ID and Reason are required
     // Cycle ID and Assignment ID are optional (backend will retrieve from appraisal)
@@ -604,11 +608,14 @@ function DisputesPageContent() {
                           value={submitFormData.appraisalId}
                           onValueChange={(value) => {
                             const selectedAppraisal = availableAppraisals.find(a => (a._id || a.id) === value);
+                            const newCycleId = selectedAppraisal?.cycleId || submitFormData.cycleId;
                             setSubmitFormData({
                               ...submitFormData,
                               appraisalId: value,
-                              cycleId: selectedAppraisal?.cycleId || submitFormData.cycleId,
+                              cycleId: newCycleId,
+                              assignmentId: "", // Clear assignment when appraisal changes
                             });
+                            // If cycle ID changed, assignments will be loaded via useEffect
                           }}
                         >
                           <SelectTrigger id="appraisalSelect" className="w-full">
@@ -685,28 +692,64 @@ function DisputesPageContent() {
                             type="button"
                             variant="outline"
                             onClick={async () => {
-                              // Fetch appraisal record to auto-fill cycle ID
+                              // Fetch appraisal record to auto-fill cycle ID and assignment ID
                               try {
+                                setError(null);
                                 const recordRes = await PerformanceApi.getRecord(submitFormData.appraisalId.trim());
                                 const record = recordRes.data || recordRes;
-                                if (record) {
-                                  const recordCycleId = record.cycleId?._id || record.cycleId || record.cycleId?.id;
-                                  const recordAssignmentId = record.assignmentId?._id || record.assignmentId || record.assignmentId?.id;
-                                  
-                                  if (recordCycleId) {
-                                    setSubmitFormData(prev => ({
-                                      ...prev,
-                                      cycleId: String(recordCycleId),
-                                      assignmentId: recordAssignmentId ? String(recordAssignmentId) : prev.assignmentId,
-                                    }));
-                                    setError(null);
+                                
+                                if (!record) {
+                                  setError("Appraisal record not found. Please verify the Appraisal ID is correct.");
+                                  return;
+                                }
+                                
+                                // Extract cycle ID - handle different data structures
+                                let recordCycleId: string | null = null;
+                                if (record.cycleId) {
+                                  if (typeof record.cycleId === 'object' && record.cycleId !== null) {
+                                    recordCycleId = String(record.cycleId._id || record.cycleId.id || record.cycleId);
                                   } else {
-                                    setError("Could not retrieve Cycle ID from this appraisal record. Please enter it manually.");
+                                    recordCycleId = String(record.cycleId);
                                   }
+                                }
+                                
+                                // Extract assignment ID - handle different data structures
+                                let recordAssignmentId: string | null = null;
+                                if (record.assignmentId) {
+                                  if (typeof record.assignmentId === 'object' && record.assignmentId !== null) {
+                                    recordAssignmentId = String(record.assignmentId._id || record.assignmentId.id || record.assignmentId);
+                                  } else {
+                                    recordAssignmentId = String(record.assignmentId);
+                                  }
+                                }
+                                
+                                // Update form with retrieved data
+                                setSubmitFormData(prev => ({
+                                  ...prev,
+                                  cycleId: recordCycleId || prev.cycleId,
+                                  assignmentId: recordAssignmentId || prev.assignmentId,
+                                }));
+                                
+                                // Check if assignment ID was found
+                                if (!recordAssignmentId) {
+                                  setError("Assignment ID is required. Could not retrieve it from the appraisal record. Please enter it manually or contact HR.");
+                                } else {
+                                  setError(null);
+                                }
+                                
+                                // Also update the cycle selector if cycle ID was found
+                                if (recordCycleId) {
+                                  setCycleId(recordCycleId);
+                                  // Update form cycle ID so assignments can be loaded
+                                  setSubmitFormData(prev => ({
+                                    ...prev,
+                                    cycleId: String(recordCycleId),
+                                  }));
                                 }
                               } catch (err: any) {
                                 console.error("Error fetching appraisal record:", err);
-                                setError(err?.response?.data?.message || "Could not fetch appraisal record. Please verify the Appraisal ID is correct.");
+                                const errorMsg = err?.response?.data?.message || err?.message || "Could not fetch appraisal record. Please verify the Appraisal ID is correct.";
+                                setError(errorMsg);
                               }
                             }}
                             className="text-slate-900 border-slate-300 hover:bg-slate-100 whitespace-nowrap"
