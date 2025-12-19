@@ -263,6 +263,25 @@ export class OnboardingController {
   }
 
   /**
+   * GET /onboarding/tracker/user/:userId
+   * 
+   * ISSUE-006 FIX: Get onboarding tracker for a user (candidate or employee).
+   * This endpoint handles both scenarios:
+   * 1. User is still a candidate (onboarding.employeeId = candidateId)
+   * 2. User has become an employee (onboarding.employeeId = real employeeId)
+   * 
+   * @param userId - The user's candidate ID or employee ID
+   * @returns OnboardingTrackerDto - The tracker
+   */
+  @Get('tracker/user/:userId')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
+  async getOnboardingByCandidateOrEmployee(
+    @Param('userId') userId: string,
+  ): Promise<OnboardingTrackerDto> {
+    return this.onboardingService.getOnboardingByCandidateOrEmployee(userId);
+  }
+
+  /**
    * GET /onboarding/all
    * 
    * Get all onboardings (for HR dashboard).

@@ -412,7 +412,7 @@ export class OnboardingService {
 
   /**
    * Create employee profile from contract
-   * Stub implementation - would integrate with EmployeeProfileService
+   * Implements ONB-002: HR creates employee profile from signed contract
    */
   async createEmployeeFromContract(dto: CreateEmployeeFromContractDto): Promise<EmployeeProfileCreatedDto> {
     const contract = await this.contractModel.findById(dto.contractId).exec();
@@ -466,6 +466,14 @@ export class OnboardingService {
 
     console.log(`[ONBOARDING] Created employee profile ${employeeProfile._id} from contract ${dto.contractId}`);
 
+    // ISSUE-002 FIX: Link the new employee to the onboarding record
+    // This updates the onboarding record to use the real employeeId instead of the candidateId placeholder
+    await this.linkEmployeeToOnboarding(
+      dto.contractId,
+      (employeeProfile._id as Types.ObjectId).toString(),
+      offer.candidateId.toString()
+    );
+
     return {
       success: true,
       employeeProfileId: (employeeProfile._id as Types.ObjectId).toString(),
@@ -474,6 +482,44 @@ export class OnboardingService {
       contractId: dto.contractId,
       message: 'Employee profile created successfully',
     };
+  }
+
+  /**
+   * Link employee to onboarding record
+   * ISSUE-002 FIX: Updates the onboarding record with the real employeeId after HR creates the employee profile
+   * 
+   * @param contractId - The contract ID associated with the onboarding
+   * @param employeeProfileId - The newly created employee profile ID
+   * @param candidateId - The original candidate ID (for fallback lookup)
+   */
+  async linkEmployeeToOnboarding(
+    contractId: string,
+    employeeProfileId: string,
+    candidateId: string
+  ): Promise<void> {
+    // Try to find onboarding by contractId first
+    let onboarding = await this.onboardingModel.findOne({
+      contractId: new Types.ObjectId(contractId),
+    }).exec();
+
+    // Fallback: find by the candidateId that was used as placeholder employeeId
+    if (!onboarding) {
+      onboarding = await this.onboardingModel.findOne({
+        employeeId: new Types.ObjectId(candidateId),
+      }).exec();
+    }
+
+    if (onboarding) {
+      // Update the onboarding record with the real employee ID
+      onboarding.employeeId = new Types.ObjectId(employeeProfileId);
+      await onboarding.save();
+
+      console.log(`[ONBOARDING] Linked employee ${employeeProfileId} to onboarding ${onboarding._id}`);
+      console.log(`  - Previous employeeId was candidateId: ${candidateId}`);
+      console.log(`  - New employeeId is real employee: ${employeeProfileId}`);
+    } else {
+      console.warn(`[ONBOARDING] No onboarding record found for contract ${contractId} or candidate ${candidateId}`);
+    }
   }
 
   // ============================================================================
@@ -503,6 +549,55 @@ export class OnboardingService {
 
     if (!onboarding) {
       throw new NotFoundException(`Onboarding for employee ${employeeId} not found`);
+    }
+
+    return this.mapToTrackerDto(onboarding);
+  }
+
+  /**
+   * ISSUE-006 FIX: Get onboarding tracker by candidate ID or employee ID
+   * 
+   * This method handles the transition period where:
+   * 1. Initially, onboarding.employeeId = candidateId (placeholder)
+   * 2. After HR creates employee, onboarding.employeeId = real employeeId
+   * 
+   * The method searches for both possibilities to ensure candidates can always
+   * access their onboarding record regardless of the transition state.
+   * 
+   * @param userId - Either candidateId or employeeId
+   * @returns OnboardingTrackerDto
+   */
+  async getOnboardingByCandidateOrEmployee(userId: string): Promise<OnboardingTrackerDto> {
+    // First try: user is still a candidate (employeeId field contains candidateId)
+    let onboarding = await this.onboardingModel.findOne({
+      employeeId: new Types.ObjectId(userId),
+    }).exec();
+
+    // Second try: search by contractId linked to this user's offer
+    if (!onboarding) {
+      // Find any contract associated with this candidate
+      const offers = await this.offerModel.find({
+        candidateId: new Types.ObjectId(userId),
+      }).exec();
+
+      for (const offer of offers) {
+        const contracts = await this.contractModel.find({
+          offerId: offer._id,
+        }).exec();
+
+        for (const contract of contracts) {
+          onboarding = await this.onboardingModel.findOne({
+            contractId: contract._id,
+          }).exec();
+
+          if (onboarding) break;
+        }
+        if (onboarding) break;
+      }
+    }
+
+    if (!onboarding) {
+      throw new NotFoundException(`No onboarding record found for user ${userId}`);
     }
 
     return this.mapToTrackerDto(onboarding);
@@ -937,7 +1032,7 @@ export class OnboardingService {
 
     // Update contract with signature
     contract.documentId = doc._id as Types.ObjectId;
-    
+
     // Use signatureUrl or employeeSignatureUrl as the signature
     const signatureUrl = dto.signatureUrl || dto.employeeSignatureUrl;
     if (signatureUrl) {
@@ -1095,7 +1190,7 @@ export class OnboardingService {
       try {
         const data = JSON.parse(doc.filePath.replace(this.PROVISIONING_PREFIX, ''));
         requestedAt = new Date(data.requestedAt);
-        
+
         // Track if we have any scheduled provisioning
         if (data.status === 'scheduled') {
           hasScheduledProvisioning = true;
@@ -1108,7 +1203,7 @@ export class OnboardingService {
           if (status === 'scheduled') {
             status = 'scheduled';
           }
-          
+
           systemsMap.set(system, {
             system,
             status,

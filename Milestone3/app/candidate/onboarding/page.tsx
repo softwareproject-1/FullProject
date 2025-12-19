@@ -71,12 +71,8 @@ export default function CandidateOnboardingPage() {
   const [uploadingTask, setUploadingTask] = useState<number | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [finalizing, setFinalizing] = useState(false);
-  const [finalizationResult, setFinalizationResult] = useState<{
-    success: boolean;
-    newRole: string;
-    message: string;
-  } | null>(null);
+  // Note: Finalization/employee creation is handled by HR via ONB-002
+  // Candidates complete tasks, HR creates the employee profile from the contract
 
   // Fetch onboarding data for the current user
   const fetchOnboardingData = useCallback(async () => {
@@ -199,31 +195,9 @@ export default function CandidateOnboardingPage() {
     };
   };
 
-  // Finalize onboarding - transition to employee
-  const handleFinalizeOnboarding = async () => {
-    const id = onboarding?.onboardingId || onboarding?._id;
-    if (!id) return;
-
-    setFinalizing(true);
-    setError(null);
-
-    try {
-      const response = await onboardingApi.finalization.finalize(id);
-      setFinalizationResult({
-        success: response.data.success,
-        newRole: response.data.newRole,
-        message: response.data.message,
-      });
-      setSuccessMessage('🎉 Congratulations! Your onboarding is complete!');
-      // Refresh the data
-      await fetchOnboardingData();
-    } catch (err: any) {
-      console.error('Failed to finalize onboarding:', err);
-      setError(err.response?.data?.message || 'Failed to complete onboarding. Please try again.');
-    } finally {
-      setFinalizing(false);
-    }
-  };
+  // Note: Employee creation (finalization) is handled by HR via Contracts tab (ONB-002)
+  // Candidates cannot self-convert to employees - this aligns with user story ONB-002
+  // "As an HR Manager, I want to be able to access signed contract detail to create an employee profile"
 
   // Group tasks by department
   const groupTasksByDepartment = () => {
@@ -347,8 +321,8 @@ export default function CandidateOnboardingPage() {
                 </div>
               </div>
 
-              {/* Finalize Button - Show when all tasks complete and not yet finalized */}
-              {progress.percentage === 100 && !finalizationResult && (
+              {/* All tasks complete message */}
+              {progress.percentage === 100 && (
                 <div className="mt-6 pt-6 border-t border-slate-200">
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
                     <div className="flex items-center gap-3">
@@ -357,35 +331,12 @@ export default function CandidateOnboardingPage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold text-green-800">All Tasks Complete!</h3>
-                        <p className="text-sm text-green-600">You've completed all onboarding tasks. Click below to finalize your onboarding.</p>
+                        <p className="text-sm text-green-600">
+                          Congratulations! You've completed all your onboarding tasks.
+                          HR will finalize your employee profile shortly.
+                        </p>
                       </div>
-                      <button
-                        onClick={handleFinalizeOnboarding}
-                        disabled={finalizing}
-                        className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {finalizing ? (
-                          <><RefreshCw className="w-4 h-4 animate-spin" /> Processing...</>
-                        ) : (
-                          <>Complete Onboarding <ArrowRight className="w-4 h-4" /></>
-                        )}
-                      </button>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Finalization Success */}
-              {finalizationResult?.success && (
-                <div className="mt-6 pt-6 border-t border-slate-200">
-                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 text-center">
-                    <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4">
-                      <Award className="w-8 h-8 text-purple-600" />
-                    </div>
-                    <h3 className="text-xl font-bold text-purple-800 mb-2">Welcome to the Team!</h3>
-                    <p className="text-purple-600 mb-4">{finalizationResult.message}</p>
-                    <p className="text-sm text-purple-500">Your new role: <span className="font-semibold">{finalizationResult.newRole}</span></p>
-                    <p className="text-xs text-slate-500 mt-4">You will be redirected to the employee dashboard shortly, or <a href="/" className="text-purple-600 underline hover:text-purple-800">click here</a> to continue.</p>
                   </div>
                 </div>
               )}
