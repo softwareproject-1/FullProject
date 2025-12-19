@@ -140,6 +140,12 @@ export const PayslipPreviewModal: React.FC<PayslipPreviewModalProps> = ({
                   <span className="font-medium">+${(payslip.bonuses || 0).toLocaleString()}</span>
                 </div>
               )}
+              {payslip.terminationPayout && payslip.terminationPayout > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Termination Payout</span>
+                  <span className="font-medium">+${(payslip.terminationPayout || 0).toLocaleString()}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between font-semibold text-base">
                 <span>Gross Salary</span>
