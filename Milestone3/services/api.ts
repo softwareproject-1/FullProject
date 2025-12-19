@@ -1355,7 +1355,7 @@ export const payrollExecutionApi = {
         timeout: 120000 // Increase timeout to 120 seconds for heavy calculations
     }),
 
-    submitForApproval: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/submit`),
+    submitForApproval: (runId: string) => axiosInstance.patch(`/payroll-execution/runs/${runId}/submit`, {}, { timeout: 120000 }),
 
     // Phase 2-3: Approvals
     managerReview: (runId: string, data: { status?: 'APPROVED' | 'REJECTED', action?: 'APPROVED' | 'REJECTED', comment?: string }) =>

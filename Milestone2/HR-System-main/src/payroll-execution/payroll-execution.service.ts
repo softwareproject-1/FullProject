@@ -576,7 +576,10 @@ export class PayrollExecutionService {
     try {
       // REAL API CALL - Using Mongoose Model
       const employees = await this.employeeModel.find({
-        isActive: true
+        $or: [
+          { status: 'ACTIVE' },
+          { isActive: true }
+        ]
       }).exec();
 
       this.logger.log(`Found ${employees.length} active employees in database`);
@@ -611,7 +614,11 @@ export class PayrollExecutionService {
       try {
         // FIX 3: Remove extra validation checks that might be too strict
         // Just check isActive - the query already filtered for this
-        if (!emp.isActive) continue;
+        // Fix: Check both isActive (legacy) and status (enum)
+        const isActive = emp.isActive || 
+                        (emp.status && (emp.status === 'active' || emp.status === 'ACTIVE'));
+        
+        if (!isActive) continue;
 
         // Check for bank details - handle both object and boolean cases
         let hasBankDetails = false;
@@ -1016,6 +1023,9 @@ export class PayrollExecutionService {
       // === ROSTER SYNC: Ensure all active employees are in this run ===
       // 1. Get all active employees (FIX: Schema uses 'status' not 'isActive')
       // Check for both 'active' (lowercase enum) or 'ACTIVE' just in case
+      const totalInModel = await this.employeeModel.countDocuments({});
+      this.logger.warn(`DEBUG: Total employees in 'employeeModel': ${totalInModel}`);
+      
       const activeEmployees = await this.employeeModel.find({
         $or: [
           { status: 'active' },
@@ -1100,7 +1110,10 @@ export class PayrollExecutionService {
           // BR 63: CRITICAL - Validate contract BEFORE calculation
           // Fix: Case-insensitive check for status
           const status = employee.contractStatus ? employee.contractStatus.toUpperCase() : '';
-          if (!employee.isActive || (status !== 'ACTIVE' && status !== 'VALID')) {
+          const activeStatus = employee.isActive || 
+                             (employee.status && (employee.status === 'active' || employee.status === 'ACTIVE'));
+                             
+          if (!activeStatus || (status !== 'ACTIVE' && status !== 'VALID')) {
             this.logger.warn(
               `BR 63: Skipping employee ${empDetail.employeeId} - Contract not active (status: ${employee.contractStatus})`,
             );
@@ -2447,16 +2460,10 @@ export class PayrollExecutionService {
     // Count total anomalies
     const totalAnomalies = anomalies.critical.length + anomalies.major.length + anomalies.minor.length;
 
-    // Block submission if critical anomalies exist
+    // ALLOW SUBMISSION WITH ANOMALIES (User Requirement)
     if (anomalies.critical.length > 0) {
-      this.logger.error(`REQ-PY-5: ${anomalies.critical.length} critical anomalies detected for ${runId}`);
-      throw new BadRequestException({
-        message: 'Critical anomalies detected. Cannot submit for approval.',
-        anomalies: anomalies,
-        criticalCount: anomalies.critical.length,
-        majorCount: anomalies.major.length,
-        minorCount: anomalies.minor.length,
-      });
+      this.logger.warn(`REQ-PY-5: ${anomalies.critical.length} critical anomalies detected for ${runId}. Allowing submission for Manager Review.`);
+      // Do NOT throw.
     }
 
     // Update run with anomaly count

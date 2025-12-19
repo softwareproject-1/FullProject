@@ -429,10 +429,9 @@ function PayrollDraftContent() {
   const handlePublishToManager = async () => {
     if (!runId) return;
 
-    // Prevent submission if there are critical anomalies
+    // ALLOW SUBMISSION WITH ANOMALIES (User Requirement)
     if (criticalAnomalies > 0) {
-      toast.error('Cannot publish payroll with critical anomalies. Please resolve all critical issues first.');
-      return;
+      console.warn('Publishing with critical anomalies as requested by user.');
     }
 
     setProcessingAction(true);
@@ -733,7 +732,7 @@ function PayrollDraftContent() {
           {isPayrollSpecialist && !isPayrollManager && (isDraft || isCalculated) && draftData?.totalEmployees > 0 && (
             <Button
               onClick={handlePublishToManager}
-              disabled={processingAction || criticalAnomalies > 0}
+              disabled={processingAction}
               className="bg-blue-600 hover:bg-blue-700"
               title={criticalAnomalies > 0 ? 'Cannot publish: Critical anomalies must be resolved first' : 'Publish payroll to Payroll Manager for review'}
             >
