@@ -709,6 +709,63 @@ export default function Recruitment() {
   // Pipeline Logic
   const columns: PipelineColumn[] = ['Applied', 'Interview', 'Offer', 'Hired', 'Rejected'];
 
+  // Helper: Check if current user can complete a task based on department
+  // Authorization matrix per user requirements:
+  // - Complete tax forms (Candidate): Candidate, HR Manager, System Admin
+  // - Set up payroll (HR): HR Employee, HR Manager, System Admin
+  // - Create email account (IT): HR Manager, System Admin
+  // - Provision system access (IT): HR Manager, System Admin
+  // - Assign workstation (Admin): HR Employee, HR Manager, System Admin
+  // - Create ID badge (Admin): HR Employee, HR Manager, System Admin
+  const canCompleteTask = (department: string): boolean => {
+    // user.roles is an ARRAY, not a single string
+    const userRoles = user?.roles || [];
+    const normalizedDept = (department || '').toLowerCase();
+
+    // Check each role the user has
+    for (const role of userRoles) {
+      const normalizedRole = (role || '').toLowerCase().replace(/_/g, ' ');
+
+      // HR Manager and System Admin can complete ALL tasks
+      if (normalizedRole.includes('hr manager') || normalizedRole.includes('system admin')) {
+        return true;
+      }
+
+      // HR Employee can complete HR and Admin tasks
+      if (normalizedRole.includes('hr employee')) {
+        if (normalizedDept === 'hr' || normalizedDept === 'admin') {
+          return true;
+        }
+      }
+
+      // Candidate can complete Candidate tasks
+      if (normalizedRole.includes('candidate') || normalizedRole.includes('new hire')) {
+        if (normalizedDept === 'candidate' || normalizedDept === 'general') {
+          return true;
+        }
+      }
+    }
+
+    // Default: allow General department for everyone
+    return normalizedDept === 'general';
+  };
+
+  // Helper: Check if current user can verify documents
+  // Only HR Employee, HR Manager, and System Admin can verify documents
+  const canVerifyDocument = (): boolean => {
+    const userRoles = user?.roles || [];
+
+    for (const role of userRoles) {
+      const normalizedRole = (role || '').toLowerCase().replace(/_/g, ' ');
+      if (normalizedRole.includes('hr manager') ||
+        normalizedRole.includes('hr employee') ||
+        normalizedRole.includes('system admin')) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   const getApplicationsByColumn = (column: PipelineColumn): Application[] => {
     return applications.filter(app =>
       getColumnForApplication(app.currentStage, app.status) === column
@@ -1528,7 +1585,9 @@ export default function Recruitment() {
         try {
           // Load compliance status for documents tab
           const complianceStatus = await onboardingApi.documents.getComplianceStatus(selectedOnboarding.onboardingId);
-          setComplianceDocuments(complianceStatus.data.uploadedDocuments || []);
+          // Backend returns 'documents' field; check for both names for compatibility
+          const statusData = complianceStatus.data as any;
+          setComplianceDocuments(statusData.documents || statusData.uploadedDocuments || []);
 
           // Load reservations for resources tab
           const reservationsData = await onboardingApi.reservations.getAll(selectedOnboarding.onboardingId);
@@ -2472,12 +2531,19 @@ export default function Recruitment() {
                                   >
                                     <Bell className="w-4 h-4" />
                                   </button>
-                                  <button
-                                    onClick={() => handleCompleteOnboardingTask(selectedOnboarding.onboardingId, index)}
-                                    className="text-sm text-green-600 hover:text-green-800"
-                                  >
-                                    Mark Complete
-                                  </button>
+                                  {/* Only show Mark Complete if user has authorization for this department */}
+                                  {canCompleteTask(task.department) ? (
+                                    <button
+                                      onClick={() => handleCompleteOnboardingTask(selectedOnboarding.onboardingId, index)}
+                                      className="text-sm text-green-600 hover:text-green-800"
+                                    >
+                                      Mark Complete
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs text-slate-400 italic" title="You don't have permission to complete this task">
+                                      View Only
+                                    </span>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -2683,20 +2749,26 @@ export default function Recruitment() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                  <StatusBadge status={doc.verified ? 'Verified' : 'Pending Review'} />
-                                  {!doc.verified && (
+                                  {/* Backend returns verificationStatus: 'VERIFIED' | 'PENDING' | 'REJECTED' */}
+                                  <StatusBadge status={doc.verificationStatus === 'VERIFIED' ? 'Verified' : 'Pending Review'} />
+                                  {/* Only show Verify button if user can verify documents AND document is not already verified */}
+                                  {doc.verificationStatus !== 'VERIFIED' && canVerifyDocument() ? (
                                     <button
                                       onClick={async () => {
                                         try {
-                                          await onboardingApi.documents.verify(doc._id, {
-                                            verified: true,
+                                          // Use documentId field (backend returns this, not _id)
+                                          // Backend expects decision: 'VERIFIED' | 'REJECTED', not verified: boolean
+                                          await onboardingApi.documents.verify(doc.documentId, {
+                                            decision: 'VERIFIED',
                                             verifiedBy: user?.id || 'hr'
-                                          });
-                                          // Refresh documents
-                                          const docsRes = await onboardingApi.documents.getByOnboarding(selectedOnboarding.onboardingId);
-                                          setComplianceDocuments(docsRes.data);
+                                          } as any);
+                                          // Refresh documents using same endpoint as initial load
+                                          const complianceRes = await onboardingApi.documents.getComplianceStatus(selectedOnboarding.onboardingId);
+                                          const resData = complianceRes.data as any;
+                                          setComplianceDocuments(resData.documents || resData.uploadedDocuments || []);
                                         } catch (err) {
                                           console.error('Failed to verify document:', err);
+                                          alert('Failed to verify document. Please try again.');
                                         }
                                       }}
                                       className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-1"
@@ -2704,6 +2776,8 @@ export default function Recruitment() {
                                       <CheckCircle2 className="w-4 h-4" />
                                       Verify
                                     </button>
+                                  ) : doc.verificationStatus !== 'VERIFIED' && (
+                                    <span className="text-xs text-slate-400 italic">Awaiting verification</span>
                                   )}
                                 </div>
                               </div>

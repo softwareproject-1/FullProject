@@ -27,7 +27,8 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  BadRequestException
+  BadRequestException,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -263,6 +264,25 @@ export class OnboardingController {
   }
 
   /**
+   * GET /onboarding/tracker/user/:userId
+   * 
+   * ISSUE-006 FIX: Get onboarding tracker for a user (candidate or employee).
+   * This endpoint handles both scenarios:
+   * 1. User is still a candidate (onboarding.employeeId = candidateId)
+   * 2. User has become an employee (onboarding.employeeId = real employeeId)
+   * 
+   * @param userId - The user's candidate ID or employee ID
+   * @returns OnboardingTrackerDto - The tracker
+   */
+  @Get('tracker/user/:userId')
+  @Roles(SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.JOB_CANDIDATE, SystemRole.SYSTEM_ADMIN)
+  async getOnboardingByCandidateOrEmployee(
+    @Param('userId') userId: string,
+  ): Promise<OnboardingTrackerDto> {
+    return this.onboardingService.getOnboardingByCandidateOrEmployee(userId);
+  }
+
+  /**
    * GET /onboarding/all
    * 
    * Get all onboardings (for HR dashboard).
@@ -303,10 +323,12 @@ export class OnboardingController {
    * POST /onboarding/:onboardingId/tasks/:taskIndex/complete
    * 
    * Mark a task as complete.
+   * ISSUE-004 FIX: Added user context for authorization
    * 
    * @param onboardingId - The onboarding ID
    * @param taskIndex - The task index
    * @param dto - Completion data
+   * @param req - Request object containing user info
    * @returns OnboardingTrackerDto - Updated tracker
    */
   @Post(':onboardingId/tasks/:taskIndex/complete')
@@ -315,11 +337,18 @@ export class OnboardingController {
     @Param('onboardingId') onboardingId: string,
     @Param('taskIndex') taskIndex: string,
     @Body() dto: CompleteTaskDto,
+    @Req() req,
   ): Promise<OnboardingTrackerDto> {
+    // ISSUE-004 FIX: Pass user context for authorization
+    const userId = req.user?.sub || req.user?.id;
+    const userRole = req.user?.role || req.user?.systemRole;
+
     return this.onboardingService.completeTask(
       onboardingId,
       parseInt(taskIndex, 10),
       dto,
+      userId,
+      userRole,
     );
   }
 

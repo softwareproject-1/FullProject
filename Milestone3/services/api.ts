@@ -619,6 +619,9 @@ export const onboardingApi = {
 
         getByEmployeeId: (employeeId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/employee/${employeeId}`),
 
+        // ISSUE-006 FIX: Get onboarding by either candidateId or employeeId
+        getByUserId: (userId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/user/${userId}`),
+
         updateTaskStatus: (onboardingId: string, taskIndex: number, data: {
             status: OnboardingTaskStatus;
             notes?: string;
