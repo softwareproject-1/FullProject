@@ -530,9 +530,9 @@ export default function InsuranceBrackets() {
             </thead>
             <tbody>
               {filteredBrackets.map((b) => {
-                const status = normalizeStatus(b.status);
-                const isDraft = status === "draft";
-                const isRejected = status === "rejected";
+                const statusLower = (b.status || "").toLowerCase();
+                const isDraft = statusLower === "draft";
+                const isRejected = statusLower === "rejected";
 
                 return (
                   <tr
@@ -553,9 +553,15 @@ export default function InsuranceBrackets() {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${statusBadgeColor(status)}`}
+                        className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          statusLower === "approved"
+                            ? "bg-green-100 text-green-800"
+                            : statusLower === "rejected"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
+                        }`}
                       >
-                        {formatStatus(status)}
+                        {statusLower.charAt(0).toUpperCase() + statusLower.slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm space-x-2">
@@ -757,13 +763,18 @@ export default function InsuranceBrackets() {
               </div>
               <div>
                 <p className="text-sm text-slate-600">Status</p>
-                {selectedBracketStatus && (
-                  <span
-                    className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusBadgeColor(selectedBracketStatus)}`}
-                  >
-                    {formatStatus(selectedBracketStatus)}
-                  </span>
-                )}
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                    (selectedBracket.status || "").toLowerCase() === "approved"
+                      ? "bg-green-100 text-green-800"
+                      : (selectedBracket.status || "").toLowerCase() === "rejected"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
+                  }`}
+                >
+                  {((selectedBracket.status || "").toLowerCase().charAt(0).toUpperCase() +
+                    (selectedBracket.status || "").toLowerCase().slice(1))}
+                </span>
               </div>
             </div>
             <div className="flex justify-end pt-4">
