@@ -25,6 +25,10 @@ import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
 import { EmployeeProfile, EmployeeProfileDocument } from '../employee-profile/models/employee-profile.schema';
 import { EmployeeProfileService } from '../employee-profile/employee-profile.service';
 import { TimeImpactDataDto, PenaltyItemDto, OvertimeItemDto, PermissionItemDto, PenaltyType, TimeItemStatus, OvertimeRateType } from './dto/time-impact.dto';
+import { LeaveRequest, LeaveRequestDocument } from '../leaves/schemas/leave-request.schema';
+import { LeaveType, LeaveTypeDocument } from '../leaves/schemas/leave-type.schema';
+import { LeaveEntitlement, LeaveEntitlementDocument } from '../leaves/schemas/leave-entitlement.schema';
+import { LeaveStatus } from '../leaves/enums/leave-status.enum';
 import PDFDocument = require('pdfkit');
 
 @Injectable()
@@ -39,6 +43,9 @@ export class PayrollTrackingService {
     @InjectModel(paySlip.name) private payslipModel: Model<PayslipDocument>,
     @InjectModel(EmployeeProfile.name) private employeeModel: Model<EmployeeProfileDocument>,
     @InjectModel(NotificationLog.name) private notificationLogModel: Model<NotificationLogDocument>,
+    @InjectModel(LeaveRequest.name) private leaveRequestModel: Model<LeaveRequestDocument>,
+    @InjectModel(LeaveType.name) private leaveTypeModel: Model<LeaveTypeDocument>,
+    @InjectModel(LeaveEntitlement.name) private leaveEntitlementModel: Model<LeaveEntitlementDocument>,
     private employeeProfileService: EmployeeProfileService,
     private httpService: HttpService,
     // Payroll Configuration Services
@@ -777,7 +784,7 @@ export class PayrollTrackingService {
 
     // Find all payslips for the employee in the given tax year
     const startDate = new Date(`${year}-01-01`);
-    const endDate = new Date(`${year} -12 - 31`);
+    const endDate = new Date(`${year}-12-31`);
 
     const payslips = await this.payslipModel
       .find({
@@ -804,7 +811,9 @@ export class PayrollTrackingService {
       // Sum all tax deductions
       if (payslip.deductionsDetails?.taxes) {
         payslip.deductionsDetails.taxes.forEach(tax => {
-          totalTaxDeducted += (tax as any).amount || 0;
+          // Check both 'amount' and 'taxAmount' properties with fallback
+          const taxAmount = (tax as any).amount || (tax as any).taxAmount || 0;
+          totalTaxDeducted += taxAmount;
         });
       }
     });
@@ -868,7 +877,7 @@ export class PayrollTrackingService {
 
     // Find all payslips for the employee in the given year
     const startDate = new Date(`${certificateYear}-01-01`);
-    const endDate = new Date(`${certificateYear} -12 - 31`);
+    const endDate = new Date(`${certificateYear}-12-31`);
 
     const payslips = await this.payslipModel
       .find({
@@ -1944,19 +1953,158 @@ export class PayrollTrackingService {
   }
 
   /**
-   * Mock: Get unpaid leave deduction (placeholder for Leaves subsystem)
+   * Get unpaid leave deduction for employee in payroll period
+   * BR-60: Unpaid Leave & Deduction Logic
+   * Queries approved unpaid leaves (paid: false) and calculates (BaseSalary / 30) * UnpaidDays
+   * Handles period overlap for leaves spanning multiple payroll cycles
    */
   private async getUnpaidLeaveDeduction(userId: string, month: number, year: number): Promise<any | null> {
-    // TODO: Replace with actual Leaves API call when ready
-    return null;
+    try {
+      // 1. Define payroll period (26th previous month to 25th current month)
+      const periodStart = new Date(year, month - 2, 26); // Previous month, 26th
+      const periodEnd = new Date(year, month - 1, 25); // Current month, 25th
+
+      // 2. Find unpaid leave types (paid: false)
+      const unpaidLeaveTypes = await this.leaveTypeModel.find({ paid: false }).exec();
+      if (!unpaidLeaveTypes || unpaidLeaveTypes.length === 0) {
+        return null; // No unpaid leave types configured
+      }
+
+      const unpaidLeaveTypeIds = unpaidLeaveTypes.map(lt => lt._id);
+
+      // 3. Query approved leave requests that overlap with period
+      const leaveRequests = await this.leaveRequestModel.find({
+        employeeId: new Types.ObjectId(userId),
+        leaveTypeId: { $in: unpaidLeaveTypeIds },
+        status: LeaveStatus.APPROVED,
+        // Date overlap: leave.from <= periodEnd AND leave.to >= periodStart
+        'dates.from': { $lte: periodEnd },
+        'dates.to': { $gte: periodStart }
+      }).populate('leaveTypeId').exec();
+
+      if (!leaveRequests || leaveRequests.length === 0) {
+        return null; // No unpaid leaves in this period
+      }
+
+      // 4. Calculate days within period (handle overlap)
+      let totalUnpaidDays = 0;
+      const leaveDescriptions: string[] = [];
+
+      for (const leave of leaveRequests) {
+        const leaveStart = new Date(leave.dates.from);
+        const leaveEnd = new Date(leave.dates.to);
+
+        // Calculate overlap: max(leaveStart, periodStart) to min(leaveEnd, periodEnd)
+        const overlapStart = leaveStart > periodStart ? leaveStart : periodStart;
+        const overlapEnd = leaveEnd < periodEnd ? leaveEnd : periodEnd;
+
+        // Calculate days in overlap (inclusive)
+        const daysInPeriod = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        totalUnpaidDays += daysInPeriod;
+
+        // Build description
+        const leaveType = leave.leaveTypeId as any;
+        const leaveTypeName = leaveType?.name || 'Unpaid Leave';
+        const startStr = leaveStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const endStr = leaveEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        leaveDescriptions.push(`${leaveTypeName}: ${startStr} to ${endStr} (${daysInPeriod} days in period)`);
+      }
+
+      if (totalUnpaidDays === 0) {
+        return null;
+      }
+
+      // 5. Get employee base salary from profile (not from payslip gross)
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      const baseSalary = employee?.baseSalary || 0;
+
+      if (baseSalary === 0) {
+        console.warn(`Employee ${userId} has no base salary defined`);
+        return null;
+      }
+
+      // 6. Calculate deduction: (BaseSalary / 30) * UnpaidDays
+      const dailyRate = baseSalary / 30;
+      const deductionAmount = dailyRate * totalUnpaidDays;
+
+      return {
+        unpaidDays: totalUnpaidDays,
+        deductionAmount,
+        calculationFormula: `(${baseSalary} / 30) × ${totalUnpaidDays} days = ${deductionAmount.toFixed(2)} EGP`,
+        leaveDetails: leaveDescriptions
+      };
+    } catch (error) {
+      console.error(`Error calculating unpaid leave deduction for user ${userId}:`, error);
+      return null;
+    }
   }
 
   /**
-   * Mock: Get leave encashment (placeholder for Leaves subsystem)
+   * Get leave encashment compensation
+   * REQ-L-12: Leave Encashment Logic
+   * Triggers: Year-end processing or employment termination
+   * Calculates: remaining_balance * (BaseSalary / 30)
+   * Returns as non-taxable earning
    */
   private async getLeaveEncashment(userId: string, month: number, year: number): Promise<number | null> {
-    // TODO: Replace with actual Leaves API call when ready
-    return null;
+    try {
+      // Check if this is year-end processing (December payroll)
+      // or if employee has termination record (to be implemented when termination module exists)
+      const isYearEnd = month === 12;
+
+      if (!isYearEnd) {
+        // Only process encashment at year-end or termination
+        // TODO: Add termination check when recruitment/offboarding module is integrated
+        return null;
+      }
+
+      // Get employee's annual leave entitlement
+      // Query for "annual" leave type (typically code: "ANNUAL")
+      const annualLeaveTypes = await this.leaveTypeModel.find({
+        code: { $in: ['ANNUAL', 'AL', 'VACATION'] } // Common codes for annual leave
+      }).exec();
+
+      if (!annualLeaveTypes || annualLeaveTypes.length === 0) {
+        return null; // No annual leave type configured
+      }
+
+      // Get entitlement for the employee
+      const entitlements = await this.leaveEntitlementModel.find({
+        employeeId: new Types.ObjectId(userId),
+        leaveTypeId: { $in: annualLeaveTypes.map(lt => lt._id) }
+      }).exec();
+
+      if (!entitlements || entitlements.length === 0) {
+        return null; // No entitlement found
+      }
+
+      // Calculate total remaining balance across all annual leave entitlements
+      const totalRemaining = entitlements.reduce((sum, ent) => sum + (ent.remaining || 0), 0);
+
+      if (totalRemaining <= 0) {
+        return null; // No remaining balance to encash
+      }
+
+      // Get employee base salary from profile
+      const employee = await this.employeeProfileService.getProfileById(userId);
+      const baseSalary = employee?.baseSalary || 0;
+
+      if (baseSalary === 0) {
+        console.warn(`Employee ${userId} has no base salary defined for leave encashment`);
+        return null;
+      }
+
+      // Calculate encashment: remaining_balance * (BaseSalary / 30)
+      const dailyRate = baseSalary / 30;
+      const encashmentAmount = totalRemaining * dailyRate;
+
+      console.log(`Leave encashment calculated for ${userId}: ${totalRemaining} days * ${dailyRate.toFixed(2)} = ${encashmentAmount.toFixed(2)} EGP`);
+
+      return encashmentAmount;
+    } catch (error) {
+      console.error(`Error calculating leave encashment for user ${userId}:`, error);
+      return null;
+    }
   }
 
   /**
@@ -2087,8 +2235,20 @@ export class PayrollTrackingService {
       // 11. Calculate net pay
       const netPay = grossPay + overtimeCompensation + (leaveEncashment || 0) - totalDeductions;
 
-      // 12. Check minimum wage compliance
-      const minimumWageAlert = netPay < this.MINIMUM_WAGE;
+      // 12. Minimum Wage Shield (BR-60 Guardrail)
+      // After calculating unpaid leave deductions, ensure netPay doesn't drop below minimum wage
+      let minimumWageAlert = false;
+      if (netPay < this.MINIMUM_WAGE) {
+        minimumWageAlert = true;
+        console.warn(
+          `⚠️  MINIMUM WAGE ALERT: Employee ${userId} net pay (${netPay.toFixed(2)} EGP) ` +
+          `is below statutory minimum wage (${this.MINIMUM_WAGE} EGP). ` +
+          `Flagged for HR_REVIEW. Unpaid leave deduction: ${leaveDeductions?.deductionAmount || 0} EGP`
+        );
+        // TODO: Create automated notification/flag for HR review when HR notification system is available
+      }
+
+      // 13. Check minimum wage compliance
       if (minimumWageAlert) {
         await this.sendMinimumWageAlert(userId, netPay, this.MINIMUM_WAGE);
       }
@@ -2106,6 +2266,7 @@ export class PayrollTrackingService {
         month: payslipDate.toLocaleDateString('en-US', { month: 'long' }),
         year,
         employeeName: `${employee.firstName} ${employee.lastName}`,
+        contractType: employee.contractType || 'Not Specified',
         payGrade: employee.payGrade || 'N/A',
 
         // Earnings

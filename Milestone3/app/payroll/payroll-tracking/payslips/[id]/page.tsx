@@ -160,6 +160,11 @@ export default function PayslipDetailPage() {
                         <div>
                             <p className="font-medium">Base Salary</p>
                             <p className="text-sm text-gray-500">Monthly base compensation</p>
+                            {payslip.contractType && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    Contract: {payslip.contractType}
+                                </p>
+                            )}
                         </div>
                         <p className="font-semibold">${baseSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
@@ -328,35 +333,37 @@ export default function PayslipDetailPage() {
             </Card>
 
             {/* Employer Contributions Section */}
-            {employerContributions.length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Employer Contributions</CardTitle>
-                        <CardDescription>Contributions made by your employer on your behalf</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {employerContributions.map((contrib: any, idx: number) => (
-                            <div key={idx} className="flex justify-between items-center py-2 border-b">
-                                <div>
-                                    <p className="font-medium">{contrib.name}</p>
-                                    <p className="text-sm text-gray-500">
-                                        Total contribution
+            {
+                employerContributions.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Employer Contributions</CardTitle>
+                            <CardDescription>Contributions made by your employer on your behalf</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {employerContributions.map((contrib: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center py-2 border-b">
+                                    <div>
+                                        <p className="font-medium">{contrib.name}</p>
+                                        <p className="text-sm text-gray-500">
+                                            Total contribution
+                                        </p>
+                                    </div>
+                                    <p className="font-semibold text-green-600">
+                                        ${contrib.employerContribution.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                     </p>
                                 </div>
-                                <p className="font-semibold text-green-600">
-                                    ${contrib.employerContribution.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ))}
+                            <div className="flex justify-between items-center py-3 border-t-2 font-bold text-lg">
+                                <p>Total Employer Contributions</p>
+                                <p className="text-green-600">
+                                    ${totalEmployerContributions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
-                        ))}
-                        <div className="flex justify-between items-center py-3 border-t-2 font-bold text-lg">
-                            <p>Total Employer Contributions</p>
-                            <p className="text-green-600">
-                                ${totalEmployerContributions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                        </CardContent>
+                    </Card>
+                )
+            }
 
             {/* Payment Info */}
             <Card>
@@ -376,6 +383,6 @@ export default function PayslipDetailPage() {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div >
     );
 }

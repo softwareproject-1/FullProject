@@ -111,6 +111,11 @@ export class EnhancedPayslipDataDto {
     @ApiProperty()
     @IsString()
     @IsOptional()
+    contractType?: string;
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
     payGrade?: string;
 
     // === Itemized Earnings ===
