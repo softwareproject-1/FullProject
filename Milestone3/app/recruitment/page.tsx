@@ -2764,7 +2764,8 @@ export default function Recruitment() {
                                           } as any);
                                           // Refresh documents using same endpoint as initial load
                                           const complianceRes = await onboardingApi.documents.getComplianceStatus(selectedOnboarding.onboardingId);
-                                          setComplianceDocuments(complianceRes.data.documents || complianceRes.data.uploadedDocuments || []);
+                                          const resData = complianceRes.data as any;
+                                          setComplianceDocuments(resData.documents || resData.uploadedDocuments || []);
                                         } catch (err) {
                                           console.error('Failed to verify document:', err);
                                           alert('Failed to verify document. Please try again.');
