@@ -15,8 +15,15 @@ import { PayrollConfigurationModule } from './payroll-configuration/payroll-conf
 import { PayrollExecutionModule } from './payroll-execution/payroll-execution.module';
 import { AuthModule } from './auth/auth.module';
 
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'dist/uploads'),
+      serveRoot: '/uploads',
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',

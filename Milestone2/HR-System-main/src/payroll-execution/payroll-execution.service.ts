@@ -62,6 +62,7 @@ import { InsuranceBracketsService } from '../payroll-configuration/services/insu
 import { ConfigStatus } from '../payroll-configuration/enums/payroll-configuration-enums';
 import { TimeManagementService } from '../time-management/time-management.service';
 import { LeavesService } from '../leaves/leaves.service';
+import { PdfGenerationService } from './pdf-generation.service';
 
 @Injectable()
 export class PayrollExecutionService {
@@ -92,6 +93,8 @@ export class PayrollExecutionService {
     private timeManagementService: TimeManagementService,
     @Inject(forwardRef(() => LeavesService))
     private leavesService: LeavesService,
+    @Inject(PdfGenerationService)
+    private readonly pdfService: PdfGenerationService,
   ) { }
 
   // GANNAH
@@ -447,12 +450,14 @@ export class PayrollExecutionService {
       .find({
         payrollRunId: run._id,
       })
+      .lean()
       .exec();
 
     const employeeDetails = await this.empDetailsModel
       .find({
         payrollRunId: run._id,
       })
+      .lean()
       .exec();
 
     // Fetch employee profile details using Mongoose Model (Handles casting automatically)
@@ -473,20 +478,37 @@ export class PayrollExecutionService {
       profileMap.set(profile._id.toString(), profile);
     });
 
+    // Create a map of payslips for quick lookup of override info
+    const payslipMap = new Map();
+    payslips.forEach((payslip) => {
+      payslipMap.set(String(payslip.employeeId), payslip);
+    });
+
     // --- DEBUG LOGS ---
     this.logger.log(`DEBUG: Fetching eligible employees for run ${runId}`);
     this.logger.log(`DEBUG: Details found: ${employeeDetails.length}`);
-    this.logger.log(`DEBUG: IDs to look up: ${JSON.stringify(employeeIds)}`);
-    this.logger.log(`DEBUG: Profiles found in DB: ${employeeProfiles.length}`);
+    this.logger.log(`DEBUG: Payslips found: ${payslips.length}`);
+
+    if (payslips.length > 0) {
+      this.logger.log(`DEBUG: Sample Payslip: ID=${payslips[0]._id}, EmpID=${payslips[0].employeeId}, Override=${payslips[0].managerOverride}`);
+    }
 
     // Check first ID match specifically
     if (employeeDetails.length > 0) {
       const checkId = employeeDetails[0].employeeId.toString();
       this.logger.log(`DEBUG: Checking ID: ${checkId}`);
-      this.logger.log(`DEBUG: Found in map? ${profileMap.has(checkId)}`);
-      if (profileMap.has(checkId)) {
-        const p = profileMap.get(checkId);
-        this.logger.log(`DEBUG: Profile Name: ${p.fullName} | ${p.firstName} ${p.lastName}`);
+      this.logger.log(`DEBUG: Found in profile map? ${profileMap.has(checkId)}`);
+      this.logger.log(`DEBUG: Found in payslip map? ${payslipMap.has(checkId)}`);
+
+      if (payslipMap.has(checkId)) {
+        const p = payslipMap.get(checkId);
+        this.logger.log(`DEBUG: Payslip Override Status: ${p.managerOverride}, Method: ${p.paymentMethod}`);
+      }
+
+      this.logger.log(`DEBUG: Emp Detail NetPay: ${employeeDetails[0].netPay}`);
+      this.logger.log(`DEBUG: Emp Detail Tax Breakdown found?: ${!!employeeDetails[0].taxBreakdown}`);
+      if (employeeDetails[0].taxBreakdown) {
+        this.logger.log(`DEBUG: Tax Breakdown Length: ${employeeDetails[0].taxBreakdown.length}`);
       }
     }
     // ------------------
@@ -503,6 +525,8 @@ export class PayrollExecutionService {
       totalNetPay: run.totalnetpay,
       employees: employeeDetails.map((detail) => {
         const profile = profileMap.get(detail.employeeId.toString());
+        const payslip = payslipMap.get(detail.employeeId.toString());
+
         return {
           employeeId: detail.employeeId,
           employeeName: profile?.fullName || (profile?.firstName ? `${profile.firstName} ${profile.lastName}` : 'Unknown Employee'),
@@ -522,6 +546,16 @@ export class PayrollExecutionService {
           totalTaxes: detail.totalTaxes || 0,
           totalInsurance: detail.totalInsurance || 0,
           penalties: detail.penalties || 0,
+          // FIX: Map tax breakdown from Payslip where it is actually saved
+          taxBreakdown: (payslip?.deductionsDetails?.taxes || []).map((t: any) => ({
+            bracket: t.name, // Frontend expects 'bracket'
+            rate: t.rate,
+            amount: t.amount
+          })),
+          insuranceBreakdown: payslip?.deductionsDetails?.insurances || [],
+          // Map Override Flags
+          paymentMethod: payslip?.paymentMethod,
+          managerOverride: payslip?.managerOverride,
         };
       }),
       payslips: payslips.length,
@@ -956,6 +990,11 @@ export class PayrollExecutionService {
         throw new NotFoundException(`Payroll run ${runId} not found`);
       }
 
+      // Check if payroll is locked
+      if (payrollRun.status === PayRollStatus.LOCKED || payrollRun.paymentStatus === PayRollPaymentStatus.PAID) {
+        throw new BadRequestException(`Cannot recalculate payroll run ${runId} because it is LOCKED/PAID.`);
+      }
+
       this.logger.log(`Found payroll run: ${payrollRun.runId}`);
       this.logger.log(`Payroll Run ID (ObjectId): ${payrollRun._id}`);
       this.logger.log(`Payroll Run Status: ${payrollRun.status}`);
@@ -971,20 +1010,32 @@ export class PayrollExecutionService {
         .exec();
 
       this.logger.log(`Employee details found: ${employeeDetails.length}`);
-      
+
       this.logger.log(`Employee details found: ${employeeDetails.length}`);
-      
+
       // === ROSTER SYNC: Ensure all active employees are in this run ===
-      // 1. Get all active employees
-      const activeEmployees = await this.employeeModel.find({ isActive: true }).exec();
+      // 1. Get all active employees (FIX: Schema uses 'status' not 'isActive')
+      // Check for both 'active' (lowercase enum) or 'ACTIVE' just in case
+      const activeEmployees = await this.employeeModel.find({
+        $or: [
+          { status: 'active' },
+          { status: 'ACTIVE' },
+          { isActive: true } // Keep legacy just in case
+        ]
+      }).exec();
       const existingEmployeeIds = new Set(employeeDetails.map(d => d.employeeId.toString()));
-      
+
       const missingEmployees = activeEmployees.filter(emp => !existingEmployeeIds.has(emp._id.toString()));
-      
+
+      this.logger.log(`[ROSTER SYNC] Total Active: ${activeEmployees.length}, In Run: ${existingEmployeeIds.size}, Missing: ${missingEmployees.length}`);
+
       if (missingEmployees.length > 0) {
         this.logger.log(`Found ${missingEmployees.length} active employees missing from this run. Syncing...`);
+        // Log names of missing
+        missingEmployees.forEach(m => this.logger.log(`[ROSTER SYNC] Restoring: ${m.firstName} ${m.lastName} (${m._id})`));
+
         await this.processEmployeesForRun(missingEmployees, payrollRun._id as Types.ObjectId);
-        
+
         // Reload details after sync
         const reloadedDetails = await this.empDetailsModel.find({ payrollRunId: payrollRun._id }).exec();
         employeeDetails.length = 0;
@@ -1047,7 +1098,9 @@ export class PayrollExecutionService {
           }
 
           // BR 63: CRITICAL - Validate contract BEFORE calculation
-          if (!employee.isActive || employee.contractStatus !== 'ACTIVE') {
+          // Fix: Case-insensitive check for status
+          const status = employee.contractStatus ? employee.contractStatus.toUpperCase() : '';
+          if (!employee.isActive || (status !== 'ACTIVE' && status !== 'VALID')) {
             this.logger.warn(
               `BR 63: Skipping employee ${empDetail.employeeId} - Contract not active (status: ${employee.contractStatus})`,
             );
@@ -1106,8 +1159,8 @@ export class PayrollExecutionService {
 
           // Calculation Logic Update: Refunds
           // User Formula: Net Pay = Net Salary - Penalties + Refunds
-          const refundsAmount = empDetail.refunds || 0; 
-          
+          const refundsAmount = empDetail.refunds || 0;
+
           // Calculate salary - update calculateSalary method to not expect employee model
           const calculation = await this.calculateSalary(
             empDetail,
@@ -1132,18 +1185,18 @@ export class PayrollExecutionService {
 
           // Populate Breakdown Arrays for Frontend (Draft Page)
           if (calculation.tax && calculation.tax.breakdown) {
-              (empDetail as any).taxBreakdown = calculation.tax.breakdown.map((t: any) => ({
-                  bracket: t.name, // Frontend expects 'bracket', backend calculation has 'name'
-                  rate: t.rate,
-                  amount: t.amount
-              }));
+            (empDetail as any).taxBreakdown = calculation.tax.breakdown.map((t: any) => ({
+              bracket: t.name, // Frontend expects 'bracket', backend calculation has 'name'
+              rate: t.rate,
+              amount: t.amount
+            }));
           }
           if (calculation.insurance) {
-              (empDetail as any).insuranceBreakdown = [{
-                  name: calculation.insurance.bracket || 'Insurance',
-                  rate: calculation.insurance.employeeRate,
-                  amount: calculation.insurance.employeeAmount
-              }];
+            (empDetail as any).insuranceBreakdown = [{
+              name: calculation.insurance.bracket || 'Insurance',
+              rate: calculation.insurance.employeeRate,
+              amount: calculation.insurance.employeeAmount
+            }];
           }
 
           // Save breakdowns
@@ -1151,6 +1204,23 @@ export class PayrollExecutionService {
           empDetail.totalInsurance = calculation.insurance.amount;
           empDetail.penalties = calculation.deductions.penalties;
           empDetail.refunds = refundsAmount;
+
+          // FIX: Clear stale exceptions from previous runs since we just successfully recalculated
+          empDetail.exceptions = '';
+
+          // FIX: Refresh Bank Status from latest profile data
+          // Check both new schema (bankAccountNumber) and legacy schema (bankDetails.accountNumber)
+          // to ensure consistency with fetchEligibleEmployees mapping
+          const hasBankDetails =
+            (employee.bankAccountNumber && employee.bankAccountNumber.trim() !== '') ||
+            (employee.bankDetails && employee.bankDetails.accountNumber && employee.bankDetails.accountNumber.trim() !== '');
+
+          empDetail.bankStatus = hasBankDetails ? BankStatus.VALID : BankStatus.MISSING;
+
+          // Ensure MISSING bank status is flagged as an exception for the UI
+          if (empDetail.bankStatus === BankStatus.MISSING) {
+            empDetail.exceptions = 'Missing Bank Details';
+          }
 
           await empDetail.save();
 
@@ -1171,52 +1241,46 @@ export class PayrollExecutionService {
             // Populate Breakdown Arrays
             // Tax Breakdown
             if (calculation.tax && calculation.tax.breakdown) {
-                // Map to schema format if necessary, or just push compatible objects
-                 payslip.deductionsDetails!.taxes = calculation.tax.breakdown.map((t: any) => ({
-                     name: t.name,
-                     rate: t.rate,
-                     amount: t.amount,
-                     description: `Progressive Tax Rules` // Add if schema requires description? Schema says 'taxes: taxRules[]'
-                     // Wait, 'taxRules[]' schema expects a full taxRules object? 
-                     // Let's check schema: 'taxes: taxRules[]'. And taxRules has name, rate, status...
-                     // We should try to match the shape.
-                 })) as any; 
-                 // Actually, it's safer to cast to avoid strict schema validation issues here, or construct proper objects.
-                 // Ideally we should just save the breakdown provided by calculation.
+              // Map to AppliedTax schema (name, rate, amount)
+              payslip.deductionsDetails!.taxes = calculation.tax.breakdown.map((t: any) => ({
+                name: t.name,
+                rate: t.rate,
+                amount: t.amount,
+              })) as any;
             }
 
             // Insurance Breakdown
             if (calculation.insurance) {
-                // Schema expects 'insurances: insuranceBrackets[]'. 
-                // Our calculation returns a single bracket usually, or composite?
-                // calculation.insurance has { amount, bracket, employeeRate ... }
-                // Let's explicitly construct an array
-                payslip.deductionsDetails!.insurances = [{
-                    name: calculation.insurance.bracket || 'Standard Insurance',
-                    employeeRate: calculation.insurance.employeeRate || 0,
-                    employerRate: calculation.insurance.employerRate || 0,
-                    minSalary: 0,       // Required by Schema
-                    maxSalary: 999999,  // Required by Schema
-                    status: 'approved'  // Lowercase to match Enum
-                }] as any; 
+              // Schema expects 'insurances: insuranceBrackets[]'. 
+              // Our calculation returns a single bracket usually, or composite?
+              // calculation.insurance has { amount, bracket, employeeRate ... }
+              // Let's explicitly construct an array
+              payslip.deductionsDetails!.insurances = [{
+                name: calculation.insurance.bracket || 'Standard Insurance',
+                employeeRate: calculation.insurance.employeeRate || 0,
+                employerRate: calculation.insurance.employerRate || 0,
+                minSalary: 0,       // Required by Schema
+                maxSalary: 999999,  // Required by Schema
+                status: 'approved'  // Lowercase to match Enum
+              }] as any;
             }
 
             // Add bonus to payslip if exists
             if (approvedBonus) {
-                // Get the full bonus config to get positionName
-                const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
-                  _id: approvedBonus.signingBonusId
-                });
+              // Get the full bonus config to get positionName
+              const bonusConfig = await this.signingBonusModel.db.collection('signingbonuses').findOne({
+                _id: approvedBonus.signingBonusId
+              });
 
-                // Now bonuses array is guaranteed to exist after ensurePayslipStructure
-                payslip.earningsDetails!.bonuses!.push({
-                  positionName: bonusConfig?.positionName || 'General Position',
-                  amount: approvedBonus.givenAmount,
-                  status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
-                  createdBy: approvedBonus.employeeId,
-                  approvedBy: approvedBonus.employeeId,
-                  approvedAt: new Date(),
-                } as any);
+              // Now bonuses array is guaranteed to exist after ensurePayslipStructure
+              payslip.earningsDetails!.bonuses!.push({
+                positionName: bonusConfig?.positionName || 'General Position',
+                amount: approvedBonus.givenAmount,
+                status: 'approved', // Use lowercase 'approved' from ConfigStatus enum
+                createdBy: approvedBonus.employeeId,
+                approvedBy: approvedBonus.employeeId,
+                approvedAt: new Date(),
+              } as any);
             }
 
             // Add termination benefit to earnings if exists
@@ -1394,11 +1458,28 @@ export class PayrollExecutionService {
     let taxAmount = 0;
     let taxRes: any = null;
     try {
-      taxRes = await this.calculateProgressiveTax(grossSalary);
+      // FIX: Progressive brackets are Annual (e.g. 15,000 exempt). 
+      // We must annualize the monthly gross salary for calculation, then convert tax back to monthly.
+      const annualGrossSalary = grossSalary * 12;
+      taxRes = await this.calculateProgressiveTax(annualGrossSalary);
+
+      // Convert Annual Tax Result back to Monthly for Payslip
+      if (taxRes && typeof taxRes === 'object') {
+        taxRes.totalTax = taxRes.totalTax / 12; // Annual -> Monthly
+
+        if (taxRes.breakdown && Array.isArray(taxRes.breakdown)) {
+          taxRes.breakdown = taxRes.breakdown.map((item: any) => ({
+            ...item,
+            amount: item.amount / 12 // Annual Component -> Monthly Component
+          }));
+        }
+      }
+
       // Ensure taxRes is an object before accessing totalTax
       taxAmount = (taxRes && typeof taxRes === 'object' && !isNaN(taxRes.totalTax)) ? taxRes.totalTax : 0;
     } catch (err) {
       this.logger.warn(`Tax calculation failed for emp ${empDetail.employeeId}: ${err.message}. Defaulting to 0.`);
+      taxRes = { totalTax: 0, breakdown: [] };
     }
 
     // BR 7, 8: Calculate Insurance based on brackets
@@ -1414,35 +1495,37 @@ export class PayrollExecutionService {
 
     // Calculate net salary
     const netSalary = grossSalary - taxAmount - insuranceAmount;
-    
-    // this.logger.warn(`DEBUG CALCULATION for ${empDetail.employeeId}:`);
-    // this.logger.warn(`  Gross: ${grossSalary}`);
-    // this.logger.warn(`  Tax: ${taxAmount}`);
-    // this.logger.warn(`  Insurance: ${insuranceAmount}`);
-    // this.logger.warn(`  Net (Pre-Deductions): ${netSalary}`);
+
+    this.logger.warn(`DEBUG CALCULATION for ${empDetail.employeeId}:`);
+    this.logger.warn(`  Gross: ${grossSalary}`);
+    this.logger.warn(`  Tax: ${taxAmount}`);
+    this.logger.warn(`  Insurance: ${insuranceAmount}`);
+    this.logger.warn(`  Net (Pre-Deductions): ${netSalary}`);
 
     // Penalties
     const penDeduction = (penaltyDeduction && !isNaN(penaltyDeduction)) ? penaltyDeduction : 0;
     const leaveDeduction = (unpaidLeaveDeduction && !isNaN(unpaidLeaveDeduction)) ? unpaidLeaveDeduction : 0;
-    
+
     const refundsAdded = (refunds && !isNaN(refunds)) ? refunds : 0; // Check refunds
 
-    // this.logger.warn(`  Penalties: ${penDeduction}`);
-    // this.logger.warn(`  Unpaid Leave: ${leaveDeduction}`);
-    // this.logger.warn(`  Refunds: ${refundsAdded}`);
+    this.logger.warn(`  Penalties: ${penDeduction}`);
+    this.logger.warn(`  Unpaid Leave: ${leaveDeduction}`);
+    this.logger.warn(`  Refunds: ${refundsAdded}`);
 
     // Final Net Pay Formula: Net Salary - Penalties - Unpaid Leave + Refunds
     let finalSalary = netSalary - penDeduction - leaveDeduction + refundsAdded;
 
+    this.logger.warn(`  Final Calculated Salary: ${finalSalary}`);
+
     // BR 60: Ensure minimum wage floor
     const beforeMinWageCheck = finalSalary;
     finalSalary = Math.max(this.MINIMUM_WAGE, finalSalary);
-    
+
     if (isNaN(finalSalary)) {
-       this.logger.error(`CRITICAL: Final Salary calculation resulted in NaN. Defaulting to Base Salary or Min Wage.`);
-       finalSalary = Math.max(this.MINIMUM_WAGE, grossSalary); 
+      this.logger.error(`CRITICAL: Final Salary calculation resulted in NaN. Defaulting to Base Salary or Min Wage.`);
+      finalSalary = Math.max(this.MINIMUM_WAGE, grossSalary);
     }
-    
+
     // this.logger.warn(`  Final Salary: ${finalSalary}`);
 
     // Anomalies detection
@@ -1606,7 +1689,7 @@ export class PayrollExecutionService {
     try {
       // Fetch all tax rules from configuration
       const taxRules = await this.taxRulesService.findAll();
-      
+
       if (!taxRules || taxRules.length === 0) {
         this.logger.warn('No tax rules configured. Using default progressive tax brackets.');
         return this.calculateDefaultProgressiveTax(grossSalary);
@@ -1622,42 +1705,43 @@ export class PayrollExecutionService {
       // 60,000 - 200,000: 20%
       // 200,000 - 400,000: 22.5%
       // > 400,000: 25%
-      
+
       // We map the fetched rules to these tiers based on rate or name
       // This is a heuristic since the schema lacks min/max.
-      
+
       let remainingSalary = grossSalary;
       let totalTax = 0;
       const breakdown: Array<{ name: string; rate: number; amount: number }> = [];
 
       // Define thresholds
       const tiers = [
-          { limit: 15000, rate: 0 },
-          { limit: 15000, rate: 2.5 }, // 15k-30k (width 15k)
-          { limit: 15000, rate: 10 },  // 30k-45k (width 15k)
-          { limit: 15000, rate: 15 },  // 45k-60k (width 15k)
-          { limit: 140000, rate: 20 }, // 60k-200k (width 140k)
-          { limit: 200000, rate: 22.5 }, // 200k-400k (width 200k)
-          { limit: Infinity, rate: 25 }  // >400k
+        { limit: 15000, rate: 0 },
+        { limit: 15000, rate: 2.5 }, // 15k-30k (width 15k)
+        { limit: 15000, rate: 10 },  // 30k-45k (width 15k)
+        { limit: 15000, rate: 15 },  // 45k-60k (width 15k)
+        { limit: 140000, rate: 20 }, // 60k-200k (width 140k)
+        { limit: 200000, rate: 22.5 }, // 200k-400k (width 200k)
+        { limit: Infinity, rate: 25 }  // >400k
       ];
 
       // Helper to find authorized rate from DB for a given target rate
       const getRuleRate = (targetRate: number) => {
-          const rule = taxRules.find(r => Math.abs(r.rate - targetRate) < 0.1 && (r.status === 'APPROVED' || r.status === 'ACTIVE'));
-          return rule ? rule.rate : targetRate; // Use DB rule rate or fallback to standard
+        const rule = taxRules.find(r => Math.abs(r.rate - targetRate) < 0.1 && (r.status === 'APPROVED' || r.status === 'ACTIVE'));
+        return rule ? rule.rate : targetRate; // Use DB rule rate or fallback to standard
       };
 
       let currentThreshold = 0;
-      
+
       // Tier 1: 0 - 15,000
       let tierWidth = 15000;
       let taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
       let rate = getRuleRate(0);
       let tax = taxedAmount * (rate / 100);
-      if (tax > 0) {
-        totalTax += tax;
-        breakdown.push({ name: 'Tier 1 (0-15k)', rate, amount: tax });
-      }
+
+      // ALWAYS push Tier 1, even if tax is 0, to prevent "Missing Tax Breakdown" anomalies
+      totalTax += tax;
+      breakdown.push({ name: 'Tier 1 (0-15k)', rate, amount: tax });
+
       currentThreshold += tierWidth;
 
       // Tier 2: 15,000 - 30,000
@@ -1688,8 +1772,8 @@ export class PayrollExecutionService {
       rate = getRuleRate(15);
       tax = taxedAmount * (rate / 100);
       if (tax > 0) {
-         totalTax += tax;
-         breakdown.push({ name: 'Tier 4 (45k-60k)', rate, amount: tax });
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 4 (45k-60k)', rate, amount: tax });
       }
       currentThreshold += tierWidth;
 
@@ -1699,29 +1783,29 @@ export class PayrollExecutionService {
       rate = getRuleRate(20);
       tax = taxedAmount * (rate / 100);
       if (tax > 0) {
-         totalTax += tax;
-         breakdown.push({ name: 'Tier 5 (60k-200k)', rate, amount: tax });
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 5 (60k-200k)', rate, amount: tax });
       }
       currentThreshold += tierWidth;
 
-       // Tier 6: 200,000 - 400,000
+      // Tier 6: 200,000 - 400,000
       tierWidth = 200000;
       taxedAmount = Math.min(Math.max(grossSalary - currentThreshold, 0), tierWidth);
       rate = getRuleRate(22.5);
       tax = taxedAmount * (rate / 100);
       if (tax > 0) {
-         totalTax += tax;
-         breakdown.push({ name: 'Tier 6 (200k-400k)', rate, amount: tax });
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 6 (200k-400k)', rate, amount: tax });
       }
       currentThreshold += tierWidth;
 
-       // Tier 7: > 400,000
+      // Tier 7: > 400,000
       taxedAmount = Math.max(grossSalary - currentThreshold, 0);
       if (taxedAmount > 0) {
-          rate = getRuleRate(25);
-          tax = taxedAmount * (rate / 100);
-          totalTax += tax;
-          breakdown.push({ name: 'Tier 7 (>400k)', rate, amount: tax });
+        rate = getRuleRate(25);
+        tax = taxedAmount * (rate / 100);
+        totalTax += tax;
+        breakdown.push({ name: 'Tier 7 (>400k)', rate, amount: tax });
       }
 
       this.logger.warn(`  Total Tax Calculated (Progressive): ${totalTax}`);
@@ -1767,9 +1851,9 @@ export class PayrollExecutionService {
    */
   private async calculateInsurance(grossSalary: number): Promise<any> {
     try {
-    // Fetch insurance brackets from configuration
+      // Fetch insurance brackets from configuration
       const brackets = await this.insuranceBracketsService.findAll();
-      
+
       this.logger.warn(`DEBUG INSURANCE: Found ${brackets ? brackets.length : 0} brackets`);
 
       if (!brackets || brackets.length === 0) {
@@ -1777,7 +1861,7 @@ export class PayrollExecutionService {
         this.logger.warn('No insurance brackets configured. Using default rates.');
         return this.calculateDefaultInsurance(grossSalary);
       }
-      
+
       // Log brackets for debug
       brackets.forEach(b => this.logger.warn(`  Bracket: ${b.name}, Range: ${b.minSalary}-${b.maxSalary}, Status: ${b.status}`));
 
@@ -1857,6 +1941,12 @@ export class PayrollExecutionService {
       const payslip = await this.paySlipModel.findById(payslipId);
       if (!payslip) {
         throw new NotFoundException(`Payslip ${payslipId} not found`);
+      }
+
+      // Check if payroll run is locked
+      const run = await this.payrollRunModel.findById(payslip.payrollRunId);
+      if (run && (run.status === PayRollStatus.LOCKED || run.paymentStatus === PayRollPaymentStatus.PAID)) {
+        throw new BadRequestException(`Cannot add manual adjustment. Payroll run ${run.runId} is LOCKED/PAID.`);
       }
 
       const empDetail = await this.empDetailsModel.findOne({
@@ -2427,7 +2517,7 @@ export class PayrollExecutionService {
       // Check for unresolved anomalies before approving
       const employeeDetails = await this.empDetailsModel.find({ payrollRunId: run._id }).exec();
 
-      const unresolvedAnomalies = employeeDetails.filter(emp => {
+      const unresolvedAnomalies = employeeDetails.map(emp => {
         const hasExceptionString = emp.exceptions && emp.exceptions.trim() !== '';
 
         // Case-insensitive check for resolution keywords
@@ -2436,18 +2526,22 @@ export class PayrollExecutionService {
           exceptionsUpper.includes('OVERRIDE');
 
         if (hasExceptionString && !isResolved) {
-          return true;
+          this.logger.warn(`Blocking Approval: Emp ${emp.employeeId} has exception: ${emp.exceptions}`);
+          return `Emp ${emp.employeeId}: ${emp.exceptions}`;
         }
         if (!isResolved && (emp.bankStatus === BankStatus.MISSING || (emp.bankStatus as string) === 'MISSING')) {
-          return true;
+          this.logger.warn(`Blocking Approval: Emp ${emp.employeeId} missing bank details`);
+          return `Emp ${emp.employeeId}: Missing Bank Details (Status=MISSING)`;
         }
 
-        return false;
-      });
+        return null;
+      }).filter(error => error !== null);
 
       if (unresolvedAnomalies.length > 0) {
+        this.logger.warn(`Manager Review Failed: ${unresolvedAnomalies.length} unresolved anomalies.`);
+        // Return the first few errors in the message for visibility
         throw new BadRequestException(
-          `Cannot approve payroll. There are ${unresolvedAnomalies.length} unresolved anomalies. Please resolve them first.`
+          `Cannot approve: ${unresolvedAnomalies.length} issues. Examples: ${unresolvedAnomalies.slice(0, 3).join(', ')}`
         );
       }
 
@@ -2560,9 +2654,10 @@ export class PayrollExecutionService {
     const employeeDetails = await this.empDetailsModel.find({ payrollRunId: run._id }).exec();
 
     // Calculate totals
-    const totalGrossSalary = employeeDetails.reduce((sum, emp) => sum + emp.baseSalary, 0);
-    const totalTaxes = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
-    const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.deductions * 0.3), 0); const totalNetPayout = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
+    const totalGrossSalary = employeeDetails.reduce((sum, emp) => sum + (emp.grossPay || emp.baseSalary), 0);
+    const totalTaxes = employeeDetails.reduce((sum, emp) => sum + (emp.totalTaxes || 0), 0);
+    const totalInsurance = employeeDetails.reduce((sum, emp) => sum + (emp.totalInsurance || 0), 0);
+    const totalNetPayout = employeeDetails.reduce((sum, emp) => sum + emp.netPay, 0);
     const totalDeductions = employeeDetails.reduce((sum, emp) => sum + emp.deductions, 0);
     const totalBonuses = employeeDetails.reduce((sum, emp) => sum + (emp.bonus || 0), 0);
 
@@ -2805,6 +2900,7 @@ export class PayrollExecutionService {
     // STEP 2: Retrieve all calculated payslips for this run
     const payslips = await this.paySlipModel
       .find({ payrollRunId: run._id })
+      .populate('employeeId') // Populate employee details
       .exec();
 
     if (payslips.length === 0) {
@@ -2816,61 +2912,90 @@ export class PayrollExecutionService {
 
     // STEP 3: Generate and Distribute Payslips (REQ-PY-8)
     for (const payslip of payslips) {
-      // Mark payslip as PAID and ready for distribution
-      // Use updateOne to bypass validation issues with embedded schemas
-      await this.paySlipModel.updateOne(
-        { _id: payslip._id },
-        { $set: { paymentStatus: PaySlipPaymentStatus.PAID } },
-      );
-      totalDisbursement += payslip.netPay;
+      try {
+        // Mark payslip as PAID and ready for distribution
+        // Use updateOne to bypass validation issues with embedded schemas
+        await this.paySlipModel.updateOne(
+          { _id: payslip._id },
+          { $set: { paymentStatus: PaySlipPaymentStatus.PAID } },
+        );
+        totalDisbursement += payslip.netPay;
 
-      // STEP 3A: Generate Payslip Document (PDF format)
-      // In production, this would call a PDF generation service
-      const payslipDocument = {
-        payslipId: payslip._id,
-        employeeId: payslip.employeeId,
-        runId: run.runId,
-        period: run.payrollPeriod,
-        grossSalary: payslip.totalGrossSalary,
-        deductions: payslip.totaDeductions,
-        netPay: payslip.netPay,
-        generatedAt: new Date(),
-        format: 'PDF', // REQ-PY-8: PDF format
-        documentUrl: `/payslips/${payslip._id}/download`, // Portal access URL
-      };
+        // STEP 3A: Generate Payslip Document (PDF format)
+        // Use the injected PdfGenerationService to generate real PDF
+        const empProfile: any = payslip.employeeId; // Cast to any to access populated fields
+        const employeeName = empProfile?.firstName ? `${empProfile.firstName} ${empProfile.lastName}` : 'Unknown Employee';
 
-      // STEP 3B: Distribute via multiple channels (REQ-PY-8)
-      const distributionStatus = {
-        employeeId: payslip.employeeId,
-        payslipId: payslip._id,
-        netPay: payslip.netPay,
-        distributionChannels: {
-          pdf: {
-            generated: true,
-            url: payslipDocument.documentUrl,
-            status: 'AVAILABLE',
+        const pdfUrl = await this.pdfService.generatePayslip({
+          runId: run.runId,
+          period: new Date(run.payrollPeriod),
+          employeeName: employeeName,
+          employeeId: empProfile?.employeeNumber || payslip.employeeId.toString(),
+          department: 'General',
+          bankAccount: empProfile?.bankAccountNumber || 'Not Provided',
+          earnings: {
+            baseSalary: (payslip as any).earningsDetails?.baseSalary || 0,
+            allowances: (payslip as any).earningsDetails?.allowances?.reduce((sum: number, item: any) => sum + (item.amount || 0), 0) || 0,
+            bonuses: (payslip as any).earningsDetails?.bonuses?.reduce((sum: number, item: any) => sum + (item.amount || 0), 0) || 0,
+            overtime: 0,
           },
-          email: {
-            queued: true,
-            status: 'PENDING_DELIVERY',
-            // In production: await this.emailService.sendPayslip(payslip)
-            message: 'Payslip email queued for delivery',
+          deductions: {
+            tax: (payslip as any).deductionsDetails?.taxes?.reduce((sum: number, item: any) => sum + (item.amount || 0), 0) || 0,
+            insurance: (payslip as any).deductionsDetails?.insurances?.reduce((sum: number, item: any) => sum + (item.employerAmount || 0) + (item.employeeAmount || 0), 0) || 0,
+            penalties: 0,
+            unpaidLeave: 0,
           },
-          portal: {
-            available: true,
-            status: 'ACCESSIBLE',
-            accessUrl: `/employee-portal/payslips/${payslip._id}`,
-            message: 'Payslip accessible via employee portal',
-          },
-        },
-        availableForTracking: true, // Ready for Tracking subsystem
-      };
+          netPay: payslip.netPay
+        });
 
-      distributedPayslips.push(distributionStatus);
+        const payslipDocument = {
+          payslipId: payslip._id,
+          employeeId: payslip.employeeId,
+          runId: run.runId,
+          period: run.payrollPeriod,
+          grossSalary: payslip.totalGrossSalary,
+          deductions: payslip.totaDeductions,
+          netPay: payslip.netPay,
+          generatedAt: new Date(),
+          format: 'PDF', // REQ-PY-8: PDF format
+          documentUrl: pdfUrl, // Real PDF URL
+        };
+
+        // STEP 3B: Distribute via multiple channels (REQ-PY-8)
+        const distributionStatus = {
+          employeeId: payslip.employeeId,
+          payslipId: payslip._id,
+          netPay: payslip.netPay,
+          distributionChannels: {
+            pdf: {
+              generated: true,
+              url: payslipDocument.documentUrl,
+              status: 'AVAILABLE',
+            },
+            email: {
+              queued: true,
+              status: 'PENDING_DELIVERY',
+              // In production: await this.emailService.sendPayslip(payslip)
+              message: 'Payslip email queued for delivery',
+            },
+            portal: {
+              available: true,
+              status: 'ACCESSIBLE',
+              accessUrl: `/employee-portal/payslips/${payslip._id}`,
+              message: 'Payslip accessible via employee portal',
+            },
+          },
+          availableForTracking: true, // Ready for Tracking subsystem
+        };
+
+        distributedPayslips.push(distributionStatus);
+      } catch (error) {
+        this.logger.error(`Failed to process payslip execution for ${payslip._id}: ${error.message}`, error.stack);
+        // Continue processing other employees even if one fails
+      }
     }
 
     // STEP 3: Archive Payslips (REQ-PY-8, BR 17)
-    // Generate and archive final payslips for long-term record keeping
     const archivedPayslips: any[] = [];
     for (const payslip of payslips) {
       const archivedRecord = {
@@ -2995,7 +3120,7 @@ export class PayrollExecutionService {
     }
 
     // Unfreeze the payroll and record justification
-    run.status = PayRollStatus.UNLOCKED;
+    run.status = PayRollStatus.UNDER_REVIEW;
 
     // Revert payment status to pending since corrections are needed
     run.paymentStatus = PayRollPaymentStatus.PENDING;
@@ -3059,14 +3184,9 @@ export class PayrollExecutionService {
           deferredEmployeeIds.push(resolution.employeeId);
 
           // Mark employee details as deferred
-          await this.empDetailsModel.updateMany(
-            { payrollRunId: run._id, employeeId: resolution.employeeId },
-            {
-              $set: {
-                exceptions: `DEFERRED TO NEXT RUN by Manager: ${resolution.justification}`,
-                netPay: 0, // Zero out payment for this cycle
-              },
-            },
+          // ACTION: Remove employee detail entirely so they don't appear in the list
+          await this.empDetailsModel.deleteMany(
+            { payrollRunId: run._id, employeeId: resolution.employeeId }
           );
 
           // Delete associated payslip
@@ -3095,8 +3215,11 @@ export class PayrollExecutionService {
           );
 
           // Update payslip with alternative payment method
-          await this.paySlipModel.updateMany(
-            { payrollRunId: run._id, employeeId: resolution.employeeId },
+          const payslipUpdateResult = await this.paySlipModel.updateMany(
+            {
+              payrollRunId: run._id,
+              employeeId: new Types.ObjectId(resolution.employeeId)
+            },
             {
               $set: {
                 paymentMethod: resolution.overridePaymentMethod,
@@ -3105,6 +3228,8 @@ export class PayrollExecutionService {
               },
             },
           );
+
+          this.logger.log(`Payslip Update Result for ${resolution.employeeName}: Matched ${payslipUpdateResult.matchedCount}, Modified ${payslipUpdateResult.modifiedCount}`);
 
           this.logger.log(
             `Payment method overridden to ${resolution.overridePaymentMethod} for ${resolution.employeeName}`,
@@ -3390,7 +3515,7 @@ export class PayrollExecutionService {
       distribution: distributionStatus,
 
       // Frontend Compatibility Fields (Direct mapping for PayslipPreviewModal)
-      taxBreakdown: empDetails?.taxBreakdown || [], 
+      taxBreakdown: empDetails?.taxBreakdown || [],
       insurance: empDetails?.insuranceBreakdown && empDetails.insuranceBreakdown.length > 0 ? {
         employeeAmount: empDetails.insuranceBreakdown[0].amount || 0,
         employerAmount: 0, // Not stored in breakdown currently, defaults to 0
@@ -3398,6 +3523,7 @@ export class PayrollExecutionService {
       } : { employeeAmount: 0, employerAmount: 0, total: 0 },
       penalties: empDetails?.penalties || 0,
       bonuses: empDetails?.bonus || 0,
+      terminationPayout: (payslip.earningsDetails as any)?.terminationPayout || 0,
       overtimePay: 0, // Placeholder, overtime not fully implemented in schema yet
       minimumWageApplied: empDetails?.exceptions?.includes('Minimum Wage') || false,
       baseSalary: payslip.earningsDetails.baseSalary,

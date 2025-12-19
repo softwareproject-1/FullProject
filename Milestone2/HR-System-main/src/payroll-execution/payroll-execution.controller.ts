@@ -82,7 +82,7 @@ export class PayrollExecutionController {
 
     // 7. Run Calculations for a Payroll Run
     @Post('runs/:runId/calculate')
-    @Roles(SystemRole.PAYROLL_SPECIALIST) // Phase 1.1.B: Only Specialists can trigger salary calculations
+    @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER) // Allow Managers to recalculate for anomaly resolution
     async processRunCalculations(@Param('runId') runId: string) {
         return this.payrollService.processRunCalculations(runId);
     }
@@ -228,11 +228,8 @@ export class PayrollExecutionController {
     // This allows testing the "25th of the month" logic immediately
     @Post('debug/trigger-scheduler')
     @Roles(SystemRole.PAYROLL_SPECIALIST, SystemRole.PAYROLL_MANAGER, SystemRole.SYSTEM_ADMIN)
-    async triggerSchedulerManually() {
-        // We need to access the scheduler method. 
-        // Note: Ideally we should inject PayrollSchedulerService, but to avoid changing the constructor signature 
-        // significantly if not needed, we can just call the service logic directly here or add the dependency.
-        // Let's add the dependency properly.
-        return this.schedulerService.handleMonthlyPayrollRun();
+    async triggerSchedulerManually(@Body() body: { date?: string }) {
+        const dateOverride = body.date ? new Date(body.date) : undefined;
+        return this.schedulerService.handleMonthlyPayrollRun(dateOverride);
     }
 }
