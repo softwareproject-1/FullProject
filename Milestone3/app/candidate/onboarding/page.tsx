@@ -352,7 +352,7 @@ export default function CandidateOnboardingPage() {
             </div>
 
             {/* Upcoming Deadlines (ONB-005: See what's coming) */}
-            {onboarding?.tasks?.filter(t =>
+            {(onboarding?.tasks ?? []).filter(t =>
               t.status === 'pending' &&
               t.deadline &&
               !isOverdue(t.deadline) &&
@@ -369,7 +369,7 @@ export default function CandidateOnboardingPage() {
                         Plan ahead for these upcoming tasks:
                       </p>
                       <div className="mt-3 space-y-2">
-                        {onboarding?.tasks
+                        {(onboarding?.tasks ?? [])
                           .filter(t =>
                             t.status === 'pending' &&
                             t.deadline &&
