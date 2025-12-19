@@ -805,18 +805,29 @@ export class PayrollTrackingService {
     let totalTaxableIncome = 0;
     let totalTaxDeducted = 0;
 
-    payslips.forEach(payslip => {
-      totalTaxableIncome += payslip.totalGrossSalary || 0;
+    // Process each payslip to calculate tax
+    for (const payslip of payslips) {
+      const grossSalary = payslip.totalGrossSalary || 0;
+      const baseSalary = payslip.earningsDetails?.baseSalary || grossSalary;
+      totalTaxableIncome += grossSalary;
 
-      // Sum all tax deductions
+      // First try to get tax from deductionsDetails.taxes if amount exists
+      let payslipTax = 0;
       if (payslip.deductionsDetails?.taxes) {
         payslip.deductionsDetails.taxes.forEach(tax => {
-          // Check both 'amount' and 'taxAmount' properties with fallback
           const taxAmount = (tax as any).amount || (tax as any).taxAmount || 0;
-          totalTaxDeducted += taxAmount;
+          payslipTax += taxAmount;
         });
       }
-    });
+
+      // If no tax amount found in deductionsDetails, calculate based on base salary
+      if (payslipTax === 0 && baseSalary > 0) {
+        const calculatedTax = await this.calculateTaxWithLawReference(baseSalary);
+        payslipTax = calculatedTax.reduce((sum: number, t: any) => sum + (t.amount || 0), 0);
+      }
+
+      totalTaxDeducted += payslipTax;
+    }
 
     // Generate PDF
     return new Promise((resolve, reject) => {
@@ -898,14 +909,35 @@ export class PayrollTrackingService {
     let totalEmployeeContribution = 0;
     let totalEmployerContribution = 0;
 
-    payslips.forEach(payslip => {
+    // Process each payslip to calculate insurance contributions
+    for (const payslip of payslips) {
+      const baseSalary = payslip.earningsDetails?.baseSalary || payslip.totalGrossSalary || 0;
+      
+      // First try to get insurance from deductionsDetails.insurances if amounts exist
+      let payslipEmployeeContrib = 0;
+      let payslipEmployerContrib = 0;
+      
       if (payslip.deductionsDetails?.insurances) {
         payslip.deductionsDetails.insurances.forEach(insurance => {
-          totalEmployeeContribution += (insurance as any).employeeContribution || 0;
-          totalEmployerContribution += (insurance as any).employerContribution || 0;
+          payslipEmployeeContrib += (insurance as any).employeeContribution || 0;
+          payslipEmployerContrib += (insurance as any).employerContribution || 0;
         });
       }
-    });
+
+      // If no insurance amounts found in deductionsDetails, calculate based on base salary
+      if (payslipEmployeeContrib === 0 && payslipEmployerContrib === 0 && baseSalary > 0) {
+        const calculatedInsurance = await this.calculateInsuranceBreakdown(baseSalary);
+        payslipEmployeeContrib = calculatedInsurance.employee.reduce(
+          (sum: number, i: any) => sum + (i.employeeContribution || 0), 0
+        );
+        payslipEmployerContrib = calculatedInsurance.employee.reduce(
+          (sum: number, i: any) => sum + (i.employerContribution || 0), 0
+        );
+      }
+
+      totalEmployeeContribution += payslipEmployeeContrib;
+      totalEmployerContribution += payslipEmployerContrib;
+    }
 
     // Generate PDF
     return new Promise((resolve, reject) => {

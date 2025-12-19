@@ -242,16 +242,23 @@ export default function PayslipDetailPage() {
 
             {/* Enhanced Payslip Widget (Itemized Configuration Data) */}
             {enhancedData && !enhancedLoading && (
-                <EnhancedPayslipWidget data={enhancedData} />
+                <EnhancedPayslipWidget 
+                    data={enhancedData} 
+                    payslipOverrides={{
+                        grossPay: payslip.totalGrossSalary,
+                        totalDeductions: payslip.totalDeductions,
+                        netPay: payslip.netPay
+                    }}
+                />
             )}
 
-            {/* Summary Cards */}
+            {/* Summary Cards - Always use payslip values (authoritative source) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                     <CardHeader className="pb-3">
                         <CardDescription>Gross Salary</CardDescription>
                         <CardTitle className="text-2xl">
-                            ${(enhancedData?.grossPay || payslip.totalGrossSalary).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${payslip.totalGrossSalary.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -259,7 +266,7 @@ export default function PayslipDetailPage() {
                     <CardHeader className="pb-3">
                         <CardDescription>Total Deductions</CardDescription>
                         <CardTitle className="text-2xl text-red-600">
-                            -${(enhancedData?.totalDeductions || payslip.totalDeductions).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            -${payslip.totalDeductions.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -267,7 +274,7 @@ export default function PayslipDetailPage() {
                     <CardHeader className="pb-3">
                         <CardDescription>Net Pay</CardDescription>
                         <CardTitle className="text-2xl text-blue-600">
-                            ${(enhancedData?.netPay || payslip.netPay).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${payslip.netPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </CardTitle>
                     </CardHeader>
                 </Card>
