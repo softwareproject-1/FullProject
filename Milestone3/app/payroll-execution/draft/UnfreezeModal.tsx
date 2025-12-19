@@ -56,7 +56,7 @@ export function UnfreezeModal({ isOpen, onClose, onConfirm, runId }: UnfreezeMod
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] bg-white">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
                         <Unlock className="w-5 h-5 text-orange-600" />

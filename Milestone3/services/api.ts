@@ -1351,7 +1351,9 @@ export const payrollExecutionApi = {
     reviewPeriod: (data: { runId: string, action: 'APPROVED' | 'REJECTED' }) =>
         axiosInstance.patch('/payroll-execution/period/review', data),
 
-    processRunCalculations: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/calculate`),
+    processRunCalculations: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/calculate`, {}, {
+        timeout: 120000 // Increase timeout to 120 seconds for heavy calculations
+    }),
 
     submitForApproval: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/submit`),
 
@@ -1363,21 +1365,23 @@ export const payrollExecutionApi = {
         axiosInstance.patch(`/payroll-execution/runs/${runId}/finance-review`, data),
 
     // Phase 4: Management (Lock/Unfreeze)
-    lockPayroll: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/lock`),
+    lockPayroll: (runId: string) => axiosInstance.patch(`/payroll-execution/runs/${runId}/lock`),
 
     unfreezePayroll: (runId: string, data: { reason: string }) =>
-        axiosInstance.post(`/payroll-execution/runs/${runId}/unfreeze`, data),
+        axiosInstance.patch(`/payroll-execution/runs/${runId}/unfreeze`, { justification: data.reason }),
 
     // Phase 5: Execution
-    executeAndDistribute: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/execute`),
+    executeAndDistribute: (runId: string) => axiosInstance.patch(`/payroll-execution/runs/${runId}/execute-and-distribute`, {}, {
+        timeout: 120000 // Heavy PDF generation
+    }),
 
     // Anomaly Resolution
     resolveAnomalies: (runId: string, data: { resolutions: any[] }) =>
-        axiosInstance.post(`/payroll-execution/runs/${runId}/resolve-anomalies`, data),
+        axiosInstance.patch(`/payroll-execution/runs/${runId}/resolve-anomalies`, data),
 
     // Details
     getPayslipDetails: (employeeId: string, runId: string) =>
-        axiosInstance.get(`/payroll-execution/payslips/${runId}/${employeeId}`),
+        axiosInstance.get(`/payroll-execution/payslips/${employeeId}/run/${runId}`),
 
     // Test/Seed
     seedTestBenefits: () => axiosInstance.post('/payroll-execution/seed/benefits'),

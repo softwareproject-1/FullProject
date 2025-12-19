@@ -17,6 +17,7 @@ import { TimeManagementModule } from '../time-management/time-management.module'
 import { EmployeeProfileModule } from '../employee-profile/employee-profile.module';
 import { LeavesModule } from '../leaves/leaves.module';
 import { AuthModule } from '../auth/auth.module';
+import { PdfGenerationService } from './pdf-generation.service';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { AuthModule } from '../auth/auth.module';
 
     ])],
   controllers: [PayrollExecutionController],
-  providers: [PayrollExecutionService, PayrollSchedulerService], // Provide Scheduler
+  providers: [PayrollExecutionService, PayrollSchedulerService, PdfGenerationService], // Add PdfGenerationService
   exports: [PayrollExecutionService]
 })
 export class PayrollExecutionModule { }
