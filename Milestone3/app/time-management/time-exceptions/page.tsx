@@ -77,11 +77,16 @@ export default function TimeExceptionsPage() {
 
   const loadEmployees = async () => {
     try {
-      const response = await employeeProfileApi.getAll();
+      // For System Admin, fetch all employees with a high limit to get all records
+      // For others, use default pagination
+      const response = isSystemAdmin 
+        ? await axiosInstance.get("/employee-profile", { params: { limit: 10000 } })
+        : await employeeProfileApi.getAll();
       const allEmps = extractArrayData(response);
       
       // System Admin can see all employees, others only see employees with attendance records
       if (isSystemAdmin) {
+        // System Admin should see ALL employees in the dropdown
         setAllEmployees(allEmps);
       } else {
         // Get all attendance records to find which employees have records
