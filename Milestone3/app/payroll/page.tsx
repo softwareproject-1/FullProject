@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '../../components/Card';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -19,16 +20,37 @@ const safePayrollRuns = mockPayrollRuns || [];
 const safePayslips = mockPayslips || [];
 
 export default function Payroll() {
+  const router = useRouter();
   const { user, loading } = useAuth();
   const [currentView, setCurrentView] = useState<'config' | 'run' | 'payslips'>('config');
   const [wizardStep, setWizardStep] = useState<'draft' | 'validate' | 'approve'>('draft');
   const [selectedPayroll, setSelectedPayroll] = useState<PayrollRun | null>(safePayrollRuns[1] || null); // Draft payroll
 
-  // Check if user is Payroll Specialist or Finance Staff (view-only)
+  // Check if user is Payroll Specialist, Finance Staff, or Payroll Manager
+  const isPayrollManager = user ? hasRole(user.roles, SystemRole.PAYROLL_MANAGER) : false;
   const isPayrollSpecialist = user ? hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST) : false;
   const isFinanceStaff = user ? hasRole(user.roles, SystemRole.FINANCE_STAFF) : false;
   const isViewOnly = isPayrollSpecialist || isFinanceStaff;
   const canEditPayroll = user ? hasFeature(user.roles, "editPayroll") : false;
+
+  // Automatically redirect to role-specific dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      // Redirect based on role priority: Manager > Specialist > Finance
+      if (isPayrollManager) {
+        router.replace('/payroll/payroll-tracking/manager');
+        return;
+      }
+      if (isPayrollSpecialist) {
+        router.replace('/payroll/payroll-tracking/specialist');
+        return;
+      }
+      if (isFinanceStaff) {
+        router.replace('/payroll/payroll-tracking/finance');
+        return;
+      }
+    }
+  }, [loading, user, isPayrollManager, isPayrollSpecialist, isFinanceStaff, router]);
 
   // Restrict view-only users (Payroll Specialists and Finance Staff) to view-only views
   useEffect(() => {
@@ -37,6 +59,18 @@ export default function Payroll() {
       setCurrentView('config');
     }
   }, [isViewOnly, currentView]);
+
+  // Show loading while redirecting to role-specific dashboard
+  if (loading || isPayrollManager || isPayrollSpecialist || isFinanceStaff) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Redirecting to your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const payslipsForRun = selectedPayroll
     ? safePayslips.filter((slip) => slip.payrollRunId === selectedPayroll.id)

@@ -278,10 +278,12 @@ export interface LeaveDeductionDto {
 }
 
 export interface EnhancedPayslipDataDto {
+    // Payslip Identification
     payslipId: string;
     month: string;
     year: number;
     employeeName: string;
+    contractType?: string; // Employment contract type (full-time, part-time, temporary, internship)
     payGrade?: string;
 
     baseSalary: number;

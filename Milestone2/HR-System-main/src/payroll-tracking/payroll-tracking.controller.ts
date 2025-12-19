@@ -13,6 +13,7 @@ import { Types } from 'mongoose';
 import { AuthenticationGuard } from '../auth/guards/authentication.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { SystemRole } from '../employee-profile/enums/employee-profile.enums';
 
 
@@ -627,6 +628,57 @@ export class PayrollTrackingController {
       refundId,
       payRefundDto.payrollRunId,
     );
+  }
+
+  // ==================== MOCK ENDPOINTS FOR DEMO ====================
+  @Public()
+  @Get('payslips/mock/enhanced')
+  @ApiOperation({ summary: 'Get mock enhanced payslip (Demo)' })
+  @ApiResponse({ status: 200, description: 'Mock data - No authentication required' })
+  async getMockEnhancedPayslip() {
+    return {
+      success: true, data: {
+        payslipId: "MOCK-001", month: "December", year: 2024,
+        employeeName: "Fares Hala (Demo)", contractType: "FULL_TIME", payGrade: "Senior",
+        baseSalary: 85000, allowances: [
+          { id: "a1", name: "Transportation Allowance", amount: 2000 },
+          { id: "a2", name: "Housing Allowance", amount: 5000 }
+        ], totalAllowances: 7000, overtimeCompensation: 3000, leaveEncashment: 14167,
+        grossPay: 109167, taxDeductions: [{
+          id: "t1", name: "Income Tax", amount: 5100,
+          lawReference: "Egypt Tax Law 2024", bracket: { minIncome: 15000, maxIncome: 30000, rate: 0.10 }
+        }],
+        totalTax: 5100, insuranceDeductions: [
+          { id: "i1", name: "Health Insurance", employeeContribution: 850, employerContribution: 850, totalContribution: 1700 },
+          { id: "i2", name: "Pension Insurance", employeeContribution: 1275, employerContribution: 1275, totalContribution: 2550 },
+          { id: "i3", name: "Unemployment Insurance", employeeContribution: 425, employerContribution: 425, totalContribution: 850 }
+        ], totalInsurance: 2550, leaveDeductions: {
+          unpaidDays: 3, deductionAmount: 8500,
+          calculationFormula: "(85000 / 30) × 3 days = 8500 EGP", leaveDetails: ["Unpaid Leave: Dec 15-17"]
+        },
+        timeBasedPenalties: 1500, totalDeductions: 17650, netPay: 91517,
+        minimumWage: 3000, minimumWageAlert: false, employerContributions: [
+          { id: "e1", name: "Health Insurance", employeeContribution: 850, employerContribution: 850, totalContribution: 1700 },
+          { id: "e2", name: "Pension Insurance", employeeContribution: 1275, employerContribution: 1275, totalContribution: 2550 }
+        ], totalEmployerContributions: 2550, disputeEligibleItems: ["a1", "t1"]
+      }
+    };
+  }
+
+  @Public()
+  @Get('time-impact/mock')
+  @ApiOperation({ summary: 'Get mock time impact (Demo)' })
+  @ApiResponse({ status: 200, description: 'Mock penalties data' })
+  async getMockTimeImpact() {
+    return {
+      success: true, data: {
+        penalties: [
+          { id: "p1", type: "UNAPPROVED_ABSENCE", date: "2024-12-05", description: "Unapproved absence", amount: 500 },
+          { id: "p2", type: "LATE", date: "2024-12-10", description: "Late arrival (45 min)", amount: 300 },
+          { id: "p3", type: "MISCONDUCT", date: "2024-12-12", description: "Policy violation", amount: 700 }
+        ], totalPenalties: 1500
+      }
+    };
   }
 
   // === ELENA END ===
