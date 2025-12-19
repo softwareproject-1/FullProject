@@ -2,12 +2,16 @@ import { forwardRef, Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { PayrollTrackingController } from './payroll-tracking.controller';
 import { FinanceController } from './finance.controller';
+import { MockDemoController } from './mock-demo.controller';
 import { PayrollTrackingService } from './payroll-tracking.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { refunds, refundsSchema } from './models/refunds.schema';
 import { claims, claimsSchema } from './models/claims.schema';
 import { disputes, disputesSchema } from './models/disputes.schema';
 import { paySlip, paySlipSchema } from '../payroll-execution/models/payslip.schema';
+import { LeaveRequest, LeaveRequestSchema } from '../leaves/schemas/leave-request.schema';
+import { LeaveType, LeaveTypeSchema } from '../leaves/schemas/leave-type.schema';
+import { LeaveEntitlement, LeaveEntitlementSchema } from '../leaves/schemas/leave-entitlement.schema';
 import { PayrollConfigurationModule } from '../payroll-configuration/payroll-configuration.module';
 import { PayrollExecutionModule } from '../payroll-execution/payroll-execution.module';
 import { AuthModule } from '../auth/auth.module';
@@ -39,8 +43,11 @@ import { NotificationLog, NotificationLogSchema } from '../time-management/model
       { name: EmployeeSystemRole.name, schema: EmployeeSystemRoleSchema },
       { name: EmployeeProfileChangeRequest.name, schema: EmployeeProfileChangeRequestSchema },
       { name: NotificationLog.name, schema: NotificationLogSchema },
+      { name: LeaveRequest.name, schema: LeaveRequestSchema },
+      { name: LeaveType.name, schema: LeaveTypeSchema },
+      { name: LeaveEntitlement.name, schema: LeaveEntitlementSchema },
     ])],
-  controllers: [PayrollTrackingController, FinanceController],
+  controllers: [PayrollTrackingController, FinanceController, MockDemoController],
   providers: [PayrollTrackingService, EmployeeProfileService],
   exports: [PayrollTrackingService]
 })

@@ -1061,6 +1061,9 @@ export const onboardingApi = {
     axiosInstance.get(`/onboarding/tracker/employee/${employeeId}`),
   getOnboardingTracker: (onboardingId: string) =>
     axiosInstance.get(`/onboarding/tracker/${onboardingId}`),
+  // ISSUE-006 FIX: Get onboarding by either candidateId or employeeId
+  getOnboardingByUserId: (userId: string) =>
+    axiosInstance.get(`/onboarding/tracker/user/${userId}`),
   getAllOnboardings: () => axiosInstance.get("/onboarding/all"),
 
   // Task Management
@@ -1378,9 +1381,16 @@ export async function createPayType(
       const errorData = await response
         .json()
         .catch(() => ({ message: "Failed to create pay type" }));
+      const msg = errorData.message || "Failed to create pay type";
+      if (
+        response.status === 409 ||
+        /duplicate|exists|e11000/i.test(String(msg))
+      ) {
+        return { data: null, error: "Pay type already exists (no duplicates allowed)" };
+      }
       return {
         data: null,
-        error: errorData.message || "Failed to create pay type",
+        error: msg,
       };
     }
     const data = await response.json();
@@ -1408,9 +1418,16 @@ export async function updatePayType(
       const errorData = await response
         .json()
         .catch(() => ({ message: "Failed to update pay type" }));
+      const msg = errorData.message || "Failed to update pay type";
+      if (
+        response.status === 409 ||
+        /duplicate|exists|e11000/i.test(String(msg))
+      ) {
+        return { data: null, error: "Pay type already exists (no duplicates allowed)" };
+      }
       return {
         data: null,
-        error: errorData.message || "Failed to update pay type",
+        error: msg,
       };
     }
     const result = await response.json();

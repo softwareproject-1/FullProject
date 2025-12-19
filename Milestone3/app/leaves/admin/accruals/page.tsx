@@ -14,11 +14,26 @@ import { AccrualPolicyDto } from '@/lib/types';
 import { leavesApi } from '@/services/api';
 import { employeeProfileApi } from '@/services/api';
 import axios from 'axios';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 export default function AccrualAdminPage() {
+    const { isHRManager, isHREmployee, isSystemAdmin, isHRAdmin } = useAuth();
+    const isHR = isHRManager() || isHREmployee() || isSystemAdmin() || isHRAdmin();
+
     const [employeeId, setEmployeeId] = useState('');
     const [selectedResult, setSelectedResult] = useState<{ id: string, name: string } | null>(null);
+
+    // Protection
+    if (!isHR) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-slate-500">
+                <UserCog className="w-16 h-16 mb-4 opacity-20" />
+                <h2 className="text-xl font-semibold">Access Denied</h2>
+                <p>Only HR personnel can access accrual administration.</p>
+            </div>
+        );
+    }
     const [leaveType, setLeaveType] = useState(''); // Will be set from real data
     const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
     const [employees, setEmployees] = useState<any[]>([]);

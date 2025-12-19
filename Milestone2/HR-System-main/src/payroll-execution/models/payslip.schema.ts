@@ -37,9 +37,23 @@ const EarningsSchema = SchemaFactory.createForClass(Earnings)
 
 
 @Schema()
+export class AppliedTax {
+    @Prop({ required: true })
+    name: string;
+
+    @Prop({ required: true })
+    rate: number;
+
+    @Prop({ required: true })
+    amount: number;
+}
+const AppliedTaxSchema = SchemaFactory.createForClass(AppliedTax);
+
+
+@Schema()
 class Deductions {
-    @Prop({ type: [taxRulesSchema] })
-    taxes: taxRules[]
+    @Prop({ type: [AppliedTaxSchema] })
+    taxes: AppliedTax[]
 
     @Prop({ type: [insuranceBracketsSchema] })
     insurances?: insuranceBrackets[]

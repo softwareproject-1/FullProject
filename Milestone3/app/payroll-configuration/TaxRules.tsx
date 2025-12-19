@@ -59,22 +59,13 @@ export function TaxRules() {
   const isPayrollManager = roles.includes("Payroll Manager");
   const isLegalPolicyAdmin = roles.includes("Legal & Policy Admin");
 
-  const [formData, setFormData] = useState<CreateTaxRuleDto>({
+  const [formData, setFormData] = useState<Partial<CreateTaxRuleDto>>({
     name: "",
     description: "",
-    taxType: "Single Rate",
     rate: 0,
-    exemptionAmount: 0,
-    thresholdAmount: 0,
-    brackets: [],
   });
 
-  const rateFieldLabel =
-    formData.taxType === "Progressive Brackets"
-      ? "Base Rate (%) *"
-      : "Rate (%) *";
-  const showExemptionField = formData.taxType === "Flat Rate with Exemption";
-  const showProgressiveFields = formData.taxType === "Progressive Brackets";
+  const rateFieldLabel = "Rate (%) *";
 
   const formatCurrency = (value?: number) =>
     typeof value === "number" ? `$${value.toLocaleString()}` : "N/A";
@@ -119,15 +110,7 @@ export function TaxRules() {
       return;
     }
     setSelectedTaxRule(null);
-    setFormData({
-      name: "",
-      description: "",
-      taxType: "Single Rate",
-      rate: 0,
-      exemptionAmount: 0,
-      thresholdAmount: 0,
-      brackets: [],
-    });
+    setFormData({ name: "", description: "", rate: 0 });
     setIsModalOpen(true);
   };
 
@@ -145,15 +128,7 @@ export function TaxRules() {
       return;
     }
     setSelectedTaxRule(taxRule);
-    setFormData({
-      name: taxRule.name,
-      description: taxRule.description,
-      taxType: taxRule.taxType,
-      rate: taxRule.rate,
-      exemptionAmount: taxRule.exemptionAmount || 0,
-      thresholdAmount: taxRule.thresholdAmount || 0,
-      brackets: taxRule.brackets || [],
-    });
+    setFormData({ name: taxRule.name, description: taxRule.description, rate: taxRule.rate });
     setIsModalOpen(true);
   };
 
@@ -276,61 +251,25 @@ export function TaxRules() {
       return;
     }
 
-    if (formData.rate < 0) {
+    if ((formData.rate ?? 0) < 0) {
       setMessageType("error");
       setMessageText("Rate must be greater than or equal to 0.");
       setMessageModalOpen(true);
       return;
     }
 
-    if (
-      formData.taxType === "Flat Rate with Exemption" &&
-      typeof formData.exemptionAmount === "number" &&
-      formData.exemptionAmount < 0
-    ) {
-      setMessageType("error");
-      setMessageText("Exemption amount must be greater than or equal to 0.");
-      setMessageModalOpen(true);
-      return;
-    }
-
-    if (formData.taxType === "Progressive Brackets") {
-      if (!formData.brackets || formData.brackets.length === 0) {
-        setMessageType("error");
-        setMessageText("Progressive tax rules require at least one bracket.");
-        setMessageModalOpen(true);
-        return;
-      }
-
-      const invalidBracket = formData.brackets.some(
-        (bracket) =>
-          bracket.minIncome < 0 ||
-          bracket.maxIncome <= bracket.minIncome ||
-          bracket.rate < 0
-      );
-
-      if (invalidBracket) {
-        setMessageType("error");
-        setMessageText(
-          "Each bracket must have non-negative values and max income must exceed min income."
-        );
-        setMessageModalOpen(true);
-        return;
-      }
-
-      if ((formData.thresholdAmount || 0) < 0) {
-        setMessageType("error");
-        setMessageText("Threshold amount must be greater than or equal to 0.");
-        setMessageModalOpen(true);
-        return;
-      }
-    }
+    // no brackets validation: backend schema doesn't support brackets
 
     setIsSaving(true);
 
     try {
       if (selectedTaxRule?._id) {
-        const result = await updateTaxRule(selectedTaxRule._id, formData);
+        const payload: any = {
+          name: formData.name,
+          description: formData.description,
+          rate: formData.rate,
+        };
+        const result = await updateTaxRule(selectedTaxRule._id, payload);
         if (result.data) {
           setTaxRules(
             taxRules.map((p) =>
@@ -350,7 +289,12 @@ export function TaxRules() {
           setMessageModalOpen(true);
         }
       } else {
-        const result = await createTaxRule(formData);
+        const payload: any = {
+          name: formData.name,
+          description: formData.description,
+          rate: formData.rate,
+        };
+        const result = await createTaxRule(payload);
         if (result.data) {
           setTaxRules([...taxRules, result.data]);
           setIsModalOpen(false);
@@ -611,30 +555,7 @@ export function TaxRules() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Tax Type *
-              </label>
-              <select
-                value={formData.taxType}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    taxType: e.target.value as CreateTaxRuleDto["taxType"],
-                  })
-                }
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              >
-                <option value="Single Rate">Single Rate</option>
-                <option value="Progressive Brackets">
-                  Progressive Brackets
-                </option>
-                <option value="Flat Rate with Exemption">
-                  Flat Rate with Exemption
-                </option>
-              </select>
-            </div>
+            {/* taxType removed - backend now uses simplified DTO */}
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -655,130 +576,9 @@ export function TaxRules() {
               />
             </div>
 
-            {showExemptionField && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Exemption Amount
-                </label>
-                <input
-                  type="number"
-                  value={formData.exemptionAmount || 0}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      exemptionAmount: Number(e.target.value),
-                    })
-                  }
-                  placeholder="0"
-                  min="0"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
+            {/* exemption field removed - not part of current DTO */}
 
-            {showProgressiveFields && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Threshold Amount
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.thresholdAmount || 0}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        thresholdAmount: Number(e.target.value),
-                      })
-                    }
-                    placeholder="0"
-                    min="0"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Tax Brackets *
-                  </label>
-                  <div className="space-y-2">
-                    {(formData.brackets || []).map((bracket, index) => (
-                      <div key={index} className="flex gap-2 items-center">
-                        <input
-                          type="number"
-                          value={bracket.minIncome}
-                          onChange={(e) => {
-                            const newBrackets = [...(formData.brackets || [])];
-                            newBrackets[index].minIncome = Number(
-                              e.target.value
-                            );
-                            setFormData({ ...formData, brackets: newBrackets });
-                          }}
-                          placeholder="Min Income"
-                          min="0"
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                          type="number"
-                          value={bracket.maxIncome}
-                          onChange={(e) => {
-                            const newBrackets = [...(formData.brackets || [])];
-                            newBrackets[index].maxIncome = Number(
-                              e.target.value
-                            );
-                            setFormData({ ...formData, brackets: newBrackets });
-                          }}
-                          placeholder="Max Income"
-                          min="0"
-                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                          type="number"
-                          value={bracket.rate}
-                          onChange={(e) => {
-                            const newBrackets = [...(formData.brackets || [])];
-                            newBrackets[index].rate = Number(e.target.value);
-                            setFormData({ ...formData, brackets: newBrackets });
-                          }}
-                          placeholder="Rate %"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          className="w-24 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newBrackets = (
-                              formData.brackets || []
-                            ).filter((_, i) => i !== index);
-                            setFormData({ ...formData, brackets: newBrackets });
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFormData({
-                          ...formData,
-                          brackets: [
-                            ...(formData.brackets || []),
-                            { minIncome: 0, maxIncome: 0, rate: 0 },
-                          ],
-                        });
-                      }}
-                      className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Bracket
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            {/* Brackets removed to match backend schema (no brackets field) */}
 
             <div className="flex gap-3 justify-end pt-4">
               <button
@@ -821,55 +621,10 @@ export function TaxRules() {
               </div>
             )}
             <div>
-              <p className="text-sm text-slate-600">Tax Type</p>
-              <p className="font-medium text-slate-900">
-                {selectedTaxRule.taxType}
-              </p>
+              <p className="text-sm text-slate-600">Rate</p>
+              <p className="font-medium text-slate-900">{selectedTaxRule.rate}%</p>
             </div>
-            <div>
-              <p className="text-sm text-slate-600">
-                {selectedTaxRule.taxType === "Progressive Brackets"
-                  ? "Base Rate"
-                  : "Rate"}
-              </p>
-              <p className="font-medium text-slate-900">
-                {selectedTaxRule.rate}%
-              </p>
-            </div>
-            {selectedTaxRule.taxType === "Flat Rate with Exemption" && (
-              <div>
-                <p className="text-sm text-slate-600">Exemption Amount</p>
-                <p className="font-medium text-slate-900">
-                  {formatCurrency(selectedTaxRule.exemptionAmount)}
-                </p>
-              </div>
-            )}
-            {selectedTaxRule.taxType === "Progressive Brackets" && (
-              <>
-                <div>
-                  <p className="text-sm text-slate-600">Threshold Amount</p>
-                  <p className="font-medium text-slate-900">
-                    {formatCurrency(selectedTaxRule.thresholdAmount)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-600 mb-2">Tax Brackets</p>
-                  <div className="space-y-2">
-                    {(selectedTaxRule.brackets || []).map((bracket, index) => (
-                      <div
-                        key={index}
-                        className="bg-slate-50 p-3 rounded-lg text-sm"
-                      >
-                        <p>
-                          {formatCurrency(bracket.minIncome)} -{" "}
-                          {formatCurrency(bracket.maxIncome)}: {bracket.rate}%
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+            {/* Brackets view removed to match backend schema (no brackets field) */}
             <div>
               <p className="text-sm text-slate-600">Status</p>
               <span
@@ -882,34 +637,7 @@ export function TaxRules() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <p className="text-sm text-slate-600">Created By</p>
-                <p className="text-slate-900">
-                  {selectedTaxRule.createdByName ||
-                    selectedTaxRule.createdBy ||
-                    "N/A"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-600">Created At</p>
-                <p className="text-slate-900">
-                  {formatDateTime(selectedTaxRule.createdAt)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-600">Approved By</p>
-                <p className="text-slate-900">
-                  {selectedTaxRule.approvedBy || "N/A"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-600">Approved At</p>
-                <p className="text-slate-900">
-                  {formatDateTime(selectedTaxRule.approvedAt)}
-                </p>
-              </div>
-            </div>
+            {/* Created/Approved metadata removed from details per request */}
 
             <div className="flex justify-end pt-4">
               <button

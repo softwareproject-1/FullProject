@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
     href: "/recruitment",
     icon: <UserPlus className="w-5 h-5" />,
   },
-  { name: "Leaves", href: "/leaves", icon: <Calendar className="w-5 h-5" /> },
+  { name: "Leaves", href: "/leaves", icon: <Calendar className="w-5 h-5" />, visibleForAllAuthenticated: true },
   {
     name: "Payroll Execution",
     href: "/payroll-execution",
@@ -162,18 +162,28 @@ function SidebarContent() {
   const availableNavItems = useMemo(() => {
     if (!user || !user.roles) return [];
 
-    // Determine Payroll href based on user role
+    // Check if user has payroll access roles
+    const isPayrollManager = hasRole(user.roles, SystemRole.PAYROLL_MANAGER);
     const isPayrollSpecialist = hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST);
-    const payrollHref = isPayrollSpecialist
-      ? "/payroll/payroll-tracking/specialist"
-      : "/payroll";
+    const isFinanceStaff = hasRole(user.roles, SystemRole.FINANCE_STAFF);
+    const hasPayrollAccess = isPayrollManager || isPayrollSpecialist || isFinanceStaff;
 
-    // Create dynamic Payroll item
-    const payrollItem: NavItem = {
+    // Determine Payroll href based on user role (redirect to role-specific dashboard)
+    let payrollHref = "/payroll";
+    if (isPayrollManager) {
+      payrollHref = "/payroll/payroll-tracking/manager";
+    } else if (isPayrollSpecialist) {
+      payrollHref = "/payroll/payroll-tracking/specialist";
+    } else if (isFinanceStaff) {
+      payrollHref = "/payroll/payroll-tracking/finance";
+    }
+
+    // Create dynamic Payroll item (only for users with payroll access)
+    const payrollItem: NavItem | null = hasPayrollAccess ? {
       name: "Payroll",
       href: payrollHref,
       icon: <DollarSign className="w-5 h-5" />,
-    };
+    } : null;
 
     return navItems
       .map((item) => {
@@ -181,9 +191,9 @@ function SidebarContent() {
           return item;
         }
 
-        // Insert Payroll item after My Payroll
+        // Insert Payroll item after My Payroll (only if user has payroll access)
         if (item.name === "My Payroll") {
-          return [item, payrollItem];
+          return payrollItem ? [item, payrollItem] : item;
         }
 
         if (item.visibleForAllAuthenticated) {

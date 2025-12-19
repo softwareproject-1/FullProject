@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, DollarSign, FileText, AlertCircle, Loader2, Receipt, Flag } from 'lucide-react';
+import { Download, DollarSign, FileText, AlertCircle, Loader2, Receipt, Flag, Eye } from 'lucide-react';
 import { payrollTrackingApi, PayslipDto, ExpenseClaimDto, DisputeDto } from '@/services/api';
 import StatusBadge from '@/components/payroll/StatusBadge';
 
@@ -102,6 +102,12 @@ export default function MyPayrollPage() {
                     <p className="text-slate-600 mt-1">Manage your payslips, claims, and disputes</p>
                 </div>
                 <div className="flex gap-3">
+                    <Link href="/payroll/payroll-tracking/payslips/mock">
+                        <Button variant="default" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Demo Payslip
+                        </Button>
+                    </Link>
                     <Link href="/payroll/payroll-tracking/employee/salary-history">
                         <Button variant="outline">
                             <FileText className="w-4 h-4 mr-2" />

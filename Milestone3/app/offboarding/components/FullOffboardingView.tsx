@@ -23,6 +23,8 @@ import {
     ChevronUp,
     RefreshCw,
     Eye,
+    Search,
+    Filter,
 } from 'lucide-react';
 import { Card } from '../../../components/Card';
 import { WorkflowProgress, OffboardingStage } from './WorkflowProgress';
@@ -35,61 +37,76 @@ interface FullOffboardingViewProps {
     onRefresh: () => void;
     onViewDetails: (termination: TerminationRequest) => void;
     onManageClearance: (termination: TerminationRequest) => void;
+    onRevokeAccess: (termination: TerminationRequest) => void;
     onProcessSettlement: (termination: TerminationRequest) => void;
     onSuccess: (message: string) => void;
     onError: (message: string) => void;
 }
 
 function getOffboardingStage(termination: TerminationRequest, checklist: ClearanceChecklist | null): OffboardingStage {
-    // Stage 1: Initiation - Pending or Under Review
-    if (termination.status === TerminationStatus.PENDING) {
+    if (!termination) {
         return OffboardingStage.INITIATION;
     }
 
-    // Stage 2: Approval - Under Review
-    if (termination.status === TerminationStatus.UNDER_REVIEW) {
-        return OffboardingStage.APPROVAL;
+    // Priority 1: Check actual work progress (checklist completion) first
+    // This allows the progress bar to update even if termination isn't officially approved yet
+    if (checklist) {
+        // Check clearance completion (excluding System_Access as that's a separate stage)
+        const allDeptApproved = checklist.items
+            .filter(item => item.department !== 'System_Access')
+            .every(item => item.status === ApprovalStatus.APPROVED);
+
+        const allEquipmentReturned = checklist.equipmentList.every(item => item.returned);
+        const clearanceComplete = allDeptApproved && allEquipmentReturned && checklist.cardReturned;
+
+        // Check if access is revoked (look for System_Access item)
+        const accessItem = checklist.items.find(item => item.department === 'System_Access');
+        const accessRevoked = accessItem?.status === ApprovalStatus.APPROVED;
+
+        // If both clearance and access are done, we're at settlement stage
+        if (clearanceComplete && accessRevoked) {
+            return OffboardingStage.SETTLEMENT;
+        }
+
+        // If clearance is done but access is not, we're at access revocation stage
+        if (clearanceComplete && !accessRevoked) {
+            return OffboardingStage.ACCESS_REVOCATION;
+        }
+
+        // If we have a checklist but clearance isn't complete, we're at clearance stage
+        return OffboardingStage.CLEARANCE;
     }
 
+    // Priority 2: If no checklist yet, determine stage based on approval status
     // If rejected, stay at approval stage
     if (termination.status === TerminationStatus.REJECTED) {
         return OffboardingStage.APPROVAL;
     }
 
-    // Stage 3+: Approved cases
+    // If approved but no checklist, we're at clearance (waiting for checklist creation)
     if (termination.status === TerminationStatus.APPROVED) {
-        if (!checklist) {
-            return OffboardingStage.CLEARANCE;
-        }
-
-        // Check clearance completion
-        const allDeptApproved = checklist.items.every(item => item.status === ApprovalStatus.APPROVED);
-        const allEquipmentReturned = checklist.equipmentList.every(item => item.returned);
-        const clearanceComplete = allDeptApproved && allEquipmentReturned && checklist.cardReturned;
-
-        if (!clearanceComplete) {
-            return OffboardingStage.CLEARANCE;
-        }
-
-        // Check if access is revoked (look for System_Access item)
-        const accessItem = checklist.items.find(item => item.department === 'System_Access');
-        if (!accessItem || accessItem.status !== ApprovalStatus.APPROVED) {
-            return OffboardingStage.ACCESS_REVOCATION;
-        }
-
-        // All done - at settlement stage
-        return OffboardingStage.SETTLEMENT;
+        return OffboardingStage.CLEARANCE;
     }
 
+    // If under review, we're at approval stage
+    if (termination.status === TerminationStatus.UNDER_REVIEW) {
+        return OffboardingStage.APPROVAL;
+    }
+
+    // If still pending, we're at initiation/approval stage
     return OffboardingStage.INITIATION;
 }
 
 function getWorkflowStages(termination: TerminationRequest, checklist: ClearanceChecklist | null) {
+    const clearanceItems = checklist?.items.filter(i => i.department !== 'System_Access') || [];
     const clearanceProgress = checklist
-        ? Math.round((checklist.items.filter(i => i.status === ApprovalStatus.APPROVED).length / Math.max(checklist.items.length, 1)) * 100)
+        ? Math.round((clearanceItems.filter(i => i.status === ApprovalStatus.APPROVED).length / Math.max(clearanceItems.length, 1)) * 100)
         : 0;
 
     const accessItem = checklist?.items.find(item => item.department === 'System_Access');
+    const clearanceComplete = checklist
+        ? clearanceItems.every(i => i.status === ApprovalStatus.APPROVED) && checklist.cardReturned
+        : false;
 
     return {
         initiation: {
@@ -101,7 +118,7 @@ function getWorkflowStages(termination: TerminationRequest, checklist: Clearance
             status: termination.status,
         },
         clearance: {
-            completed: checklist ? checklist.items.every(i => i.status === ApprovalStatus.APPROVED) && checklist.cardReturned : false,
+            completed: clearanceComplete,
             progress: clearanceProgress,
         },
         accessRevocation: {
@@ -122,6 +139,7 @@ export function FullOffboardingView({
     onRefresh,
     onViewDetails,
     onManageClearance,
+    onRevokeAccess,
     onProcessSettlement,
     onSuccess,
     onError,
@@ -129,6 +147,28 @@ export function FullOffboardingView({
     const [checklistsMap, setChecklistsMap] = useState<Record<string, ClearanceChecklist>>({});
     const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+
+    // Search and filter state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<TerminationStatus | 'all'>('all');
+    const [initiatorFilter, setInitiatorFilter] = useState<TerminationInitiation | 'all'>('all');
+
+    // Filter terminations based on search and filters
+    const filteredTerminations = terminations.filter(termination => {
+        // Search filter (employee ID, reason)
+        const matchesSearch = searchQuery === '' ||
+            termination.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            termination.reason?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            termination.contractId?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        // Status filter
+        const matchesStatus = statusFilter === 'all' || termination.status === statusFilter;
+
+        // Initiator filter
+        const matchesInitiator = initiatorFilter === 'all' || termination.initiator === initiatorFilter;
+
+        return matchesSearch && matchesStatus && matchesInitiator;
+    });
 
     // Fetch checklists for all terminations
     const fetchChecklists = useCallback(async () => {
@@ -240,9 +280,93 @@ export function FullOffboardingView({
                 </button>
             </div>
 
+            {/* Search and Filters */}
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                <div className="flex flex-col md:flex-row gap-4">
+                    {/* Search Input */}
+                    <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search by employee ID, contract ID, or reason..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-slate-400" />
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as TerminationStatus | 'all')}
+                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                        >
+                            <option value="all">All Statuses</option>
+                            <option value={TerminationStatus.PENDING}>Pending</option>
+                            <option value={TerminationStatus.UNDER_REVIEW}>Under Review</option>
+                            <option value={TerminationStatus.APPROVED}>Approved</option>
+                            <option value={TerminationStatus.REJECTED}>Rejected</option>
+                        </select>
+                    </div>
+
+                    {/* Initiator Filter */}
+                    <div>
+                        <select
+                            value={initiatorFilter}
+                            onChange={(e) => setInitiatorFilter(e.target.value as TerminationInitiation | 'all')}
+                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                        >
+                            <option value="all">All Types</option>
+                            <option value={TerminationInitiation.EMPLOYEE}>Resignation</option>
+                            <option value={TerminationInitiation.HR}>HR Termination</option>
+                            <option value={TerminationInitiation.MANAGER}>Manager Termination</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Results count */}
+                <div className="mt-3 text-sm text-slate-500">
+                    Showing {filteredTerminations.length} of {terminations.length} cases
+                    {(searchQuery || statusFilter !== 'all' || initiatorFilter !== 'all') && (
+                        <button
+                            onClick={() => {
+                                setSearchQuery('');
+                                setStatusFilter('all');
+                                setInitiatorFilter('all');
+                            }}
+                            className="ml-3 text-blue-600 hover:text-blue-800 underline"
+                        >
+                            Clear filters
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* No results message */}
+            {filteredTerminations.length === 0 && terminations.length > 0 && (
+                <Card>
+                    <div className="text-center py-8">
+                        <Search className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p className="text-slate-600">No terminations match your search criteria.</p>
+                        <button
+                            onClick={() => {
+                                setSearchQuery('');
+                                setStatusFilter('all');
+                                setInitiatorFilter('all');
+                            }}
+                            className="mt-2 text-blue-600 hover:text-blue-800 text-sm underline"
+                        >
+                            Clear all filters
+                        </button>
+                    </div>
+                </Card>
+            )}
+
             {/* Offboarding Cases */}
             <div className="space-y-4">
-                {terminations.map((termination) => {
+                {filteredTerminations.map((termination) => {
                     const checklist = checklistsMap[termination._id] || null;
                     const currentStage = getOffboardingStage(termination, checklist);
                     const stages = getWorkflowStages(termination, checklist);
@@ -343,10 +467,10 @@ export function FullOffboardingView({
                                                     <div
                                                         key={idx}
                                                         className={`p-2 rounded text-center text-xs ${item.status === ApprovalStatus.APPROVED
-                                                                ? 'bg-green-100 text-green-700 border border-green-200'
-                                                                : item.status === ApprovalStatus.REJECTED
-                                                                    ? 'bg-red-100 text-red-700 border border-red-200'
-                                                                    : 'bg-white text-slate-600 border border-slate-200'
+                                                            ? 'bg-green-100 text-green-700 border border-green-200'
+                                                            : item.status === ApprovalStatus.REJECTED
+                                                                ? 'bg-red-100 text-red-700 border border-red-200'
+                                                                : 'bg-white text-slate-600 border border-slate-200'
                                                             }`}
                                                     >
                                                         <p className="font-medium">{item.department.replace('_', ' ')}</p>
@@ -361,14 +485,14 @@ export function FullOffboardingView({
                                             {/* Equipment & Card Status */}
                                             <div className="mt-3 flex items-center gap-4 text-xs">
                                                 <span className={`px-2 py-1 rounded ${checklist.equipmentList.every(e => e.returned)
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-yellow-100 text-yellow-700'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-yellow-100 text-yellow-700'
                                                     }`}>
                                                     Equipment: {checklist.equipmentList.filter(e => e.returned).length}/{checklist.equipmentList.length} returned
                                                 </span>
                                                 <span className={`px-2 py-1 rounded ${checklist.cardReturned
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-yellow-100 text-yellow-700'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-yellow-100 text-yellow-700'
                                                     }`}>
                                                     Access Card: {checklist.cardReturned ? 'Returned' : 'Pending'}
                                                 </span>
@@ -386,23 +510,29 @@ export function FullOffboardingView({
                                             View Details
                                         </button>
 
-                                        {isHR && termination.status === TerminationStatus.APPROVED && (
-                                            <button
-                                                onClick={() => onManageClearance(termination)}
-                                                className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                            >
-                                                <ClipboardList className="w-4 h-4" />
-                                                Manage Clearance
-                                            </button>
-                                        )}
+                                        {/* Manage Clearance - available for pending, under_review, and approved */}
+                                        {isHR && (
+                                            termination.status === TerminationStatus.PENDING ||
+                                            termination.status === TerminationStatus.UNDER_REVIEW ||
+                                            termination.status === TerminationStatus.APPROVED
+                                        ) && (
+                                                <button
+                                                    onClick={() => onManageClearance(termination)}
+                                                    className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                                >
+                                                    <ClipboardList className="w-4 h-4" />
+                                                    Manage Clearance
+                                                </button>
+                                            )}
 
-                                        {isSystemAdmin && termination.status === TerminationStatus.APPROVED && (
+                                        {/* Access Revocation - Only for System Admin, and only when stage is ACCESS_REVOCATION */}
+                                        {isSystemAdmin && currentStage === OffboardingStage.ACCESS_REVOCATION && (
                                             <button
-                                                onClick={() => onManageClearance(termination)}
+                                                onClick={() => onRevokeAccess(termination)}
                                                 className="flex items-center gap-2 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                                             >
                                                 <Shield className="w-4 h-4" />
-                                                Access Revocation
+                                                Revoke System Access
                                             </button>
                                         )}
 

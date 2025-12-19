@@ -9,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, GripVertical, Plus, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, GripVertical, Plus, Trash2, Save, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { EntitlementRuleDto, ApprovalStepDto } from '@/lib/types';
 import { leavesApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Updated mock to match new DTO
 const mockEntitlement: EntitlementRuleDto = {
@@ -41,9 +42,21 @@ const getRoleDisplayName = (role: string) => {
 
 
 export default function LeaveTypeConfigurationPage() {
+    const { isHRManager, isHREmployee, isSystemAdmin, isHRAdmin } = useAuth();
+    const isHR = isHRManager() || isHREmployee() || isSystemAdmin() || isHRAdmin();
     const params = useParams();
     const id = params.id as string; // This is actually the ID, but rules need code. 
-    // In a real app we'd fetch the type by ID first to get the code. 
+
+    // Protection
+    if (!isHR) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-slate-500">
+                <Settings className="w-16 h-16 mb-4 opacity-20" />
+                <h2 className="text-xl font-semibold">Access Denied</h2>
+                <p>Only HR personnel can access leave type configuration.</p>
+            </div>
+        );
+    }    // In a real app we'd fetch the type by ID first to get the code. 
     // For now we assume the user enters the code manually or it enters from context?
     // Let's assume we maintain the ID usage for the route but use the code for the DTO.
 

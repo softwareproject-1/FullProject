@@ -29,7 +29,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { offboardingApi, employeeProfileApi } from '../../services/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   TerminationRequest,
   ClearanceChecklist,
@@ -498,6 +498,10 @@ export default function Offboarding() {
               setSelectedTermination(termination);
               await loadChecklist(termination._id);
               setIsClearanceModalOpen(true);
+            }}
+            onRevokeAccess={(termination) => {
+              setSelectedTermination(termination);
+              setIsAccessModalOpen(true);
             }}
             onProcessSettlement={(termination) => {
               setSelectedTermination(termination);
@@ -1289,8 +1293,9 @@ export default function Offboarding() {
             <AccessRevocationPanel
               employeeId={selectedTermination.employeeId}
               terminationId={selectedTermination._id}
-              onSuccess={(msg) => {
+              onSuccess={async (msg) => {
                 setSuccessMessage(msg);
+                await refreshData();
                 setTimeout(() => setSuccessMessage(null), 3000);
               }}
               onError={(msg) => setError(msg)}

@@ -231,6 +231,28 @@ export function PayTypes() {
       setMessageModalOpen(true);
       return;
     }
+    // Client-side duplicate prevention: check existing pay types by `type`
+    const newType = (formData.type || "").trim().toLowerCase();
+    if (selectedPayType?._id) {
+      if (
+        payTypes.some(
+          (p) => p._id !== selectedPayType._id && (p.type || "").trim().toLowerCase() === newType
+        )
+      ) {
+        setMessageType("error");
+        setMessageText("Pay type already exists (no duplicates allowed)");
+        setMessageModalOpen(true);
+        return;
+      }
+    } else {
+      if (payTypes.some((p) => (p.type || "").trim().toLowerCase() === newType)) {
+        setMessageType("error");
+        setMessageText("Pay type already exists (no duplicates allowed)");
+        setMessageModalOpen(true);
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {

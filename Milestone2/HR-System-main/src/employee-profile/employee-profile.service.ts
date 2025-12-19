@@ -63,7 +63,7 @@ export class EmployeeProfileService {
     private readonly systemRoleModel: Model<EmployeeSystemRoleDocument>,
     @InjectModel(EmployeeProfileChangeRequest.name)
     private readonly changeRequestModel: Model<EmployeeProfileChangeRequest>,
-  ) {}
+  ) { }
 
   async createProfile(createDto: CreateEmployeeProfileDto) {
     await this.ensureUniqueIdentifiers(createDto);
@@ -499,7 +499,7 @@ export class EmployeeProfileService {
   async getCandidateByEmployeeProfileId(employeeProfileId: string) {
     // Get the employee profile
     const employeeProfile = await this.employeeProfileModel.findById(employeeProfileId).lean().exec();
-    
+
     if (!employeeProfile) {
       throw new NotFoundException('Employee profile not found.');
     }
@@ -529,7 +529,7 @@ export class EmployeeProfileService {
       // Try both ObjectId and string formats
       const employeeProfileIdObj = employeeProfileId as any;
       const employeeProfileIdStr = String(employeeProfileId);
-      
+
       const systemRole = await this.systemRoleModel.findOne({
         $or: [
           { employeeProfileId: employeeProfileIdObj },
@@ -537,10 +537,10 @@ export class EmployeeProfileService {
         ],
         isActive: true,
       }).exec();
-      
+
       if (systemRole && systemRole.roles && Array.isArray(systemRole.roles)) {
         const hasJobCandidateRole = systemRole.roles.includes(SystemRole.JOB_CANDIDATE);
-        
+
         if (hasJobCandidateRole) {
           // Auto-create candidate profile from employee profile
           // Generate unique candidate number
@@ -552,7 +552,7 @@ export class EmployeeProfileService {
             candidateExists = await this.candidateModel.findOne({ candidateNumber }).exec();
             counter++;
           }
-          
+
           const candidateData: any = {
             candidateNumber,
             firstName: employeeProfile.firstName,
@@ -759,7 +759,7 @@ export class EmployeeProfileService {
     // Validate and normalize roles
     const validRoles = Object.values(SystemRole);
     let normalizedRoles: SystemRole[] = [];
-    
+
     if (assignDto.roles !== undefined && assignDto.roles !== null) {
       if (Array.isArray(assignDto.roles)) {
         normalizedRoles = assignDto.roles
@@ -816,24 +816,24 @@ export class EmployeeProfileService {
 
       // Update existing role
       const updateData: any = {};
-      
+
       // If roles are provided, replace them completely (don't merge)
       if (assignDto.roles !== undefined && assignDto.roles !== null) {
         updateData.roles = normalizedRoles.length > 0 ? normalizedRoles : [];
         console.log('assignSystemRoles - Replacing roles with:', updateData.roles);
       }
-      
+
       // If permissions are provided, replace them completely (don't merge)
       if (assignDto.permissions !== undefined && assignDto.permissions !== null) {
         updateData.permissions = Array.isArray(assignDto.permissions) ? assignDto.permissions : [];
       }
-      
+
       // Always set isActive if provided, otherwise keep existing or default to true
       updateData.isActive = assignDto.isActive !== undefined ? assignDto.isActive : (existing.isActive ?? true);
 
       existing.set(this.removeUndefined(updateData));
       const updated = await existing.save();
-      
+
       const updatedObj = updated.toObject();
       console.log('assignSystemRoles - Updated existing role:', {
         employeeProfileId: assignDto.employeeProfileId,
@@ -843,7 +843,7 @@ export class EmployeeProfileService {
         isActive: updated.isActive,
         updatedAt: (updatedObj as any).updatedAt,
       });
-      
+
       return updated.toObject();
     }
 
@@ -872,9 +872,9 @@ export class EmployeeProfileService {
       permissions: assignDto.permissions || [],
       isActive: assignDto.isActive !== undefined ? assignDto.isActive : true,
     };
-    
+
     const created = await this.systemRoleModel.create(roleData);
-    
+
     const createdObj = created.toObject();
     console.log('assignSystemRoles - Created new role:', {
       employeeProfileId: assignDto.employeeProfileId,
@@ -883,7 +883,7 @@ export class EmployeeProfileService {
       isActive: created.isActive,
       createdAt: (createdObj as any).createdAt,
     });
-    
+
     return created.toObject();
   }
 
@@ -1148,7 +1148,7 @@ export class EmployeeProfileService {
     }
 
     const profileObject = profile.toObject();
-    
+
     // Filter fields based on user role
     const userRoles = options?.userRoles || [];
     if (userRoles.includes('Finance Staff')) {
@@ -1180,14 +1180,14 @@ export class EmployeeProfileService {
       'createdAt',
       'updatedAt',
     ];
-    
+
     const filtered: any = {};
     financeFields.forEach((field) => {
       if (profile[field] !== undefined) {
         filtered[field] = profile[field];
       }
     });
-    
+
     return filtered;
   }
 
@@ -1214,14 +1214,14 @@ export class EmployeeProfileService {
       'createdAt',
       'updatedAt',
     ];
-    
+
     const filtered: any = {};
     complianceFields.forEach((field) => {
       if (profile[field] !== undefined) {
         filtered[field] = profile[field];
       }
     });
-    
+
     return filtered;
   }
 

@@ -278,10 +278,12 @@ export interface LeaveDeductionDto {
 }
 
 export interface EnhancedPayslipDataDto {
+    // Payslip Identification
     payslipId: string;
     month: string;
     year: number;
     employeeName: string;
+    contractType?: string; // Employment contract type (full-time, part-time, temporary, internship)
     payGrade?: string;
 
     baseSalary: number;
@@ -618,6 +620,9 @@ export const onboardingApi = {
         getByOnboardingId: (onboardingId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/${onboardingId}`),
 
         getByEmployeeId: (employeeId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/employee/${employeeId}`),
+
+        // ISSUE-006 FIX: Get onboarding by either candidateId or employeeId
+        getByUserId: (userId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/user/${userId}`),
 
         updateTaskStatus: (onboardingId: string, taskIndex: number, data: {
             status: OnboardingTaskStatus;
@@ -1044,6 +1049,15 @@ export const leavesApi = {
     getLeaveBalance: (employeeId: string, leaveTypeId: string) =>
         axiosInstance.get(`/leaves/balance/${employeeId}/${leaveTypeId}`),
 
+    getMyRequests: (employeeId: string) =>
+        axiosInstance.get(`/leaves/requests/my/${employeeId}`),
+
+    getPendingApprovals: (managerId: string) =>
+        axiosInstance.get(`/leaves/requests/pending/${managerId}`),
+
+    getHRReviewQueue: () =>
+        axiosInstance.get('/leaves/requests/hr-review'),
+
     // Escalation
     checkAutoEscalation: () =>
         axiosInstance.post('/leaves/escalation/check'),
@@ -1349,9 +1363,11 @@ export const payrollExecutionApi = {
     getDraftEmployees: (runId: string) => axiosInstance.get(`/payroll-execution/drafts/${runId}/employees`),
 
     reviewPeriod: (data: { runId: string, action: 'APPROVED' | 'REJECTED' }) =>
-        axiosInstance.patch(`/payroll-execution/runs/${data.runId}/period-review`, data),
+        axiosInstance.patch('/payroll-execution/period/review', data),
 
-    processRunCalculations: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/calculate`),
+    processRunCalculations: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/calculate`, {}, {
+        timeout: 120000 // Increase timeout to 120 seconds for heavy calculations
+    }),
 
     submitForApproval: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/submit`),
 
@@ -1363,21 +1379,23 @@ export const payrollExecutionApi = {
         axiosInstance.patch(`/payroll-execution/runs/${runId}/finance-review`, data),
 
     // Phase 4: Management (Lock/Unfreeze)
-    lockPayroll: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/lock`),
+    lockPayroll: (runId: string) => axiosInstance.patch(`/payroll-execution/runs/${runId}/lock`),
 
     unfreezePayroll: (runId: string, data: { reason: string }) =>
-        axiosInstance.post(`/payroll-execution/runs/${runId}/unfreeze`, data),
+        axiosInstance.patch(`/payroll-execution/runs/${runId}/unfreeze`, { justification: data.reason }),
 
     // Phase 5: Execution
-    executeAndDistribute: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/execute`),
+    executeAndDistribute: (runId: string) => axiosInstance.patch(`/payroll-execution/runs/${runId}/execute-and-distribute`, {}, {
+        timeout: 120000 // Heavy PDF generation
+    }),
 
     // Anomaly Resolution
     resolveAnomalies: (runId: string, data: { resolutions: any[] }) =>
-        axiosInstance.post(`/payroll-execution/runs/${runId}/resolve-anomalies`, data),
+        axiosInstance.patch(`/payroll-execution/runs/${runId}/resolve-anomalies`, data),
 
     // Details
     getPayslipDetails: (employeeId: string, runId: string) =>
-        axiosInstance.get(`/payroll-execution/payslips/${runId}/${employeeId}`),
+        axiosInstance.get(`/payroll-execution/payslips/${employeeId}/run/${runId}`),
 
     // Test/Seed
     seedTestBenefits: () => axiosInstance.post('/payroll-execution/seed/benefits'),

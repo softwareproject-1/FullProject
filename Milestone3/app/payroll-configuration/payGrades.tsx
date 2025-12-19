@@ -229,6 +229,13 @@ export default function PayGrades() {
       return;
     }
 
+    // Client-side duplicate prevention: check existing pay grades by name
+    const normalizedNew = grade.trim().toLowerCase();
+    if (payGrades.some((pg) => (pg.grade || "").trim().toLowerCase() === normalizedNew)) {
+      showMessage("error", "Pay grade already exists (no duplicates allowed)");
+      return;
+    }
+
     const baseNum = parseFloat(baseSalary);
     const grossNum = parseFloat(grossSalary);
     if (isNaN(baseNum) || baseNum < 6000) {
@@ -258,8 +265,28 @@ export default function PayGrades() {
         },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await res.text());
-      showMessage("success", "Pay grade created successfully!");
+      if (!res.ok) {
+        const raw = await res.text().catch(() => "");
+        let msg = raw;
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(raw || "{}");
+          msg = parsed?.message || parsed?.error || raw || "";
+        } catch (e) {
+          /* not JSON */
+        }
+        if (res.status === 409 || /duplicate|exists|e11000/i.test(String(msg))) {
+          showMessage("error", "Pay grade already exists (no duplicates allowed)");
+        } else {
+          console.error("Create pay grade failed", { status: res.status, raw, parsed });
+          showMessage(
+            "error",
+            `Server error (${res.status}): ${String(msg || raw || "No response body")}`
+          );
+        }
+      } else {
+        showMessage("success", "Pay grade created successfully!");
+      }
       closeAddModal();
       fetchPayGrades();
     } catch (err) {
@@ -282,6 +309,17 @@ export default function PayGrades() {
     if (!editPayGradeId) return;
     if (!editGrade || !editBaseSalary || !editGrossSalary) {
       showMessage("error", "Please fill in all required fields.");
+      return;
+    }
+
+    // Client-side duplicate prevention: ensure no other pay grade has same name
+    const normalizedEdit = editGrade.trim().toLowerCase();
+    if (
+      payGrades.some(
+        (pg) => pg._id !== editPayGradeId && (pg.grade || "").trim().toLowerCase() === normalizedEdit
+      )
+    ) {
+      showMessage("error", "Pay grade already exists (no duplicates allowed)");
       return;
     }
 
@@ -314,8 +352,28 @@ export default function PayGrades() {
         },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await res.text());
-      showMessage("success", "Pay grade updated successfully!");
+      if (!res.ok) {
+        const raw = await res.text().catch(() => "");
+        let msg = raw;
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(raw || "{}");
+          msg = parsed?.message || parsed?.error || raw || "";
+        } catch (e) {
+          /* not JSON */
+        }
+        if (res.status === 409 || /duplicate|exists|e11000/i.test(String(msg))) {
+          showMessage("error", "Pay grade already exists (no duplicates allowed)");
+        } else {
+          console.error("Update pay grade failed", { status: res.status, raw, parsed });
+          showMessage(
+            "error",
+            `Server error (${res.status}): ${String(msg || raw || "No response body")}`
+          );
+        }
+      } else {
+        showMessage("success", "Pay grade updated successfully!");
+      }
       closeEditModal();
       fetchPayGrades();
     } catch (err) {
