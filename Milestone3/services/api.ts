@@ -1342,11 +1342,7 @@ export const payrollExecutionApi = {
     getDraftEmployees: (runId: string) => axiosInstance.get(`/payroll-execution/drafts/${runId}/employees`),
 
     reviewPeriod: (data: { runId: string, action: 'APPROVED' | 'REJECTED' }) =>
-<<<<<<< HEAD
-        axiosInstance.patch(`/payroll-execution/period/review`, data),
-=======
         axiosInstance.patch('/payroll-execution/period/review', data),
->>>>>>> 5af47d733e78da0ce0a0f62550cb0c955869e7de
 
     processRunCalculations: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/calculate`, {}, {
         timeout: 120000 // Increase timeout to 120 seconds for heavy calculations
