@@ -519,6 +519,8 @@ export class PayrollExecutionService {
 
     return {
       runId: run.runId,
+      period: new Date(run.payrollPeriod).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      entity: run.entity,
       status: run.status,
       totalEmployees: run.employees,
       totalExceptions: run.exceptions,
@@ -542,17 +544,21 @@ export class PayrollExecutionService {
           bonuses: detail.bonus || 0,
           terminationPayout: detail.benefit || 0,
           totalDeductions: detail.deductions, // Alias for frontend compatibility
-          // Map breakdowns
+          // Map breakdowns - check BOTH detail and payslip for resilience
           totalTaxes: detail.totalTaxes || 0,
           totalInsurance: detail.totalInsurance || 0,
           penalties: detail.penalties || 0,
-          // FIX: Map tax breakdown from Payslip where it is actually saved
-          taxBreakdown: (payslip?.deductionsDetails?.taxes || []).map((t: any) => ({
-            bracket: t.name, // Frontend expects 'bracket'
-            rate: t.rate,
-            amount: t.amount
-          })),
-          insuranceBreakdown: payslip?.deductionsDetails?.insurances || [],
+          // Resilient mapping: Try payslip first, then fallback to detail
+          taxBreakdown: ((payslip?.deductionsDetails?.taxes && payslip.deductionsDetails.taxes.length > 0)
+            ? payslip.deductionsDetails.taxes
+            : (detail.taxBreakdown || [])).map((t: any) => ({
+              bracket: t.bracket || t.name, // Handle both bracket and name
+              rate: t.rate,
+              amount: t.amount
+            })),
+          insuranceBreakdown: (payslip?.deductionsDetails?.insurances && payslip.deductionsDetails.insurances.length > 0)
+            ? payslip.deductionsDetails.insurances
+            : (detail.insuranceBreakdown || []),
           // Map Override Flags
           paymentMethod: payslip?.paymentMethod,
           managerOverride: payslip?.managerOverride,
@@ -1053,6 +1059,47 @@ export class PayrollExecutionService {
 
       this.logger.log(`Payslips found: ${payslips.length}`);
 
+      // OPTIMIZATION: Fetch configuration ONCE per run calculation
+      const taxRules = await this.taxRulesService.findAll();
+      const insuranceBrackets = await this.insuranceBracketsService.findAll();
+      this.logger.log(`Optimization: Cached ${taxRules?.length || 0} tax rules and ${insuranceBrackets?.length || 0} insurance brackets`);
+
+      // OPTIMIZATION: Bulk pre-fetch all employee-related data for the month
+      const employeeIds = employeeDetails.map(ed => ed.employeeId);
+      const periodDate = new Date(payrollRun.payrollPeriod);
+      const year = periodDate.getFullYear();
+      const month = periodDate.getMonth();
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+      this.logger.log(`Optimization: Pre-fetching data for ${employeeIds.length} employees for period ${startDate.toISOString()} - ${endDate.toISOString()}`);
+
+      // Bulk fetch penalties
+      const allPenalties = await this.penaltiesModel.find({ employeeId: { $in: employeeIds } }).exec();
+      const penaltyMap = new Map(allPenalties.map(p => [p.employeeId.toString(), p]));
+
+      // Bulk fetch bonuses
+      const allBonuses = await this.signingBonusModel.find({ employeeId: { $in: employeeIds }, status: BonusStatus.APPROVED }).exec();
+      const bonusMap = new Map(allBonuses.map(b => [b.employeeId.toString(), b]));
+
+      // Bulk fetch terminations
+      const allTerminations = await this.terminationModel.find({ employeeId: { $in: employeeIds }, status: BenefitStatus.APPROVED }).exec();
+      const terminationMap = new Map(allTerminations.map(t => [t.employeeId.toString(), t]));
+
+      // Bulk fetch attendance
+      const allAttendance = await this.timeManagementService.findAllAttendanceRecords({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      const attendanceMap = new Map();
+      allAttendance.forEach(rec => {
+        const empId = rec.employeeId?._id?.toString() || rec.employeeId?.toString();
+        if (!attendanceMap.has(empId)) attendanceMap.set(empId, []);
+        attendanceMap.get(empId).push(rec);
+      });
+
+      this.logger.log(`Optimization: Pre-fetched ${penaltyMap.size} penalties, ${bonusMap.size} bonuses, ${terminationMap.size} terminations, and attendance for ${attendanceMap.size} employees`);
+
       let totalPayout = 0;
       let processedCount = 0;
       const validationErrors: any[] = [];
@@ -1130,46 +1177,31 @@ export class PayrollExecutionService {
             }
           }
 
-          // Get penalties for this employee
-          const penalties = await this.penaltiesModel
-            .findOne({
-              employeeId: empDetail.employeeId,
-            })
-            .exec();
+          // Get penalties from Map (Bulk)
+          const penalties = penaltyMap.get(empDetail.employeeId.toString());
 
-          // Check for approved bonuses
-          const approvedBonus = await this.signingBonusModel
-            .findOne({
-              employeeId: empDetail.employeeId,
-              status: BonusStatus.APPROVED,
-            })
-            .findOne({
-              employeeId: empDetail.employeeId,
-              status: BonusStatus.APPROVED,
-            })
-            .exec();
+          // Check for approved bonuses from Map (Bulk)
+          const approvedBonus = bonusMap.get(empDetail.employeeId.toString());
 
-          // Check for approved termination benefits
-          const approvedTermination = await this.terminationModel
-            .findOne({
-              employeeId: empDetail.employeeId,
-              status: BenefitStatus.APPROVED,
-            })
-            .exec();
+          // Check for approved termination benefits from Map (Bulk)
+          const approvedTermination = terminationMap.get(empDetail.employeeId.toString());
 
           // Calculation Logic Update: Refunds
           // User Formula: Net Pay = Net Salary - Penalties + Refunds
           const refundsAmount = empDetail.refunds || 0;
 
-          // Calculate salary - update calculateSalary method to not expect employee model
+          // Calculate salary - pass cached rules AND payrollRun to avoid redundant lookups
           const calculation = await this.calculateSalary(
             empDetail,
-            employee, // Pass the raw employee object, not Mongoose model
+            employee,
             penalties,
             approvedBonus,
             approvedTermination,
-            runId,
-            refundsAmount // Pass refunds
+            payrollRun, // Pass the already fetched payrollRun object
+            refundsAmount,
+            taxRules,
+            insuranceBrackets,
+            attendanceMap.get(employee._id.toString()) || [] // Pass bulk attendance
           );
 
           // Update employee payroll details
@@ -1251,17 +1283,15 @@ export class PayrollExecutionService {
 
             // Insurance Breakdown
             if (calculation.insurance) {
-              // Schema expects 'insurances: insuranceBrackets[]'. 
-              // Our calculation returns a single bracket usually, or composite?
-              // calculation.insurance has { amount, bracket, employeeRate ... }
-              // Let's explicitly construct an array
               payslip.deductionsDetails!.insurances = [{
                 name: calculation.insurance.bracket || 'Standard Insurance',
                 employeeRate: calculation.insurance.employeeRate || 0,
                 employerRate: calculation.insurance.employerRate || 0,
-                minSalary: 0,       // Required by Schema
-                maxSalary: 999999,  // Required by Schema
-                status: 'approved'  // Lowercase to match Enum
+                amount: calculation.insurance.employeeAmount || 0, // NEW: Capture amount for PDF
+                employeeAmount: calculation.insurance.employeeAmount || 0, // NEW: Dual mapping for resilience
+                minSalary: 0,
+                maxSalary: 999999,
+                status: 'approved'
               }] as any;
             }
 
@@ -1328,7 +1358,14 @@ export class PayrollExecutionService {
       }
 
       // Update payroll run summary
+      const exceptionCount = await this.empDetailsModel.countDocuments({
+        payrollRunId: payrollRun._id,
+        exceptions: { $exists: true, $ne: '' }
+      });
+
       payrollRun.totalnetpay = totalPayout;
+      payrollRun.employees = processedCount;
+      payrollRun.exceptions = exceptionCount;
       payrollRun.status = PayRollStatus.CALCULATED;
       await payrollRun.save();
 
@@ -1372,19 +1409,22 @@ export class PayrollExecutionService {
     penalties: any,
     approvedBonus: any,
     approvedTermination: any,
-    runId: string,
+    run: any, // Pass run object directly
     refunds?: number,
+    cachedTaxRules?: any[],
+    cachedInsuranceBrackets?: any[],
+    prefetchedAttendance?: any[] // NEW: Pass bulk attendance
   ): Promise<any> {
     let baseSalary = empDetail.baseSalary || 0;
+    const runId = run.runId;
 
-    // REQ-PY-2: Calculate Prorated Salary for mid-month hires/exits
-    const proratedInfo = await this.calculateProratedSalary(employee, baseSalary, runId);
+    // REQ-PY-2: Calculate Prorated Salary for mid-month hires/exits - pass run object
+    const proratedInfo = await this.calculateProratedSalary(employee, baseSalary, run);
 
     // Start Gross Salary with the (possibly prorated) base salary
     let grossSalary = proratedInfo.proratedSalary;
 
-    // Fetch run to get period details
-    const run = await this.payrollRunModel.findOne({ runId });
+    // Use passed run object to get period details
     let overtimeHours = 0;
     let unpaidLeaveDays = 0;
 
@@ -1397,13 +1437,8 @@ export class PayrollExecutionService {
       const endDate = new Date(year, month + 1, 0, 23, 59, 59);
 
       try {
-        // Integration: Time Management (Overtime) - Local Calculation
-        // Fetch raw records and calculate overtime here since we cannot modify TimeManagementService
-        const records = await this.timeManagementService.findAllAttendanceRecords({
-          employeeId: employee._id.toString(),
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
-        });
+        // Integration: Time Management (Overtime) - Use pre-fetched records
+        const records = prefetchedAttendance || [];
 
         const STANDARD_WORK_MINUTES = 480; // 8 hours
         let totalOvertimeMinutes = 0;
@@ -1461,7 +1496,7 @@ export class PayrollExecutionService {
       // FIX: Progressive brackets are Annual (e.g. 15,000 exempt). 
       // We must annualize the monthly gross salary for calculation, then convert tax back to monthly.
       const annualGrossSalary = grossSalary * 12;
-      taxRes = await this.calculateProgressiveTax(annualGrossSalary);
+      taxRes = await this.calculateProgressiveTax(annualGrossSalary, cachedTaxRules);
 
       // Convert Annual Tax Result back to Monthly for Payslip
       if (taxRes && typeof taxRes === 'object') {
@@ -1478,15 +1513,15 @@ export class PayrollExecutionService {
       // Ensure taxRes is an object before accessing totalTax
       taxAmount = (taxRes && typeof taxRes === 'object' && !isNaN(taxRes.totalTax)) ? taxRes.totalTax : 0;
     } catch (err) {
-      this.logger.warn(`Tax calculation failed for emp ${empDetail.employeeId}: ${err.message}. Defaulting to 0.`);
-      taxRes = { totalTax: 0, breakdown: [] };
+      this.logger.warn(`Tax calculation failed for emp ${empDetail.employeeId}: ${err.message}. Defaulting to Tier 1.`);
+      taxRes = { totalTax: 0, breakdown: [{ name: 'Tier 1 (Tax Exempt/Error Fallback)', rate: 0, amount: 0 }] };
     }
 
     // BR 7, 8: Calculate Insurance based on brackets
     let insuranceAmount = 0;
     let insuranceRes: any = null;
     try {
-      insuranceRes = await this.calculateInsurance(grossSalary);
+      insuranceRes = await this.calculateInsurance(grossSalary, cachedInsuranceBrackets);
       // Ensure insuranceRes is an object before accessing totalInsurance
       insuranceAmount = (insuranceRes && typeof insuranceRes === 'object' && !isNaN(insuranceRes.totalInsurance)) ? insuranceRes.totalInsurance : 0;
     } catch (err) {
@@ -1597,9 +1632,8 @@ export class PayrollExecutionService {
   private async calculateProratedSalary(
     employee: any,
     fullMonthSalary: number,
-    runId: string,
+    run: any, // Accept run object
   ): Promise<any> {
-    const run = await this.payrollRunModel.findOne({ runId });
     if (!run) {
       return {
         fullMonthSalary,
@@ -1685,10 +1719,10 @@ export class PayrollExecutionService {
   /**
    * BR 5, 6: Calculate progressive income tax based on brackets
    */
-  private async calculateProgressiveTax(grossSalary: number): Promise<any> {
+  private async calculateProgressiveTax(grossSalary: number, cachedRules?: any[]): Promise<any> {
     try {
-      // Fetch all tax rules from configuration
-      const taxRules = await this.taxRulesService.findAll();
+      // Fetch all tax rules from configuration if not cached
+      const taxRules = cachedRules || await this.taxRulesService.findAll();
 
       if (!taxRules || taxRules.length === 0) {
         this.logger.warn('No tax rules configured. Using default progressive tax brackets.');
@@ -1849,10 +1883,10 @@ export class PayrollExecutionService {
   /**
    * BR 7, 8: Calculate insurance based on salary brackets
    */
-  private async calculateInsurance(grossSalary: number): Promise<any> {
+  private async calculateInsurance(grossSalary: number, cachedBrackets?: any[]): Promise<any> {
     try {
-      // Fetch insurance brackets from configuration
-      const brackets = await this.insuranceBracketsService.findAll();
+      // Fetch insurance brackets from configuration if not cached
+      const brackets = cachedBrackets || await this.insuranceBracketsService.findAll();
 
       this.logger.warn(`DEBUG INSURANCE: Found ${brackets ? brackets.length : 0} brackets`);
 
@@ -2772,7 +2806,7 @@ export class PayrollExecutionService {
 
     const runs = await this.payrollRunModel
       .find()
-      .populate('payrollSpecialistId', 'name') // Populate creator name
+      .populate('payrollSpecialistId', 'firstName lastName fullName') // Populate correctly
       .sort({ createdAt: -1 }) // Most recent first
       .exec();
 
@@ -2841,10 +2875,24 @@ export class PayrollExecutionService {
 
         // Get creator name from populated field
         const creatorProfile = run.payrollSpecialistId as any;
-        const creatorName = creatorProfile?.fullName ||
-          (creatorProfile?.firstName && creatorProfile?.lastName
-            ? `${creatorProfile.firstName} ${creatorProfile.lastName}`
-            : 'Unknown');
+        let creatorName = 'Unknown Specialist';
+
+        if (creatorProfile) {
+          // If we have a profile, try to get a real name
+          const hasRealFirstName = creatorProfile.firstName && !['payroll', 'system', 'admin'].includes(creatorProfile.firstName.toLowerCase());
+          const hasRealLastName = creatorProfile.lastName && !['specialist', 'admin', 'user'].includes(creatorProfile.lastName.toLowerCase());
+
+          if (hasRealFirstName && hasRealLastName) {
+            creatorName = `${creatorProfile.firstName} ${creatorProfile.lastName}`;
+          } else if (creatorProfile.fullName && !['payroll specialist', 'system admin'].includes(creatorProfile.fullName.toLowerCase())) {
+            creatorName = creatorProfile.fullName;
+          } else if (creatorProfile.firstName && creatorProfile.lastName) {
+            // Fallback to whatever names are there if they aren't obviously generic
+            creatorName = `${creatorProfile.firstName} ${creatorProfile.lastName}`;
+          } else {
+            creatorName = creatorProfile.fullName || 'Payroll Specialist';
+          }
+        }
 
         return {
           runId: run.runId,
@@ -2855,6 +2903,7 @@ export class PayrollExecutionService {
             startDate: startDate,
             endDate: endDate,
           },
+          entity: run.entity || 'Company A (US)',
           totalAmount: Math.round(totalAmount * 100) / 100,
           currentStatus: run.status,
           paymentStatus: run.paymentStatus,
@@ -2926,25 +2975,74 @@ export class PayrollExecutionService {
         const empProfile: any = payslip.employeeId; // Cast to any to access populated fields
         const employeeName = empProfile?.firstName ? `${empProfile.firstName} ${empProfile.lastName}` : 'Unknown Employee';
 
+        // Gather detailed earnings
+        const detailedEarnings: any[] = [
+          { label: 'Base Salary', amount: payslip.earningsDetails?.baseSalary || 0 }
+        ];
+
+        // Add allowances
+        if (payslip.earningsDetails?.allowances) {
+          payslip.earningsDetails.allowances.forEach((a: any) => {
+            detailedEarnings.push({ label: `Allowance: ${a.name || 'General'}`, amount: a.amount || 0 });
+          });
+        }
+
+        // Add external bonuses
+        if (payslip.earningsDetails?.bonuses) {
+          payslip.earningsDetails.bonuses.forEach((b: any) => {
+            detailedEarnings.push({ label: `Bonus: ${b.positionName || 'Signing'}`, amount: b.amount || 0 });
+          });
+        }
+
+        // Add termination benefits
+        if (payslip.earningsDetails?.benefits) {
+          payslip.earningsDetails.benefits.forEach((b: any) => {
+            detailedEarnings.push({ label: `Benefit: ${b.name || 'Termination'}`, amount: b.amount || 0 });
+          });
+        }
+
+        // Add refunds
+        if (payslip.earningsDetails?.refunds) {
+          payslip.earningsDetails.refunds.forEach((r: any) => {
+            detailedEarnings.push({ label: `Refund: ${r.reason || 'General'}`, amount: r.amount || 0 });
+          });
+        }
+
+        // Gather detailed deductions
+        const detailedDeductions: any[] = [];
+
+        // Add taxes (breakdown)
+        if (payslip.deductionsDetails?.taxes) {
+          payslip.deductionsDetails.taxes.forEach((t: any) => {
+            detailedDeductions.push({ label: `Tax: ${t.name || 'General Tax'}`, amount: t.amount || 0 });
+          });
+        }
+
+        // Add insurance
+        if (payslip.deductionsDetails?.insurances) {
+          payslip.deductionsDetails.insurances.forEach((i: any) => {
+            // Fallback to empDetail amount if not on payslip item
+            const amount = i.amount || (i as any).employeeAmount || 0;
+            detailedDeductions.push({ label: `Insurance: ${i.name || 'General'}`, amount });
+          });
+        }
+
+        // Add penalties
+        if (payslip.deductionsDetails?.penalties?.penalties) {
+          payslip.deductionsDetails.penalties.penalties.forEach((p: any) => {
+            detailedDeductions.push({ label: `Penalty: ${p.reason || 'Miscellaneous'}`, amount: p.amount || 0 });
+          });
+        }
+
         const pdfUrl = await this.pdfService.generatePayslip({
           runId: run.runId,
           period: new Date(run.payrollPeriod),
           employeeName: employeeName,
-          employeeId: empProfile?.employeeNumber || payslip.employeeId.toString(),
-          department: 'General',
-          bankAccount: empProfile?.bankAccountNumber || 'Not Provided',
-          earnings: {
-            baseSalary: (payslip as any).earningsDetails?.baseSalary || 0,
-            allowances: (payslip as any).earningsDetails?.allowances?.reduce((sum: number, item: any) => sum + (item.amount || 0), 0) || 0,
-            bonuses: (payslip as any).earningsDetails?.bonuses?.reduce((sum: number, item: any) => sum + (item.amount || 0), 0) || 0,
-            overtime: 0,
-          },
-          deductions: {
-            tax: (payslip as any).deductionsDetails?.taxes?.reduce((sum: number, item: any) => sum + (item.amount || 0), 0) || 0,
-            insurance: (payslip as any).deductionsDetails?.insurances?.reduce((sum: number, item: any) => sum + (item.employerAmount || 0) + (item.employeeAmount || 0), 0) || 0,
-            penalties: 0,
-            unpaidLeave: 0,
-          },
+          employeeId: empProfile?.employeeNumber || (payslip.employeeId as any)._id?.toString() || payslip.employeeId.toString(),
+          department: empProfile?.department || 'General',
+          bankAccount: empProfile?.bankAccountNumber || (empProfile as any)?.bankDetails?.accountNumber || 'Not Provided',
+          earnings: detailedEarnings,
+          deductions: detailedDeductions,
           netPay: payslip.netPay
         });
 
@@ -3218,7 +3316,7 @@ export class PayrollExecutionService {
           const payslipUpdateResult = await this.paySlipModel.updateMany(
             {
               payrollRunId: run._id,
-              employeeId: new Types.ObjectId(resolution.employeeId)
+              employeeId: Types.ObjectId.isValid(resolution.employeeId) ? new Types.ObjectId(resolution.employeeId) : resolution.employeeId
             },
             {
               $set: {

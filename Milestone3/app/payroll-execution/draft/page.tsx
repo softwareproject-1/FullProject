@@ -355,10 +355,15 @@ function PayrollDraftContent() {
           anomalies: [] as Anomaly[],
         };
 
-        return {
-          ...employeeData,
-          anomalies: detectAnomalies(employeeData),
-        };
+        const anomalies = detectAnomalies(employeeData);
+        if (anomalies.length > 0) {
+          console.log(`⚠️ Anomaly detected for ${employeeName}:`, anomalies);
+          console.log(`   Tax Breakdown length: ${employeeData.taxBreakdown?.length}`);
+          console.log(`   Breakdown data:`, employeeData.taxBreakdown);
+        } else {
+          console.log(`✅ ${employeeName} is clean.`);
+        }
+        return { ...employeeData, anomalies };
       });
 
       // Calculate anomaly statistics
