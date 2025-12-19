@@ -1349,7 +1349,7 @@ export const payrollExecutionApi = {
     getDraftEmployees: (runId: string) => axiosInstance.get(`/payroll-execution/drafts/${runId}/employees`),
 
     reviewPeriod: (data: { runId: string, action: 'APPROVED' | 'REJECTED' }) =>
-        axiosInstance.patch(`/payroll-execution/runs/${data.runId}/period-review`, data),
+        axiosInstance.patch('/payroll-execution/period/review', data),
 
     processRunCalculations: (runId: string) => axiosInstance.post(`/payroll-execution/runs/${runId}/calculate`),
 
