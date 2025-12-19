@@ -1880,16 +1880,35 @@ export async function deleteCompanySettings(id: string) {
 
 // ================= BACKUP =================
 
+// export async function createManualBackup() {
+//   const res = await fetch(`${API_URL}/backups`, {
+//     method: "POST",
+//     credentials: "include",
+//   });
+
+//   const data = await res.json();
+//   return res.ok
+//     ? { data }
+//     : { error: data.message || "Failed to create backup" };
+// }
 export async function createManualBackup() {
   const res = await fetch(`${API_URL}/backups`, {
     method: "POST",
     credentials: "include",
   });
 
-  const data = await res.json();
-  return res.ok
-    ? { data }
-    : { error: data.message || "Failed to create backup" };
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.message || "Backup failed");
+  }
+
+  return data;
 }
 
 // export async function submitEvaluation(
