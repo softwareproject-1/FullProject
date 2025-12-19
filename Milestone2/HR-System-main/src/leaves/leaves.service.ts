@@ -145,7 +145,7 @@ export class LeavesService {
     // Ensure dates are Date objects, not strings
     const normalizedStartDate = startDate ? (startDate instanceof Date ? startDate : new Date(startDate)) : new Date();
     const normalizedEndDate = endDate ? (endDate instanceof Date ? endDate : new Date(endDate)) : null;
-    
+
     const key = normalizedManagerId;
     this.delegationMap.set(key, {
       managerId: normalizedManagerId,
@@ -176,7 +176,7 @@ export class LeavesService {
   async revokeDelegation(managerId: string) {
     const normalizedManagerId = managerId.toString().trim();
     const key = normalizedManagerId;
-    
+
     // Revoke in-memory delegation
     const delegation = this.delegationMap.get(key);
     if (!delegation) {
@@ -198,7 +198,7 @@ export class LeavesService {
     const normalizedManagerId = managerId.toString().trim();
     const normalizedDelegateId = delegateId.toString().trim();
     const key = normalizedManagerId;
-    
+
     // Get delegation
     const delegation = this.delegationMap.get(key);
     if (!delegation) {
@@ -236,7 +236,7 @@ export class LeavesService {
     const normalizedManagerId = managerId.toString().trim();
     const normalizedDelegateId = delegateId.toString().trim();
     const key = normalizedManagerId;
-    
+
     // Get delegation
     const delegation = this.delegationMap.get(key);
     if (!delegation) {
@@ -271,23 +271,23 @@ export class LeavesService {
   private async getActiveDelegate(managerId: string, checkDate: Date = new Date()): Promise<string> {
     const normalizedManagerId = managerId.toString().trim();
     const key = normalizedManagerId;
-    
+
     // Check in-memory delegation
     const inMemoryDelegation = this.delegationMap.get(key);
     if (inMemoryDelegation && inMemoryDelegation.isActive && inMemoryDelegation.status === 'accepted') {
       // Ensure dates are Date objects for comparison
-      const startDate = inMemoryDelegation.startDate instanceof Date 
-        ? inMemoryDelegation.startDate 
+      const startDate = inMemoryDelegation.startDate instanceof Date
+        ? inMemoryDelegation.startDate
         : new Date(inMemoryDelegation.startDate);
       const endDate = inMemoryDelegation.endDate === null || inMemoryDelegation.endDate === undefined
         ? null
-        : (inMemoryDelegation.endDate instanceof Date 
-            ? inMemoryDelegation.endDate 
-            : new Date(inMemoryDelegation.endDate));
-      
+        : (inMemoryDelegation.endDate instanceof Date
+          ? inMemoryDelegation.endDate
+          : new Date(inMemoryDelegation.endDate));
+
       // Check date range
       if (checkDate >= startDate &&
-          (endDate === null || checkDate <= endDate)) {
+        (endDate === null || checkDate <= endDate)) {
         return inMemoryDelegation.delegateId;
       }
     }
@@ -386,15 +386,15 @@ export class LeavesService {
 
       if (upperManagers.length > 0) {
         const upperManagerId = upperManagers[0]._id.toString();
-        
+
         // Check if upper manager has delegation
         const delegateId = await this.getActiveDelegate(upperManagerId, requestDate);
-        
+
         if (delegateId !== upperManagerId) {
           // Upper manager has delegation - return delegate
           return new Types.ObjectId(delegateId);
         }
-        
+
         // Upper manager has no delegation - return upper manager
         return new Types.ObjectId(upperManagerId);
       } else {
@@ -419,16 +419,16 @@ export class LeavesService {
   async getDelegationStatus(managerId: string) {
     const normalizedManagerId = managerId.toString().trim();
     const key = normalizedManagerId;
-    
+
     console.log(`[DEBUG] getDelegationStatus called for managerId: ${normalizedManagerId}`);
     console.log(`[DEBUG] DelegationMap size: ${this.delegationMap.size}`);
     console.log(`[DEBUG] DelegationMap keys:`, Array.from(this.delegationMap.keys()));
-    
+
     // Check in-memory delegation first
     const inMemoryDelegation = this.delegationMap.get(key);
-    
+
     console.log(`[DEBUG] Found delegation:`, inMemoryDelegation ? 'YES' : 'NO');
-    
+
     if (inMemoryDelegation) {
       console.log(`[DEBUG] Delegation details:`, {
         isActive: inMemoryDelegation.isActive,
@@ -438,19 +438,19 @@ export class LeavesService {
         endDateType: typeof inMemoryDelegation.endDate,
       });
     }
-    
+
     if (inMemoryDelegation && inMemoryDelegation.isActive) {
       const now = new Date();
       // Ensure dates are Date objects for comparison
-      const startDate = inMemoryDelegation.startDate instanceof Date 
-        ? inMemoryDelegation.startDate 
+      const startDate = inMemoryDelegation.startDate instanceof Date
+        ? inMemoryDelegation.startDate
         : new Date(inMemoryDelegation.startDate);
       const endDate = inMemoryDelegation.endDate === null || inMemoryDelegation.endDate === undefined
         ? null
-        : (inMemoryDelegation.endDate instanceof Date 
-            ? inMemoryDelegation.endDate 
-            : new Date(inMemoryDelegation.endDate));
-      
+        : (inMemoryDelegation.endDate instanceof Date
+          ? inMemoryDelegation.endDate
+          : new Date(inMemoryDelegation.endDate));
+
       const isDateActive = now >= startDate &&
         (endDate === null || now <= endDate);
 
@@ -1338,9 +1338,9 @@ export class LeavesService {
     return nextReset;
   }
 
-//============================== End of Omar service methods ============================//
+  //============================== End of Omar service methods ============================//
 
-// // ============================ Phase 2: Leave Request and Approval (Seif's Work) ============================
+  // // ============================ Phase 2: Leave Request and Approval (Seif's Work) ============================
 
   async calculateAccruedLeave(employeeId: string, leaveTypeId: string, monthsWorked: number, pauseDuringUnpaid: boolean) {
     const leavePolicy = await this.leavePolicyModel.findOne({ leaveTypeId: new Types.ObjectId(leaveTypeId) });
@@ -1362,7 +1362,7 @@ export class LeavesService {
     return accrued;
   }
 
-  async getLeaveBalance(employeeId: string, leaveTypeId: string): Promise<number> {
+  async getLeaveBalance(employeeId: string, leaveTypeId: string): Promise<{ accrued: number; taken: number; remaining: number }> {
     const employee = await this.employeeProfileService.getProfileById(employeeId);
     if (!employee) throw new NotFoundException('Employee not found');
 
@@ -1370,10 +1370,7 @@ export class LeavesService {
     const hireDate = new Date(employee.dateOfHire);
     const monthsWorked = (now.getFullYear() - hireDate.getFullYear()) * 12 + (now.getMonth() - hireDate.getMonth());
 
-    // Fetch policy to check pauseDuringUnpaid preference if possible, or default to true (BR 11)
-    // const policy = await this.leavePolicyModel.findOne({ leaveTypeId: new Types.ObjectId(leaveTypeId) });
-    const pauseDuringUnpaid = true; // Default to true as per BR 11 and schema limitation
-
+    const pauseDuringUnpaid = true;
     const accrued = await this.calculateAccruedLeave(employeeId, leaveTypeId, monthsWorked, pauseDuringUnpaid);
 
     const takenRequests = await this.leaveRequestModel.find({
@@ -1384,7 +1381,11 @@ export class LeavesService {
 
     const taken = takenRequests.reduce((sum, req) => sum + req.durationDays, 0);
 
-    return accrued - taken;
+    return {
+      accrued,
+      taken,
+      remaining: accrued - taken
+    };
   }
 
   async submitLeaveRequest(
@@ -1485,6 +1486,11 @@ export class LeavesService {
 
     // Add manager approval step
     const approverId = await this.findApproverWithDelegation(employeeId, fromDate);
+
+    // DEBUG: Log the manager's name
+    const approver = await this.employeeModel.findById(approverId);
+    console.log(`[LEAVE_DEBUG] Request submitted for employee ${employeeId}. Assigned Manager: ${approver ? `${approver.firstName} ${approver.lastName}` : approverId}`);
+
     approvalFlow.push({
       role: 'MANAGER',
       status: LeaveStatus.PENDING,
@@ -1513,15 +1519,15 @@ export class LeavesService {
     const balance = await this.getLeaveBalance(employeeId, leaveTypeId);
 
     // BR 29: Excess-to-Unpaid Conversion - FULL IMPLEMENTATION
-    if (balance < duration) {
-      const paidDays = balance;
-      const unpaidDays = duration - balance;
+    if (balance.remaining < duration) {
+      const paidDays = balance.remaining > 0 ? balance.remaining : 0;
+      const unpaidDays = duration - paidDays;
 
       // Find or create unpaid leave type
       const unpaidLeaveType = await this.leaveTypeModel.findOne({ code: 'UNPAID' });
       if (!unpaidLeaveType) {
         throw new BadRequestException(
-          `Insufficient balance (${balance} days available, ${duration} requested). Unpaid leave type not configured.`
+          `Insufficient balance (${balance.remaining} days available, ${duration} requested). Unpaid leave type not configured.`
         );
       }
 
@@ -1650,14 +1656,14 @@ export class LeavesService {
       // 3. Ensure Policy Alignment
       // (This is implicitly covered by re-running validations such as balance, but explicitly noted here)
       const balance = await this.getLeaveBalance(request.employeeId.toString(), request.leaveTypeId.toString());
-      if (balance < request.durationDays) {
+      if (balance.remaining < request.durationDays) {
         // If HR overrides, they might allow negative balance, but standard flow warns/blocks.
         // For 'override', we log a warning but proceed if it's an override.
         // If it's a standard approval, we should block.
         if (!overrideReason) {
-          throw new BadRequestException(`Insufficient balance for approval: ${balance} days available.`);
+          throw new BadRequestException(`Insufficient balance for approval: ${balance.remaining} days available.`);
         } else {
-          console.warn(`HR Override Warning: Approving leave with insufficient balance (${balance} vs ${request.durationDays}). Reason: ${overrideReason}`);
+          console.warn(`HR Override Warning: Approving leave with insufficient balance (${balance.remaining} vs ${request.durationDays}). Reason: ${overrideReason}`);
         }
       }
     }
@@ -1930,85 +1936,85 @@ export class LeavesService {
         return false;
       }
 
-    // 1. Direct Supervisor Check (REQ-020)
-    if (employee.supervisorPositionId &&
-      manager.primaryPositionId.toString() === employee.supervisorPositionId.toString()) {
-      return true;
-    }
-
-    // 2. Department Head Check (Delegation via Role)
-    if (employee.primaryDepartmentId) {
-      const department = await this.departmentModel.findById(employee.primaryDepartmentId);
-      if (department && department.headPositionId &&
-        department.headPositionId.toString() === manager.primaryPositionId.toString()) {
-        console.log(`Manager ${managerId} authorized as Department Head`);
+      // 1. Direct Supervisor Check (REQ-020)
+      if (employee.supervisorPositionId &&
+        manager.primaryPositionId.toString() === employee.supervisorPositionId.toString()) {
         return true;
       }
-    }
 
-    // 3. Hierarchy Traversal (Skip-Level Manager)
-    // Check if manager holds a position that is an ancestor of the employee's position
-    if (employee.primaryPositionId) {
-      let currentPositionId = employee.primaryPositionId;
-      let depth = 0;
-      const MAX_DEPTH = 5; // Prevent infinite loops
-
-      while (currentPositionId && depth < MAX_DEPTH) {
-        const position = await this.positionModel.findById(currentPositionId);
-        if (!position || !position.reportsToPositionId) break;
-
-        if (position.reportsToPositionId.toString() === manager.primaryPositionId.toString()) {
-          console.log(`Manager ${managerId} authorized via hierarchy traversal (Depth: ${depth + 1})`);
+      // 2. Department Head Check (Delegation via Role)
+      if (employee.primaryDepartmentId) {
+        const department = await this.departmentModel.findById(employee.primaryDepartmentId);
+        if (department && department.headPositionId &&
+          department.headPositionId.toString() === manager.primaryPositionId.toString()) {
+          console.log(`Manager ${managerId} authorized as Department Head`);
           return true;
         }
-
-        currentPositionId = position.reportsToPositionId;
-        depth++;
       }
-    }
 
-    // 4. Explicit Delegation Check (REQ-023) - In-Memory Delegation Map
-    if (employee.supervisorPositionId) {
-      const managers = await this.employeeModel
-        .find({ primaryPositionId: employee.supervisorPositionId })
-        .exec();
+      // 3. Hierarchy Traversal (Skip-Level Manager)
+      // Check if manager holds a position that is an ancestor of the employee's position
+      if (employee.primaryPositionId) {
+        let currentPositionId = employee.primaryPositionId;
+        let depth = 0;
+        const MAX_DEPTH = 5; // Prevent infinite loops
 
-      if (managers.length > 0) {
-        const actualManagerId = managers[0]._id.toString();
-        const delegation = this.delegationMap.get(actualManagerId);
+        while (currentPositionId && depth < MAX_DEPTH) {
+          const position = await this.positionModel.findById(currentPositionId);
+          if (!position || !position.reportsToPositionId) break;
 
-        if (delegation && delegation.isActive) {
-          const now = new Date();
-          const isDateActive = now >= delegation.startDate &&
-            (delegation.endDate === null || now <= delegation.endDate);
-
-          // Normalize both IDs to strings for consistent comparison
-          const normalizedDelegateId = delegation.delegateId.toString();
-          const normalizedManagerId = managerId.toString();
-
-          if (isDateActive && normalizedDelegateId === normalizedManagerId) {
-            console.log(`Manager ${managerId} authorized via In-Memory Delegation`);
+          if (position.reportsToPositionId.toString() === manager.primaryPositionId.toString()) {
+            console.log(`Manager ${managerId} authorized via hierarchy traversal (Depth: ${depth + 1})`);
             return true;
+          }
+
+          currentPositionId = position.reportsToPositionId;
+          depth++;
+        }
+      }
+
+      // 4. Explicit Delegation Check (REQ-023) - In-Memory Delegation Map
+      if (employee.supervisorPositionId) {
+        const managers = await this.employeeModel
+          .find({ primaryPositionId: employee.supervisorPositionId })
+          .exec();
+
+        if (managers.length > 0) {
+          const actualManagerId = managers[0]._id.toString();
+          const delegation = this.delegationMap.get(actualManagerId);
+
+          if (delegation && delegation.isActive) {
+            const now = new Date();
+            const isDateActive = now >= delegation.startDate &&
+              (delegation.endDate === null || now <= delegation.endDate);
+
+            // Normalize both IDs to strings for consistent comparison
+            const normalizedDelegateId = delegation.delegateId.toString();
+            const normalizedManagerId = managerId.toString();
+
+            if (isDateActive && normalizedDelegateId === normalizedManagerId) {
+              console.log(`Manager ${managerId} authorized via In-Memory Delegation`);
+              return true;
+            }
           }
         }
       }
-    }
 
-    // 5. Legacy PositionAssignment Delegation Check (if still needed)
-    if (employee.supervisorPositionId) {
-      const now = new Date();
-      const delegation = await this.positionAssignmentModel.findOne({
-        employeeProfileId: new Types.ObjectId(managerId),
-        positionId: new Types.ObjectId(employee.supervisorPositionId),
-        startDate: { $lte: now },
-        $or: [{ endDate: { $gte: now } }, { endDate: null }]
-      });
+      // 5. Legacy PositionAssignment Delegation Check (if still needed)
+      if (employee.supervisorPositionId) {
+        const now = new Date();
+        const delegation = await this.positionAssignmentModel.findOne({
+          employeeProfileId: new Types.ObjectId(managerId),
+          positionId: new Types.ObjectId(employee.supervisorPositionId),
+          startDate: { $lte: now },
+          $or: [{ endDate: { $gte: now } }, { endDate: null }]
+        });
 
-      if (delegation) {
-        console.log(`Manager ${managerId} authorized via Explicit Delegation (PositionAssignment)`);
-        return true;
+        if (delegation) {
+          console.log(`Manager ${managerId} authorized via Explicit Delegation (PositionAssignment)`);
+          return true;
+        }
       }
-    }
 
       // If no verification passed, deny authorization
       console.warn(`Manager ${managerId} not authorized for employee ${employee._id}`);
@@ -2081,7 +2087,78 @@ export class LeavesService {
     };
     return typeMap[attachmentType] || typeMap['OTHER'];
   }
-// // ============================ End of Phase 2: Leave Request and Approval (Seif's Work) =============================
+  // REQ-020: Fetch pending approvals for a manager
+  async getPendingApprovalsForManager(managerId: string) {
+    // Check if the user is an HR Admin or System Admin to show all pending requests
+    const user = await this.employeeModel.findById(managerId).populate('accessProfileId');
+    const systemRole = (user as any)?.accessProfileId;
+    const roles = (systemRole?.roles || []) as string[];
+    console.log(`[LEAVE_DEBUG] Fetching queue for user: ${managerId}. Roles retrieved via population:`, roles);
+
+    const isGlobalAdmin = roles.some(role =>
+      ['hr admin', 'system admin', 'hr manager'].includes(role?.toLowerCase())
+    );
+    console.log(`[LEAVE_DEBUG] User ${managerId} recognized as Global Admin? ${isGlobalAdmin}`);
+
+    const query: any = {
+      status: LeaveStatus.PENDING,
+    };
+
+    if (!isGlobalAdmin) {
+      // Normal manager: only show requests assigned to them
+      query['approvalFlow'] = {
+        $elemMatch: {
+          role: 'MANAGER',
+          status: LeaveStatus.PENDING,
+          decidedBy: new Types.ObjectId(managerId)
+        }
+      };
+    } else {
+      // Admin: show all pending requests in the system for complete oversight
+      // No additional filter needed beyond status: PENDING
+    }
+
+    console.log(`[LEAVE_DEBUG] Final Query:`, JSON.stringify(query, null, 2));
+    const results = await this.leaveRequestModel.find(query)
+      .populate('employeeId', 'firstName lastName employeeNumber')
+      .populate('leaveTypeId', 'name code')
+      .populate('approvalFlow.decidedBy', 'firstName lastName')
+      .exec();
+
+    if (results.length === 0) {
+      const allPending = await this.leaveRequestModel.find({ status: LeaveStatus.PENDING, 'approvalFlow.role': 'MANAGER' })
+        .populate('employeeId', 'firstName lastName')
+        .exec();
+      console.log(`[LEAVE_DEBUG] No requests for ${managerId}. System-wide pending MANAGER requests:`, allPending.map(r => ({
+        id: r._id,
+        emp: (r.employeeId as any)?.firstName,
+        approvers: r.approvalFlow.filter(f => f.role === 'MANAGER').map(f => f.decidedBy)
+      })));
+    }
+
+    console.log(`[LEAVE_DEBUG] Found ${results.length} requests in queue.`);
+    return results;
+  }
+  // Fetch all requests for an employee
+  async getMyRequests(employeeId: string) {
+    return this.leaveRequestModel.find({
+      employeeId: new Types.ObjectId(employeeId)
+    }).populate('leaveTypeId', 'name code')
+      .populate('approvalFlow.decidedBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .exec();
+  }
+
+  // Fetch all pending reviews for HR
+  async getPendingHRReviews() {
+    return this.leaveRequestModel.find({
+      status: LeaveStatus.PENDING,
+    }).populate('employeeId', 'firstName lastName employeeNumber')
+      .populate('leaveTypeId', 'name code')
+      .populate('approvalFlow.decidedBy', 'firstName lastName')
+      .exec();
+  }
+  // // ============================ End of Phase 2: Leave Request and Approval (Seif's Work) =============================
 
 }
 

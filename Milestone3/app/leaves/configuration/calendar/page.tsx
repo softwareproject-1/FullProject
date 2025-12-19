@@ -15,9 +15,12 @@ import { useRouter } from 'next/navigation';
 import { timeManagementApi, leavesApi } from '@/services/api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import axios from '@/lib/axios';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 export default function HolidayCalendarPage() {
+    const { isHRManager, isHREmployee, isSystemAdmin, isHRAdmin } = useAuth();
+    const isHR = isHRManager() || isHREmployee() || isSystemAdmin() || isHRAdmin();
     const router = useRouter();
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [isOpen, setIsOpen] = useState(false);
@@ -25,7 +28,9 @@ export default function HolidayCalendarPage() {
 
     // Forms
     const [holidayName, setHolidayName] = useState('');
+    const [holidayStartDate, setHolidayStartDate] = useState<string>('');
     const [blockReason, setBlockReason] = useState('');
+    const [blockStartDate, setBlockStartDate] = useState<string>('');
     const [blockEndDate, setBlockEndDate] = useState<string>('');
 
     // Test Net Leave Duration
@@ -117,24 +122,32 @@ export default function HolidayCalendarPage() {
     const handleSave = async () => {
         try {
             if (dialogType === 'holiday') {
-                if (!date || !holidayName) return;
+                const startDate = holidayStartDate || (date ? date.toISOString().split('T')[0] : '');
+                if (!startDate || !holidayName) {
+                    alert('Please fill in all required fields');
+                    return;
+                }
 
                 // ✅ Save to Time Management (single source of truth)
                 await timeManagementApi.createHoliday({
                     name: holidayName,
-                    startDate: date.toISOString(),
+                    startDate: new Date(startDate).toISOString(),
                     type: 'NATIONAL',
                     active: true
                 });
 
                 console.log('✅ Holiday saved to Time Management');
             } else {
-                if (!date || !blockEndDate || !blockReason) return;
+                const startDate = blockStartDate || (date ? date.toISOString().split('T')[0] : '');
+                if (!startDate || !blockEndDate || !blockReason) {
+                    alert('Please fill in all required fields');
+                    return;
+                }
 
                 // ✅ Save blocked period to Time Management (ORGANIZATIONAL type)
                 await timeManagementApi.createHoliday({
                     name: blockReason,
-                    startDate: date.toISOString(),
+                    startDate: new Date(startDate).toISOString(),
                     endDate: new Date(blockEndDate).toISOString(),
                     type: 'ORGANIZATIONAL',
                     active: true
@@ -146,7 +159,9 @@ export default function HolidayCalendarPage() {
             fetchCalendarData(); // Refresh from Time Management
             setIsOpen(false);
             setHolidayName('');
+            setHolidayStartDate('');
             setBlockReason('');
+            setBlockStartDate('');
             setBlockEndDate('');
         } catch (e: any) {
             console.error('Save error:', e);
@@ -227,25 +242,39 @@ export default function HolidayCalendarPage() {
                                     </DialogHeader>
 
                                     <div className="space-y-4 py-4">
-                                        <div className="p-3 bg-slate-100 rounded text-sm text-slate-600">
-                                            Selected Start Date: <span className="font-semibold text-slate-900">{date?.toDateString()}</span>
-                                        </div>
-
                                         {dialogType === 'holiday' && (
-                                            <div className="space-y-2">
-                                                <Label>Holiday Name</Label>
-                                                <Input
-                                                    value={holidayName}
-                                                    onChange={(e) => setHolidayName(e.target.value)}
-                                                    placeholder="e.g. National Foundation Day"
-                                                />
-                                            </div>
+                                            <>
+                                                <div className="space-y-2">
+                                                    <Label>Holiday Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={holidayStartDate || (date ? date.toISOString().split('T')[0] : '')}
+                                                        onChange={(e) => setHolidayStartDate(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Holiday Name</Label>
+                                                    <Input
+                                                        value={holidayName}
+                                                        onChange={(e) => setHolidayName(e.target.value)}
+                                                        placeholder="e.g. National Foundation Day"
+                                                    />
+                                                </div>
+                                            </>
                                         )}
 
                                         {dialogType === 'block' && (
                                             <>
                                                 <div className="space-y-2">
-                                                    <Label>Block Until (End Date)</Label>
+                                                    <Label>Block Start Date</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={blockStartDate || (date ? date.toISOString().split('T')[0] : '')}
+                                                        onChange={(e) => setBlockStartDate(e.target.value)}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Block End Date</Label>
                                                     <Input
                                                         type="date"
                                                         value={blockEndDate}

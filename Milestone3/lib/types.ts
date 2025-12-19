@@ -817,6 +817,7 @@ export interface LeaveRequest {
   id: string;
   employeeId: string;
   employeeName: string;
+  approverName?: string;
   leaveType: "Annual" | "Sick" | "Personal" | "Unpaid";
   startDate: string;
   endDate: string;
