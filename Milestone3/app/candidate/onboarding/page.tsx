@@ -351,6 +351,84 @@ export default function CandidateOnboardingPage() {
               )}
             </div>
 
+            {/* Upcoming Deadlines (ONB-005: See what's coming) */}
+            {(onboarding?.tasks ?? []).filter(t =>
+              t.status === 'pending' &&
+              t.deadline &&
+              !isOverdue(t.deadline) &&
+              new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            ).length > 0 && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-blue-800">📅 Upcoming Deadlines (Next 7 Days)</h3>
+                      <p className="text-sm text-blue-600 mt-1">
+                        Plan ahead for these upcoming tasks:
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {(onboarding?.tasks ?? [])
+                          .filter(t =>
+                            t.status === 'pending' &&
+                            t.deadline &&
+                            !isOverdue(t.deadline) &&
+                            new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                          )
+                          .sort((a, b) => new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime())
+                          .map((task, idx) => {
+                            const daysUntil = Math.ceil((new Date(task.deadline!).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                            return (
+                              <div key={idx} className="flex items-center justify-between text-sm bg-white/60 px-3 py-2 rounded-lg">
+                                <div className="flex items-center gap-2">
+                                  <ArrowRight className="w-4 h-4 text-blue-500" />
+                                  <span className="font-medium text-blue-900">{task.name}</span>
+                                </div>
+                                <span className={`font-medium ${daysUntil <= 2 ? 'text-amber-600' : 'text-blue-600'}`}>
+                                  {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil} days`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            {/* Urgent Alerts - Overdue Tasks (ONB-005 Integration) */}
+            {onboarding?.tasks?.some(t => t.status === 'pending' && t.deadline && isOverdue(t.deadline)) && (
+              <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 animate-pulse">
+                    <AlertCircle className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-red-800">⚠️ Overdue Tasks Require Attention</h3>
+                    <p className="text-sm text-red-600 mt-1">
+                      You have {onboarding.tasks.filter(t => t.status === 'pending' && t.deadline && isOverdue(t.deadline)).length} overdue task(s).
+                      Please complete them as soon as possible.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {onboarding.tasks
+                        .filter(t => t.status === 'pending' && t.deadline && isOverdue(t.deadline))
+                        .slice(0, 3)
+                        .map((task, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm text-red-700 bg-red-100/50 px-3 py-2 rounded-lg">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="font-medium">{task.name}</span>
+                            <span className="text-red-500">
+                              (Due: {new Date(task.deadline!).toLocaleDateString()})
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Notifications Section (ONB-005) */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <button
@@ -377,41 +455,65 @@ export default function CandidateOnboardingPage() {
                 <div className="p-4">
                   {notifications.length > 0 ? (
                     <div className="space-y-3">
-                      {notifications.map((notif, idx) => (
-                        <div
-                          key={notif.notificationId || idx}
-                          className="p-4 bg-slate-50 rounded-lg border border-slate-100"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'TASK_REMINDER' ? 'bg-amber-100' :
-                              notif.type === 'DOCUMENT_REQUIRED' ? 'bg-red-100' :
-                                'bg-blue-100'
-                              }`}>
-                              {notif.type === 'TASK_REMINDER' ? (
-                                <Clock className="w-4 h-4 text-amber-600" />
-                              ) : notif.type === 'DOCUMENT_REQUIRED' ? (
-                                <FileText className="w-4 h-4 text-red-600" />
-                              ) : (
-                                <Bell className="w-4 h-4 text-blue-600" />
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium text-slate-900">
-                                {notif.subject || notif.type.replace(/_/g, ' ')}
-                              </p>
-                              <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
-                              <p className="text-xs text-slate-400 mt-2">
-                                {new Date(notif.sentAt).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </p>
+                      {notifications.map((notif, idx) => {
+                        // Determine notification styling based on type
+                        const getNotificationStyle = (type: string) => {
+                          switch (type) {
+                            case 'TASK_OVERDUE':
+                              return { bg: 'bg-red-100', icon: AlertCircle, iconColor: 'text-red-600', border: 'border-red-200' };
+                            case 'TASK_REMINDER':
+                              return { bg: 'bg-amber-100', icon: Clock, iconColor: 'text-amber-600', border: 'border-amber-200' };
+                            case 'DOCUMENT_REQUIRED':
+                              return { bg: 'bg-orange-100', icon: FileText, iconColor: 'text-orange-600', border: 'border-orange-200' };
+                            case 'ONBOARDING_STARTED':
+                              return { bg: 'bg-green-100', icon: CheckCircle2, iconColor: 'text-green-600', border: 'border-green-200' };
+                            case 'ONBOARDING_COMPLETED':
+                              return { bg: 'bg-emerald-100', icon: Award, iconColor: 'text-emerald-600', border: 'border-emerald-200' };
+                            case 'OFFER_SENT':
+                            case 'OFFER_SIGNED':
+                              return { bg: 'bg-purple-100', icon: FileText, iconColor: 'text-purple-600', border: 'border-purple-200' };
+                            default:
+                              return { bg: 'bg-blue-100', icon: Bell, iconColor: 'text-blue-600', border: 'border-blue-200' };
+                          }
+                        };
+
+                        const style = getNotificationStyle(notif.type);
+                        const IconComponent = style.icon;
+
+                        return (
+                          <div
+                            key={notif.notificationId || idx}
+                            className={`p-4 bg-slate-50 rounded-lg border ${style.border} ${notif.type === 'TASK_OVERDUE' ? 'bg-red-50/50' : ''}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${style.bg}`}>
+                                <IconComponent className={`w-4 h-4 ${style.iconColor}`} />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium text-slate-900">
+                                    {notif.subject || notif.type.replace(/_/g, ' ')}
+                                  </p>
+                                  {notif.type === 'TASK_OVERDUE' && (
+                                    <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                                      URGENT
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
+                                <p className="text-xs text-slate-400 mt-2">
+                                  {new Date(notif.sentAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-8 text-slate-500">
