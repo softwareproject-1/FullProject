@@ -239,6 +239,24 @@ export class OnboardingService {
     console.log(`  - Contract: ${contractId}`);
     console.log(`  - Tasks: ${defaultTasks.length}`);
 
+    // ONB-005: Send welcome notification to the candidate
+    try {
+      const candidate = await this.candidateModel.findById(candidateId).exec();
+      const employeeName = candidate?.firstName
+        ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+        : 'New Hire';
+
+      await this.notificationService.sendOnboardingStartedNotification(
+        candidateId,
+        employeeName,
+        contract.acceptanceDate || new Date()
+      );
+      console.log(`[ONB-005] Welcome notification sent to candidate ${candidateId}`);
+    } catch (notifErr) {
+      console.error('[ONB-005] Failed to send welcome notification:', notifErr);
+      // Don't fail onboarding creation if notification fails
+    }
+
     return savedOnboarding;
   }
 
@@ -378,6 +396,25 @@ export class OnboardingService {
     // Add tasks to onboarding
     onboarding.tasks.push(...newTasks);
     await onboarding.save();
+
+    // ONB-005: Send notification to candidate about tasks being assigned
+    try {
+      const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
+      const employeeName = candidate?.firstName
+        ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+        : 'New Hire';
+
+      await this.notificationService.sendNotification({
+        recipientId: onboarding.employeeId.toString(),
+        type: 'TASK_ASSIGNED',
+        subject: `📋 Onboarding Tasks Assigned`,
+        message: `${newTasks.length} onboarding tasks have been assigned to you from the "${template.name}" template. Please check your onboarding tracker to view and complete them.`,
+        metadata: { templateName: template.name, taskCount: newTasks.length },
+      });
+      console.log(`[ONB-005] Task assignment notification sent to ${employeeName}`);
+    } catch (notifErr) {
+      console.error('[ONB-005] Failed to send task assignment notification:', notifErr);
+    }
 
     return this.getOnboardingTracker(onboardingId);
   }
@@ -1339,6 +1376,27 @@ export class OnboardingService {
     // Provision each system
     const results = await this.itProvisioningService.provisionSystemAccess(provRequest, dto.systems);
 
+    // ONB-009: Send notification to IT/System Admin about provisioning request
+    try {
+      await this.notificationService.sendProvisioningNotification(
+        dto.requestedBy,
+        employeeName,
+        dto.systems,
+        'IT_PROVISIONING_REQUESTED'
+      );
+      // Also notify the candidate that their access is being set up
+      await this.notificationService.sendProvisioningNotification(
+        onboarding.employeeId.toString(),
+        'You',
+        dto.systems,
+        'IT_PROVISIONING_REQUESTED'
+      );
+      console.log(`[ONB-009] IT provisioning notification sent for ${employeeName} (to HR and candidate)`);
+    } catch (notifErr) {
+      console.error('[ONB-009] Failed to send provisioning notification:', notifErr);
+      // Don't fail the operation if notification fails
+    }
+
     // Add IT tasks to onboarding
     const itTasks = dto.systems.map((system) => ({
       name: `Provision ${system} access`,
@@ -1450,6 +1508,12 @@ export class OnboardingService {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
 
+    // Get employee name for notification
+    const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
+    const employeeName = candidate?.firstName
+      ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+      : 'New Hire';
+
     const reservationData = {
       onboardingId: dto.onboardingId,
       resourceType: 'equipment',
@@ -1478,6 +1542,26 @@ export class OnboardingService {
     });
     await onboarding.save();
 
+    // ONB-012: Send notification to candidate about equipment reservation
+    try {
+      const resourceDetails = `${dto.equipmentType}${dto.specification ? ` - ${dto.specification}` : ''}${dto.quantity ? ` (Qty: ${dto.quantity})` : ''}`;
+      const neededByDateStr = dto.neededByDate instanceof Date
+        ? dto.neededByDate.toISOString().split('T')[0]
+        : String(dto.neededByDate);
+
+      // Notify the candidate that their equipment is being prepared
+      await this.notificationService.sendResourceReservationNotification(
+        onboarding.employeeId.toString(),
+        employeeName,
+        'equipment',
+        resourceDetails,
+        neededByDateStr
+      );
+      console.log(`[ONB-012] Equipment reservation notification sent for ${employeeName}`);
+    } catch (notifErr) {
+      console.error('[ONB-012] Failed to send equipment reservation notification:', notifErr);
+    }
+
     return {
       success: true,
       reservationId: (doc._id as Types.ObjectId).toString(),
@@ -1495,6 +1579,12 @@ export class OnboardingService {
     if (!onboarding) {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
+
+    // Get employee name for notification
+    const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
+    const employeeName = candidate?.firstName
+      ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+      : 'New Hire';
 
     const reservationData = {
       onboardingId: dto.onboardingId,
@@ -1524,6 +1614,26 @@ export class OnboardingService {
     });
     await onboarding.save();
 
+    // ONB-012: Send notification to candidate about desk reservation
+    try {
+      const resourceDetails = `${dto.building || 'Any building'}${dto.floor ? `, Floor ${dto.floor}` : ''}${dto.preferredArea ? `, ${dto.preferredArea}` : ''}`;
+      const startDateStr = dto.startDate instanceof Date
+        ? dto.startDate.toISOString().split('T')[0]
+        : String(dto.startDate);
+
+      // Notify the candidate that their desk is being prepared
+      await this.notificationService.sendResourceReservationNotification(
+        onboarding.employeeId.toString(),
+        employeeName,
+        'desk',
+        resourceDetails,
+        startDateStr
+      );
+      console.log(`[ONB-012] Desk reservation notification sent for ${employeeName}`);
+    } catch (notifErr) {
+      console.error('[ONB-012] Failed to send desk reservation notification:', notifErr);
+    }
+
     return {
       success: true,
       reservationId: (doc._id as Types.ObjectId).toString(),
@@ -1541,6 +1651,12 @@ export class OnboardingService {
     if (!onboarding) {
       throw new NotFoundException(`Onboarding with ID ${dto.onboardingId} not found`);
     }
+
+    // Get employee name for notification
+    const candidate = await this.candidateModel.findById(onboarding.employeeId).exec();
+    const employeeName = candidate?.firstName
+      ? `${candidate.firstName} ${candidate.lastName || ''}`.trim()
+      : 'New Hire';
 
     const reservationData = {
       onboardingId: dto.onboardingId,
@@ -1568,6 +1684,26 @@ export class OnboardingService {
       deadline: dto.neededByDate,
     });
     await onboarding.save();
+
+    // ONB-012: Send notification to candidate about access card reservation
+    try {
+      const resourceDetails = `${dto.cardType || 'Standard'}${dto.accessZones?.length ? ` - Zones: ${dto.accessZones.join(', ')}` : ''}`;
+      const neededByDateStr = dto.neededByDate instanceof Date
+        ? dto.neededByDate.toISOString().split('T')[0]
+        : String(dto.neededByDate);
+
+      // Notify the candidate that their access card is being prepared
+      await this.notificationService.sendResourceReservationNotification(
+        onboarding.employeeId.toString(),
+        employeeName,
+        'access_card',
+        resourceDetails,
+        neededByDateStr
+      );
+      console.log(`[ONB-012] Access card reservation notification sent for ${employeeName}`);
+    } catch (notifErr) {
+      console.error('[ONB-012] Failed to send access card reservation notification:', notifErr);
+    }
 
     return {
       success: true,

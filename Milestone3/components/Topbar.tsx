@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { Bell, Search, ChevronDown } from 'lucide-react';
+import { Bell, Search, ChevronDown, Clock, FileText, AlertCircle, CheckCircle, Award } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { timeManagementApi } from '@/services/api';
+import { timeManagementApi, onboardingApi } from '@/services/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,11 +15,15 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface Notification {
   _id: string;
+  notificationId?: string; // Onboarding notifications use this
   to: string;
   type: string;
+  subject?: string; // Onboarding notifications have subject
   message?: string;
   createdAt: string;
-  updatedAt: string;
+  sentAt?: string; // Onboarding notifications use sentAt
+  updatedAt?: string;
+  source: 'time-management' | 'onboarding'; // Track notification source
 }
 
 export function Topbar() {
@@ -41,13 +45,13 @@ export function Topbar() {
     if (pathname === '/auth/login') {
       return;
     }
-    
+
     if (user?._id) {
       // Add a small delay to ensure authentication is fully established
       const timeoutId = setTimeout(() => {
         loadNotifications();
       }, 1000);
-      
+
       // Poll for new notifications every 30 seconds
       const interval = setInterval(loadNotifications, 30000);
       return () => {
@@ -59,25 +63,70 @@ export function Topbar() {
 
   const loadNotifications = async () => {
     if (!user?._id) return;
-    
+
     try {
       setLoadingNotifications(true);
-      const response = await timeManagementApi.getNotifications(user._id);
-      setNotifications(response.data || []);
-    } catch (error: any) {
-      // Silently handle errors - don't let notification failures break the app
-      // Check if it's a 401/403 - these might happen if user doesn't have access
-      // or if the endpoint doesn't exist yet
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        console.log('Notifications not accessible for this user or endpoint not available');
-        setNotifications([]);
-      } else if (error.response?.status === 404) {
-        console.log('Notifications endpoint not found - may not be implemented yet');
-        setNotifications([]);
-      } else {
-        console.error('Error loading notifications:', error);
-        setNotifications([]);
+      const allNotifications: Notification[] = [];
+      const seenIds = new Set<string>();
+
+      // Helper to add notifications without duplicates
+      const addNotifications = (notifs: any[], source: 'time-management' | 'onboarding') => {
+        for (const n of notifs) {
+          const id = n.notificationId || n._id || `${source}-${Date.now()}-${Math.random()}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            allNotifications.push({
+              _id: id,
+              notificationId: n.notificationId,
+              to: n.recipientId || n.to || user._id,
+              type: n.type,
+              subject: n.subject,
+              message: n.message,
+              createdAt: n.sentAt || n.createdAt || new Date().toISOString(),
+              sentAt: n.sentAt,
+              source,
+            });
+          }
+        }
+      };
+
+      // Fetch time-management notifications
+      try {
+        const tmResponse = await timeManagementApi.getNotifications(user._id);
+        addNotifications(tmResponse.data || [], 'time-management');
+      } catch (tmError: any) {
+        console.log('Time-management notifications not available:', tmError?.response?.status || tmError.message);
       }
+
+      // Fetch onboarding notifications (ONB-005) - try with user._id
+      try {
+        const onbResponse = await onboardingApi.notifications.getForRecipient(user._id);
+        addNotifications(onbResponse.data || [], 'onboarding');
+      } catch (onbError: any) {
+        console.log('Onboarding notifications not available for _id:', onbError?.response?.status || onbError.message);
+      }
+
+      // Also try with user.id if different (some systems use different ID fields)
+      if ((user as any).id && (user as any).id !== user._id) {
+        try {
+          const onbResponse2 = await onboardingApi.notifications.getForRecipient((user as any).id);
+          addNotifications(onbResponse2.data || [], 'onboarding');
+        } catch (err: any) {
+          // Silently fail - this is just a fallback
+        }
+      }
+
+      // Sort by date (newest first)
+      allNotifications.sort((a, b) => {
+        const dateA = new Date(a.sentAt || a.createdAt).getTime();
+        const dateB = new Date(b.sentAt || b.createdAt).getTime();
+        return dateB - dateA;
+      });
+
+      setNotifications(allNotifications);
+    } catch (error: any) {
+      console.error('Error loading notifications:', error);
+      setNotifications([]);
     } finally {
       setLoadingNotifications(false);
     }
@@ -85,6 +134,7 @@ export function Topbar() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
+      // Time-management notification types
       case 'MISSED_PUNCH':
         return '⏰';
       case 'ATTENDANCE_CORRECTED':
@@ -99,6 +149,39 @@ export function Topbar() {
         return '✓';
       case 'CORRECTION_REJECTED':
         return '✗';
+      // Onboarding notification types (ONB-005)
+      case 'TASK_REMINDER':
+        return '⏰';
+      case 'TASK_OVERDUE':
+        return '🚨';
+      case 'TASK_ASSIGNED':
+        return '📋';
+      case 'DOCUMENT_REQUIRED':
+        return '📎';
+      case 'ONBOARDING_STARTED':
+        return '🎉';
+      case 'ONBOARDING_COMPLETED':
+        return '🏆';
+      case 'OFFER_SENT':
+      case 'OFFER_SIGNED':
+        return '📄';
+      case 'CONTRACT_READY':
+        return '📝';
+      case 'SYSTEM_ACCESS_GRANTED':
+        return '🔑';
+      case 'IT_PROVISIONING_REQUESTED':
+        return '💻';
+      case 'IT_PROVISIONING_COMPLETED':
+        return '✅';
+      // ONB-012: Resource reservation notification types
+      case 'EQUIPMENT_RESERVED':
+        return '🖥️';
+      case 'DESK_RESERVED':
+        return '🪑';
+      case 'ACCESS_CARD_RESERVED':
+        return '🔏';
+      case 'RESOURCE_READY':
+        return '✨';
       default:
         return '🔔';
     }
@@ -106,6 +189,7 @@ export function Topbar() {
 
   const getNotificationColor = (type: string) => {
     switch (type) {
+      // Time-management colors
       case 'MISSED_PUNCH':
         return 'bg-yellow-50 border-yellow-200';
       case 'ATTENDANCE_CORRECTED':
@@ -117,6 +201,37 @@ export function Topbar() {
         return 'bg-green-50 border-green-200';
       case 'CORRECTION_REJECTED':
         return 'bg-red-50 border-red-200';
+      // Onboarding colors (ONB-005)
+      case 'TASK_REMINDER':
+        return 'bg-amber-50 border-amber-200';
+      case 'TASK_OVERDUE':
+        return 'bg-red-50 border-red-300';
+      case 'TASK_ASSIGNED':
+        return 'bg-blue-50 border-blue-200';
+      case 'DOCUMENT_REQUIRED':
+        return 'bg-orange-50 border-orange-200';
+      case 'ONBOARDING_STARTED':
+        return 'bg-green-50 border-green-200';
+      case 'ONBOARDING_COMPLETED':
+        return 'bg-emerald-50 border-emerald-200';
+      case 'OFFER_SENT':
+      case 'OFFER_SIGNED':
+      case 'CONTRACT_READY':
+        return 'bg-purple-50 border-purple-200';
+      // ONB-009: IT Provisioning
+      case 'SYSTEM_ACCESS_GRANTED':
+      case 'IT_PROVISIONING_REQUESTED':
+      case 'IT_PROVISIONING_COMPLETED':
+        return 'bg-indigo-50 border-indigo-200';
+      // ONB-012: Resource reservations
+      case 'EQUIPMENT_RESERVED':
+        return 'bg-cyan-50 border-cyan-200';
+      case 'DESK_RESERVED':
+        return 'bg-teal-50 border-teal-200';
+      case 'ACCESS_CARD_RESERVED':
+        return 'bg-violet-50 border-violet-200';
+      case 'RESOURCE_READY':
+        return 'bg-lime-50 border-lime-200';
       default:
         return 'bg-blue-50 border-blue-200';
     }
@@ -173,7 +288,7 @@ export function Topbar() {
             />
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4 ml-6">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -208,12 +323,26 @@ export function Topbar() {
                         <div className="flex items-start gap-2">
                           <span className="text-lg flex-shrink-0">{getNotificationIcon(notification.type)}</span>
                           <div className="flex-1 min-w-0">
+                            {/* Show subject if available (onboarding notifications) */}
+                            {notification.subject && (
+                              <p className="text-xs font-semibold text-slate-600 mb-1">
+                                {notification.subject}
+                              </p>
+                            )}
                             <p className="text-sm font-medium text-slate-900 break-words">
                               {notification.message || 'New notification'}
                             </p>
-                            <p className="text-xs text-slate-500 mt-1">
-                              {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-slate-500">
+                                {formatDistanceToNow(new Date(notification.sentAt || notification.createdAt), { addSuffix: true })}
+                              </p>
+                              {/* Show source badge */}
+                              {notification.source === 'onboarding' && (
+                                <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                  Onboarding
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -223,7 +352,7 @@ export function Topbar() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          
+
           {user ? (
             <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
               <button
