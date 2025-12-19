@@ -16,8 +16,9 @@ export default function TimeExceptionsPage() {
   const { user } = useAuth();
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
   const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
-  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee || isRecruiter;
   const [loading, setLoading] = useState(false);
   const [timeExceptions, setTimeExceptions] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);

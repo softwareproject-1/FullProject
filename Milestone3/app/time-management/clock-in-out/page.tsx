@@ -29,14 +29,36 @@ export default function ClockInOutPage() {
     }
     try {
       setLoading(true);
-      await timeManagementApi.clockInOut({
+      console.log('Clock In/Out - Sending request:', { employeeId, type: punchType, location });
+      const response = await timeManagementApi.clockInOut({
         employeeId,
         type: punchType,
         location,
       });
+      console.log('Clock In/Out - Success:', response);
       alert(`Successfully clocked ${punchType === 'IN' ? 'in' : 'out'}`);
       setLocation('');
     } catch (error: any) {
+      console.error('Clock In/Out - Error:', error);
+      console.error('Clock In/Out - Error response:', error.response);
+      console.error('Clock In/Out - Error status:', error.response?.status);
+      console.error('Clock In/Out - Error data:', error.response?.data);
+      
+      // Show user-friendly error message
+      let errorMessage = `Failed to clock ${punchType === 'IN' ? 'in' : 'out'}. `;
+      if (error.response?.status === 403) {
+        errorMessage += 'You do not have permission to perform this action.';
+      } else if (error.response?.status === 401) {
+        errorMessage += 'You are not authenticated. Please log in again.';
+      } else if (error.response?.data?.message) {
+        errorMessage += error.response.data.message;
+      } else if (error.message) {
+        errorMessage += error.message;
+      } else {
+        errorMessage += 'An unexpected error occurred.';
+      }
+      
+      alert(errorMessage);
       handleTimeManagementError(error, 'clocking in/out');
     } finally {
       setLoading(false);

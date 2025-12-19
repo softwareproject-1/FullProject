@@ -658,16 +658,7 @@ export const getRoleAccess = (role: SystemRole | string): RoleAccessConfig => {
 
   const normalizedRole = normalizeRole(role);
 
-  // First try exact match (case-insensitive)
-  const roleKey = Object.keys(roleAccess).find(
-    key => normalizeRole(key) === normalizedRole
-  ) as SystemRole | undefined;
-
-  if (roleKey) {
-    return roleAccess[roleKey];
-  }
-
-  // If not found, try matching against enum values directly
+  // First try exact match (case-insensitive) against enum values
   const enumValues = Object.values(SystemRole);
   const matchingEnumValue = enumValues.find(
     enumValue => normalizeRole(enumValue) === normalizedRole
@@ -675,6 +666,15 @@ export const getRoleAccess = (role: SystemRole | string): RoleAccessConfig => {
 
   if (matchingEnumValue) {
     return roleAccess[matchingEnumValue];
+  }
+
+  // Then try matching against object keys (case-insensitive)
+  const roleKey = Object.keys(roleAccess).find(
+    key => normalizeRole(key) === normalizedRole
+  ) as SystemRole | undefined;
+
+  if (roleKey) {
+    return roleAccess[roleKey];
   }
 
   // Log warning for debugging
@@ -705,6 +705,18 @@ export const getCombinedAccess = (userRoles: string[] | undefined): RoleAccessCo
   if (validRoles.length === 0) {
     console.warn('getCombinedAccess: No valid roles found after filtering:', userRoles);
     return roleAccess[SystemRole.DEPARTMENT_EMPLOYEE];
+  }
+
+  // Debug: Log role lookup for Recruiter
+  if (validRoles.some(r => r.toLowerCase().includes('recruiter'))) {
+    console.log('[getCombinedAccess Debug] Recruiter role found:', validRoles);
+    validRoles.forEach(role => {
+      const access = getRoleAccess(role);
+      console.log(`[getCombinedAccess Debug] Role "${role}" access:`, {
+        routes: access.routes.filter(r => r.includes('time-management')),
+        hasTimeManagement: access.routes.includes('/time-management'),
+      });
+    });
   }
 
   const accessConfigs = validRoles.map(role => getRoleAccess(role));
@@ -756,6 +768,16 @@ export const canAccessRoute = (userRoles: string[] | undefined, route: string): 
   if (!userRoles || userRoles.length === 0) return false;
 
   const access = getCombinedAccess(userRoles);
+
+  // Debug: Log for time-management route
+  if (route === '/time-management') {
+    console.log('[canAccessRoute Debug] Checking /time-management:', {
+      userRoles,
+      accessRoutes: access.routes,
+      hasExactMatch: access.routes.includes(route),
+      timeManagementRoutes: access.routes.filter(r => r.includes('time-management')),
+    });
+  }
 
   // Check exact match first
   if (access.routes.includes(route)) {

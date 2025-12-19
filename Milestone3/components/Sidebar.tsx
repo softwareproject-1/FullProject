@@ -162,11 +162,22 @@ function SidebarContent() {
   const availableNavItems = useMemo(() => {
     if (!user || !user.roles) return [];
 
+    // Debug: Log user roles and access for Time Management
+    const combinedAccess = getCombinedAccess(user.roles);
+    const canAccessTimeManagement = canAccessRoute(user.roles, '/time-management');
+    console.log('[Sidebar Debug] User roles:', user.roles);
+    console.log('[Sidebar Debug] Combined access routes:', combinedAccess.routes);
+    console.log('[Sidebar Debug] Can access /time-management:', canAccessTimeManagement);
+    console.log('[Sidebar Debug] Is Recruiter:', hasRole(user.roles, SystemRole.RECRUITER));
+
     // Check if user has payroll access roles
     const isPayrollManager = hasRole(user.roles, SystemRole.PAYROLL_MANAGER);
     const isPayrollSpecialist = hasRole(user.roles, SystemRole.PAYROLL_SPECIALIST);
     const isFinanceStaff = hasRole(user.roles, SystemRole.FINANCE_STAFF);
     const hasPayrollAccess = isPayrollManager || isPayrollSpecialist || isFinanceStaff;
+
+    // Check if user is Recruiter (for Time Management access)
+    const isRecruiter = hasRole(user.roles, SystemRole.RECRUITER);
 
     // Determine Payroll href based on user role (redirect to role-specific dashboard)
     let payrollHref = "/payroll";
@@ -207,6 +218,11 @@ function SidebarContent() {
         }
 
         const routeToCheck = item.checkRoute || item.href;
+
+        // Special case: Always show Time Management for Recruiters
+        if (item.name === "Time Management" && isRecruiter) {
+          return item;
+        }
 
         if (item.children?.length) {
           const visibleChildren = item.children.filter((child) => {

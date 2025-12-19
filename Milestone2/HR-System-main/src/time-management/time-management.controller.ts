@@ -262,7 +262,7 @@ import {
   
     @Get('shift-assignments')
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE)
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Get all shift assignments' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'departmentId', required: false, type: String, description: 'Filter by department ID' })
@@ -280,23 +280,25 @@ import {
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
       const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
       console.log('findAllShiftAssignments - User:', {
         sub: user?.sub,
         roles: userRoles,
         isDepartmentEmployee,
         isHREmployee,
+        isRecruiter,
         queryEmployeeId: employeeId,
       });
       
-      if (isDepartmentEmployee || isHREmployee) {
-        // Department Employees and HR Employees can only see their own shift assignments
+      if (isDepartmentEmployee || isHREmployee || isRecruiter) {
+        // Department Employees, HR Employees, and Recruiters can only see their own shift assignments
         employeeId = user.sub;
-        console.log('findAllShiftAssignments - Department Employee or HR Employee, setting employeeId to:', employeeId);
-      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+        console.log('findAllShiftAssignments - Department Employee, HR Employee, or Recruiter, setting employeeId to:', employeeId);
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee || isRecruiter)) {
         // If they try to query another employee's assignments, deny access
         if (employeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees and HR Employees can only view their own shift assignments');
+          throw new ForbiddenException('Department Employees, HR Employees, and Recruiters can only view their own shift assignments');
         }
       }
       
@@ -370,18 +372,19 @@ import {
     @Post('attendance/clock')
     @HttpCode(HttpStatus.CREATED)
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Clock in or out' })
     @ApiBody({ type: ClockInOutDto })
     @ApiResponse({ status: 201, description: 'Punch recorded successfully' })
     @ApiResponse({ status: 400, description: 'Bad request' })
-    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only clock in/out for themselves' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and Recruiters can only clock in/out for themselves' })
     async clockInOut(@Body() clockDto: ClockInOutDto, @CurrentUser() user: any) {
-      // Department Employees can only clock in/out using their own ID
+      // Department Employees and Recruiters can only clock in/out using their own ID
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee) {
+      if (isDepartmentEmployee || isRecruiter) {
         // Override employeeId with the authenticated user's ID
         clockDto.employeeId = user.sub;
       }
@@ -403,7 +406,7 @@ import {
   
     @Get('attendance/records')
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Get all attendance records' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Filter by start date' })
@@ -416,18 +419,19 @@ import {
       @Query('endDate') endDate?: string,
       @CurrentUser() user?: any,
     ) {
-      // Department Employees and HR Employees can only see their own attendance records
+      // Department Employees, HR Employees, and Recruiters can only see their own attendance records
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
       const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee || isHREmployee) {
+      if (isDepartmentEmployee || isHREmployee || isRecruiter) {
         // Force filter to only their own records
         employeeId = user.sub;
-      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee || isRecruiter)) {
         // If they try to query another employee's records, deny access
         if (employeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees and HR Employees can only view their own attendance records');
+          throw new ForbiddenException('Department Employees, HR Employees, and Recruiters can only view their own attendance records');
         }
       }
       
@@ -449,14 +453,15 @@ import {
     async findAttendanceRecordById(@Param('id') id: string, @CurrentUser() user?: any) {
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee) {
+      if (isDepartmentEmployee || isRecruiter) {
         // Check if the record belongs to the employee
         const record = await this.timeManagementService.findAttendanceRecordById(id);
         const recordEmployeeId = this.getEntityId(record.employeeId);
         
         if (recordEmployeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees can only view their own attendance records');
+          throw new ForbiddenException('Department Employees and Recruiters can only view their own attendance records');
         }
       }
       
@@ -500,27 +505,28 @@ import {
     @Post('attendance/correction-requests')
     @HttpCode(HttpStatus.CREATED)
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Create a new attendance correction request' })
     @ApiBody({ type: CreateAttendanceCorrectionRequestDto })
     @ApiResponse({ status: 201, description: 'Correction request created successfully' })
     @ApiResponse({ status: 400, description: 'Bad request' })
-    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees can only create requests for themselves' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Department Employees and Recruiters can only create requests for themselves' })
     async createCorrectionRequest(@Body() createDto: CreateAttendanceCorrectionRequestDto, @CurrentUser() user: any) {
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee) {
-        // Department Employees can only create correction requests for themselves
+      if (isDepartmentEmployee || isRecruiter) {
+        // Department Employees and Recruiters can only create correction requests for themselves
         if (createDto.employeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees can only create correction requests for themselves');
+          throw new ForbiddenException('Department Employees and Recruiters can only create correction requests for themselves');
         }
         // Also verify the attendance record belongs to them
         const record = await this.timeManagementService.findAttendanceRecordById(createDto.attendanceRecord);
         const recordEmployeeId = this.getEntityId(record.employeeId);
         
         if (recordEmployeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees can only create correction requests for their own attendance records');
+          throw new ForbiddenException('Department Employees and Recruiters can only create correction requests for their own attendance records');
         }
       }
       
@@ -529,7 +535,7 @@ import {
   
     @Get('attendance/correction-requests')
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Get all attendance correction requests' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'status', required: false, enum: CorrectionRequestStatus, description: 'Filter by status' })
@@ -543,14 +549,15 @@ import {
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
       const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee || isHREmployee) {
-        // Department Employees and HR Employees can only see their own correction requests
+      if (isDepartmentEmployee || isHREmployee || isRecruiter) {
+        // Department Employees, HR Employees, and Recruiters can only see their own correction requests
         employeeId = user.sub;
-      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee || isRecruiter)) {
         // If they try to query another employee's requests, deny access
         if (employeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees and HR Employees can only view their own correction requests');
+          throw new ForbiddenException('Department Employees, HR Employees, and Recruiters can only view their own correction requests');
         }
       }
       
@@ -604,7 +611,7 @@ import {
     @Post('time-exceptions')
     @HttpCode(HttpStatus.CREATED)
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE)
+    @Roles(SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Create a new time exception' })
     @ApiBody({ type: CreateTimeExceptionDto })
     @ApiResponse({ status: 201, description: 'Time exception created successfully' })
@@ -613,18 +620,19 @@ import {
     async createTimeException(@Body() createDto: CreateTimeExceptionDto, @CurrentUser() user: any) {
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee) {
-        // Department Employees can only create time exceptions for themselves
+      if (isDepartmentEmployee || isRecruiter) {
+        // Department Employees and Recruiters can only create time exceptions for themselves
         if (createDto.employeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees can only create time exceptions for themselves');
+          throw new ForbiddenException('Department Employees and Recruiters can only create time exceptions for themselves');
         }
         // Also verify the attendance record belongs to them
         const record = await this.timeManagementService.findAttendanceRecordById(createDto.attendanceRecordId);
         const recordEmployeeId = this.getEntityId(record.employeeId);
         
         if (recordEmployeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees can only create time exceptions for their own attendance records');
+          throw new ForbiddenException('Department Employees and Recruiters can only create time exceptions for their own attendance records');
         }
       }
       
@@ -633,7 +641,7 @@ import {
   
     @Get('time-exceptions')
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE)
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.PAYROLL_SPECIALIST, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Get all time exceptions' })
     @ApiQuery({ name: 'employeeId', required: false, type: String, description: 'Filter by employee ID' })
     @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by exception type' })
@@ -651,14 +659,15 @@ import {
       const userRoles = user?.roles || [];
       const isDepartmentEmployee = userRoles.includes(SystemRole.DEPARTMENT_EMPLOYEE);
       const isHREmployee = userRoles.includes(SystemRole.HR_EMPLOYEE);
+      const isRecruiter = userRoles.includes(SystemRole.RECRUITER);
       
-      if (isDepartmentEmployee || isHREmployee) {
-        // Department Employees and HR Employees can only see their own time exceptions
+      if (isDepartmentEmployee || isHREmployee || isRecruiter) {
+        // Department Employees, HR Employees, and Recruiters can only see their own time exceptions
         employeeId = user.sub;
-      } else if (employeeId && (isDepartmentEmployee || isHREmployee)) {
+      } else if (employeeId && (isDepartmentEmployee || isHREmployee || isRecruiter)) {
         // If they try to query another employee's exceptions, deny access
         if (employeeId !== user.sub) {
-          throw new ForbiddenException('Department Employees and HR Employees can only view their own time exceptions');
+          throw new ForbiddenException('Department Employees, HR Employees, and Recruiters can only view their own time exceptions');
         }
       }
       
@@ -836,7 +845,7 @@ import {
   
     @Get('holidays')
     @ApiBearerAuth('JWT-auth')
-    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST)
+    @Roles(SystemRole.SYSTEM_ADMIN, SystemRole.HR_ADMIN, SystemRole.HR_MANAGER, SystemRole.HR_EMPLOYEE, SystemRole.DEPARTMENT_HEAD, SystemRole.DEPARTMENT_EMPLOYEE, SystemRole.PAYROLL_SPECIALIST, SystemRole.RECRUITER)
     @ApiOperation({ summary: 'Get all holidays' })
     @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by holiday type' })
     @ApiQuery({ name: 'activeOnly', required: false, type: String, description: 'Filter by active status' })

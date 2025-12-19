@@ -15,7 +15,8 @@ export default function HolidaysPage() {
   const { user } = useAuth();
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
-  const canOnlyView = isDepartmentEmployee || isHREmployee;
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
+  const canOnlyView = isDepartmentEmployee || isHREmployee || isRecruiter;
   const [loading, setLoading] = useState(false);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);

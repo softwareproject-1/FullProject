@@ -16,7 +16,8 @@ export default function CorrectionRequestsPage() {
   const { user } = useAuth();
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
-  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee || isRecruiter;
   const [loading, setLoading] = useState(false);
   const [correctionRequests, setCorrectionRequests] = useState<any[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
@@ -74,8 +75,8 @@ export default function CorrectionRequestsPage() {
 
   const loadAttendanceRecords = async () => {
     try {
-      // For Department Employees and HR Employees, only load their own attendance records
-      const response = (isDepartmentEmployee || isHREmployee) && user?._id
+      // For Department Employees, HR Employees, and Recruiters, only load their own attendance records
+      const response = (isDepartmentEmployee || isHREmployee || isRecruiter) && user?._id
         ? await timeManagementApi.getAttendanceRecords({ employeeId: user._id })
         : await timeManagementApi.getAttendanceRecords();
       const data = extractArrayData(response);

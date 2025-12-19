@@ -14,10 +14,11 @@ export default function AttendancePage() {
   const { user } = useAuth();
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
   const isHRAdmin = user ? hasRole(user.roles, SystemRole.HR_ADMIN) : false;
   const isHRManager = user ? hasRole(user.roles, SystemRole.HR_MANAGER) : false;
   const isSystemAdmin = user ? hasRole(user.roles, SystemRole.SYSTEM_ADMIN) : false;
-  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee || isRecruiter;
   const canSeeLateWarning = isHRAdmin || isHRManager;
   // Backend allows: DEPARTMENT_HEAD, SYSTEM_ADMIN, HR_ADMIN, HR_MANAGER
   // Frontend: Hide for Department Employee, HR Employee, and System Admin
@@ -147,7 +148,10 @@ export default function AttendancePage() {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/937ae396-a99d-45fe-a2dc-e3f53fc9d362',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attendance/page.tsx:38',message:'Before API call',data:{apiUrl:process.env.NEXT_PUBLIC_API_URL||'http://localhost:3001'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
       // #endregion
-      const response = await timeManagementApi.getAttendanceRecords();
+      // For Department Employees, HR Employees, and Recruiters, only load their own attendance records
+      const response = (canOnlyViewOwn && user?._id)
+        ? await timeManagementApi.getAttendanceRecords({ employeeId: user._id })
+        : await timeManagementApi.getAttendanceRecords();
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/937ae396-a99d-45fe-a2dc-e3f53fc9d362',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'attendance/page.tsx:41',message:'API call success',data:{status:response?.status,hasData:!!response?.data,dataType:typeof response?.data,isArray:Array.isArray(response?.data)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
       // #endregion

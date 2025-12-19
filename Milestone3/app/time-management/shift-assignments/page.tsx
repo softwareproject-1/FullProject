@@ -15,7 +15,8 @@ export default function ShiftAssignmentsPage() {
   const { user } = useAuth();
   const isDepartmentEmployee = user ? hasRole(user.roles, SystemRole.DEPARTMENT_EMPLOYEE) : false;
   const isHREmployee = user ? hasRole(user.roles, SystemRole.HR_EMPLOYEE) : false;
-  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee;
+  const isRecruiter = user ? hasRole(user.roles, SystemRole.RECRUITER) : false;
+  const canOnlyViewOwn = isDepartmentEmployee || isHREmployee || isRecruiter;
   const [loading, setLoading] = useState(false);
   const [shiftAssignments, setShiftAssignments] = useState<any[]>([]);
   const [shifts, setShifts] = useState<any[]>([]);
