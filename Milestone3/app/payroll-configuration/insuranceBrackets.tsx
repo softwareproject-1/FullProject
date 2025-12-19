@@ -497,8 +497,9 @@ export default function InsuranceBrackets() {
             </thead>
             <tbody>
               {filteredBrackets.map((b) => {
-                const isDraft = b.status === "draft";
-                const isRejected = b.status === "rejected";
+                const statusLower = (b.status || "").toLowerCase();
+                const isDraft = statusLower === "draft";
+                const isRejected = statusLower === "rejected";
 
                 return (
                   <tr
@@ -520,14 +521,14 @@ export default function InsuranceBrackets() {
                     <td className="px-6 py-4 text-sm">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          b.status === "approved"
-                            ? "bg-green-100 text-green-700"
-                            : b.status === "rejected"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-slate-100 text-slate-700"
+                          statusLower === "approved"
+                            ? "bg-green-100 text-green-800"
+                            : statusLower === "rejected"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
-                        {b.status.charAt(0).toUpperCase() + b.status.slice(1)}
+                        {statusLower.charAt(0).toUpperCase() + statusLower.slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm space-x-2">
@@ -731,15 +732,15 @@ export default function InsuranceBrackets() {
                 <p className="text-sm text-slate-600">Status</p>
                 <span
                   className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedBracket.status === "approved"
-                      ? "bg-green-100 text-green-700"
-                      : selectedBracket.status === "rejected"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-slate-100 text-slate-700"
+                    (selectedBracket.status || "").toLowerCase() === "approved"
+                      ? "bg-green-100 text-green-800"
+                      : (selectedBracket.status || "").toLowerCase() === "rejected"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
                   }`}
                 >
-                  {selectedBracket.status.charAt(0).toUpperCase() +
-                    selectedBracket.status.slice(1)}
+                  {((selectedBracket.status || "").toLowerCase().charAt(0).toUpperCase() +
+                    (selectedBracket.status || "").toLowerCase().slice(1))}
                 </span>
               </div>
             </div>

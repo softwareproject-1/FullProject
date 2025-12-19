@@ -169,11 +169,7 @@ export interface TaxRule {
   _id: string;
   name: string;
   description?: string;
-  taxType: "Single Rate" | "Progressive Brackets" | "Flat Rate with Exemption";
   rate: number;
-  exemptionAmount?: number;
-  thresholdAmount?: number;
-  brackets?: { minIncome: number; maxIncome: number; rate: number }[];
   status: "draft" | "approved" | "rejected";
   createdBy?: string;
   createdByName?: string;
@@ -274,11 +270,7 @@ export interface CreatePayTypeDto {
 export interface CreateTaxRuleDto {
   name: string;
   description?: string;
-  taxType: "Single Rate" | "Progressive Brackets" | "Flat Rate with Exemption";
   rate: number;
-  exemptionAmount?: number;
-  thresholdAmount?: number;
-  brackets?: { minIncome: number; maxIncome: number; rate: number }[];
 }
 
 export interface TerminationBenefit {
