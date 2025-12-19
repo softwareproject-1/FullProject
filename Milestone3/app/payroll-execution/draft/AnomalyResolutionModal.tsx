@@ -42,7 +42,7 @@ interface AnomalyResolutionModalProps {
 export interface ResolutionData {
   employeeId: string;
   employeeName: string;
-  action: 'DEFER_TO_NEXT_RUN' | 'OVERRIDE_PAYMENT_METHOD' | 'REJECT_PAYROLL';
+  action: 'DEFER_TO_NEXT_RUN' | 'OVERRIDE_PAYMENT_METHOD' | 'REJECT_PAYROLL' | 'RE_CALCULATE';
   justification: string;
   anomalies: Anomaly[];
   overridePaymentMethod?: 'CHEQUE' | 'CASH';
@@ -56,7 +56,7 @@ export default function ManagerResolutionModal({
 }: AnomalyResolutionModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [resolutions, setResolutions] = useState<Map<string, ResolutionData>>(new Map());
-  const [currentAction, setCurrentAction] = useState<'DEFER_TO_NEXT_RUN' | 'OVERRIDE_PAYMENT_METHOD' | 'REJECT_PAYROLL'>('DEFER_TO_NEXT_RUN');
+  const [currentAction, setCurrentAction] = useState<'DEFER_TO_NEXT_RUN' | 'OVERRIDE_PAYMENT_METHOD' | 'REJECT_PAYROLL' | 'RE_CALCULATE'>('DEFER_TO_NEXT_RUN');
   const [currentJustification, setCurrentJustification] = useState('');
   const [overridePaymentMethod, setOverridePaymentMethod] = useState<'CHEQUE' | 'CASH'>('CHEQUE');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -220,16 +220,31 @@ export default function ManagerResolutionModal({
                         <span className="font-semibold block mb-0.5">Defer to Next Run</span>
                         <span className="text-xs text-gray-500">Skip this payroll cycle</span>
                       </SelectItem>
-                      <SelectItem value="OVERRIDE_PAYMENT_METHOD" className="py-3 bg-white hover:bg-gray-50 focus:bg-gray-50">
-                        <span className="font-semibold block mb-0.5">Override Method</span>
-                        <span className="text-xs text-gray-500">Pay via Cheque/Cash</span>
-                      </SelectItem>
+                      {!currentEmployee?.anomalies.some(a => a.type === 'NEGATIVE_NET_PAY' || a.type === 'MISSING_TAX_INFO') && (
+                        <SelectItem value="OVERRIDE_PAYMENT_METHOD" className="py-3 bg-white hover:bg-gray-50 focus:bg-gray-50">
+                          <span className="font-semibold block mb-0.5">Override Method</span>
+                          <span className="text-xs text-gray-500">Pay via Cheque/Cash</span>
+                        </SelectItem>
+                      )}
+
+                      {currentEmployee?.anomalies.some(a => a.type === 'MISSING_TAX_INFO') && (
+                        <SelectItem value="RE_CALCULATE" className="py-3 bg-white hover:bg-gray-50 focus:bg-gray-50">
+                          <span className="font-semibold block mb-0.5 text-blue-600">Re-Calculate</span>
+                          <span className="text-xs text-blue-500">Retry calculation for run</span>
+                        </SelectItem>
+                      )}
+
                       <SelectItem value="REJECT_PAYROLL" className="py-3 text-red-600 focus:text-red-600 bg-white hover:bg-gray-50 focus:bg-gray-50">
                         <span className="font-semibold block mb-0.5">Reject Entire Payroll</span>
                         <span className="text-xs text-red-400">Return to draft</span>
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  {currentEmployee?.anomalies.some(a => a.type === 'NEGATIVE_NET_PAY') && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Negative Pay cannot be paid. Must defer.
+                    </p>
+                  )}
                 </div>
 
                 {/* Conditional Payment Override */}
@@ -253,6 +268,7 @@ export default function ManagerResolutionModal({
                 <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded border border-gray-100">
                   {currentAction === 'DEFER_TO_NEXT_RUN' && "Employee will be unpaid this cycle. Resolves anomaly."}
                   {currentAction === 'OVERRIDE_PAYMENT_METHOD' && `Payment will be issued via ${overridePaymentMethod}. Needs manual processing.`}
+                  {currentAction === 'RE_CALCULATE' && "Triggers calculation for the entire run. May restore deferred employees."}
                   {currentAction === 'REJECT_PAYROLL' && "Stops the entire process for all employees. Proceed with caution."}
                 </div>
               </div>
@@ -261,8 +277,8 @@ export default function ManagerResolutionModal({
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <label className="text-sm font-bold text-gray-900">Justification</label>
-                  <span className={`text-xs ${currentJustification.length < 20 ? 'text-red-500' : 'text-green-600'}`}>
-                    {currentJustification.length} / 20 chars
+                  <span className={`text-xs ${currentJustification.trim().length < 20 ? 'text-red-500' : 'text-green-600'}`}>
+                    {currentJustification.trim().length} / 20 chars
                   </span>
                 </div>
                 <Textarea

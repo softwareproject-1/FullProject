@@ -51,7 +51,7 @@ axiosInstance.interceptors.response.use(
         code: error.code,
         fullError: error
       });
-      
+
       // Provide helpful error message
       if (error.code === 'ECONNREFUSED') {
         console.error('❌ Backend server is not running or not accessible');
@@ -68,7 +68,7 @@ axiosInstance.interceptors.response.use(
       const fullUrl = error.config?.baseURL + url;
       console.error('API Error:', status, error.response?.data, url);
       console.error('Full URL:', fullUrl);
-      
+
       if (status === 404) {
         console.error('❌ 404 Not Found - Route does not exist');
         console.error(`💡 Check if the backend route exists: ${fullUrl}`);
@@ -84,7 +84,7 @@ axiosInstance.interceptors.response.use(
         console.error('   - Server-side processing error');
       }
     }
-    
+
     if (error.response?.status === 401) {
       console.error('❌ 401 Unauthorized - Authentication required');
       console.error('💡 You need to be logged in to access this resource');
@@ -109,12 +109,12 @@ export const checkBackendConnection = async (): Promise<{ connected: boolean; me
     const baseURL = getBaseURL();
     // Health endpoint is at /api/health (with global prefix)
     const healthURL = `${baseURL}/health`;
-    
+
     const response = await axios.get(healthURL, {
       timeout: 5000,
       withCredentials: true,
     });
-    
+
     if (response.status === 200) {
       return { connected: true, message: 'Backend is accessible' };
     }
@@ -122,24 +122,24 @@ export const checkBackendConnection = async (): Promise<{ connected: boolean; me
   } catch (error: any) {
     const baseURL = getBaseURL();
     if (error.code === 'ECONNREFUSED') {
-      return { 
-        connected: false, 
-        message: `Cannot connect to backend at ${baseURL.replace('/api', '')}. Make sure the backend server is running. Start it with: cd Milestone2/HR-System-main && npm run start:dev` 
+      return {
+        connected: false,
+        message: `Cannot connect to backend at ${baseURL.replace('/api', '')}. Make sure the backend server is running. Start it with: cd Milestone2/HR-System-main && npm run start:dev`
       };
     } else if (error.code === 'ETIMEDOUT') {
-      return { 
-        connected: false, 
-        message: `Backend connection timed out. The server may be slow or unresponsive.` 
+      return {
+        connected: false,
+        message: `Backend connection timed out. The server may be slow or unresponsive.`
       };
     } else if (error.response?.status === 404) {
-      return { 
-        connected: false, 
-        message: `Backend route not found (404). Make sure the backend is running and the global API prefix is configured correctly. Start backend with: cd Milestone2/HR-System-main && npm run start:dev` 
+      return {
+        connected: false,
+        message: `Backend route not found (404). Make sure the backend is running and the global API prefix is configured correctly. Start backend with: cd Milestone2/HR-System-main && npm run start:dev`
       };
     } else {
-      return { 
-        connected: false, 
-        message: `Backend connection error: ${error.response?.status ? `Status ${error.response.status}` : error.message || 'Unknown error'}` 
+      return {
+        connected: false,
+        message: `Backend connection error: ${error.response?.status ? `Status ${error.response.status}` : error.message || 'Unknown error'}`
       };
     }
   }

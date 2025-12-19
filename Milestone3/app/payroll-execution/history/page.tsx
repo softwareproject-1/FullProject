@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -57,7 +57,7 @@ export default function PayrollHistoryPage() {
 
     useEffect(() => {
         loadPayrollHistory();
-        
+
         // Load user roles
         const storedRoles = localStorage.getItem('userRoles');
         if (storedRoles) {
@@ -170,7 +170,7 @@ export default function PayrollHistoryPage() {
     const handleQuickApprove = async (runId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (!confirm('Are you sure you want to approve this payroll run? This will forward it to Finance.')) return;
-        
+
         setProcessingId(runId);
         try {
             await payrollExecutionApi.managerReview(runId, { action: 'APPROVED' });
@@ -187,17 +187,17 @@ export default function PayrollHistoryPage() {
     const handleQuickReject = async (runId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (!confirm('Are you sure you want to reject this payroll run? It will be sent back to Draft.')) return;
-        
+
         setProcessingId(runId);
         try {
             await payrollExecutionApi.managerReview(runId, { action: 'REJECTED', comment: 'Quick rejection from history' });
             toast.success('Payroll run rejected');
             loadPayrollHistory();
         } catch (error: any) {
-             console.error('Rejection failed:', error);
-             toast.error(error.response?.data?.message || 'Failed to reject');
+            console.error('Rejection failed:', error);
+            toast.error(error.response?.data?.message || 'Failed to reject');
         } finally {
-             setProcessingId(null);
+            setProcessingId(null);
         }
     };
 
@@ -264,6 +264,7 @@ export default function PayrollHistoryPage() {
                     <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                     Refresh
                 </Button>
+
             </div>
 
             {/* Payroll Runs Table */}
@@ -380,7 +381,7 @@ export default function PayrollHistoryPage() {
                                                                 className="hover:bg-red-50 text-red-600"
                                                                 title="Reject"
                                                             >
-                                                               {processingId === run.runId ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                                                {processingId === run.runId ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                                                             </Button>
                                                         </>
                                                     )}

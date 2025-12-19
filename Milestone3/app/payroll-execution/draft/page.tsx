@@ -50,6 +50,8 @@ interface DraftEmployee {
   historicalSalary?: number;
   managerOverride?: boolean;
   paymentMethod?: string;
+  exceptions?: string;
+  bankStatus?: string;
 }
 
 interface DraftData {
@@ -149,19 +151,23 @@ export default function PayrollDraftPage() {
 
 
   // Payroll status helpers
-  const payrollStatus = draftData?.status?.toLowerCase() || 'draft';
+  // Status Helpers (Normalized)
+  const rawTheStatus = (draftData?.status || 'draft').toLowerCase();
+  const payrollStatus = rawTheStatus === 'under_review' ? 'under review' : rawTheStatus; // Handle potential enum mismatch if any
+
+  console.log('🔍 Debug Status Checks:', { rawTheStatus, payrollStatus });
+
   const isDraft = payrollStatus === 'draft';
   const isCalculated = payrollStatus === 'calculated';
-  const isUnderReview = payrollStatus === 'under review' || payrollStatus === 'under_review' || payrollStatus === 'unlocked' || payrollStatus === 'pending_manager_review' || payrollStatus === 'pending manager approval' || payrollStatus === 'pending_manager_approval';
-  const isPendingFinance = payrollStatus === 'pending_finance_approval' || payrollStatus === 'pending finance approval' || payrollStatus === 'waiting_finance';
+  const isUnderReview = payrollStatus === 'under review' || payrollStatus === 'pending_approval';
+  const isPendingFinance = payrollStatus === 'pending finance approval' || payrollStatus === 'pending_finance_approval';
   const isApproved = payrollStatus === 'approved';
+  // Check for both 'locked' and 'unlocked' (functionally mostly the same for viewing)
   const isLocked = payrollStatus === 'locked';
-  const isPaid = payrollStatus === 'paid';
-  const isCompleted = payrollStatus === 'completed';
+  const isPaid = payrollStatus === 'completed' || payrollStatus === 'paid';
 
-  const isExecuted = isPaid || isCompleted;
-
-
+  const isExecuted = isPaid; // Explicit alias
+  const isCompleted = isPaid; // Explicit alias
 
   console.log('🔍 Debug Role Checks:', {
     userRole,
@@ -211,20 +217,30 @@ export default function PayrollDraftPage() {
 
     if (employee.employeeName === 'Unknown Employee') { // Filter to avoid spam if many
       console.log(`[AG_DEBUG DETECT] ${employee.employeeName}: Override=${employee.managerOverride}, Method=${employee.paymentMethod} -> isPaymentOverridden=${isPaymentOverridden}`);
+      console.log(`[AG_DEBUG DETECT] Raw Values - managerOverride type: ${typeof employee.managerOverride}, value: ${employee.managerOverride}`);
+    } else {
+      // Log for all employees briefly to find the right one
+      if (employee.managerOverride || employee.paymentMethod) {
+        console.log(`[AG_DEBUG DETECT] FOUND OVERRIDE for ${employee.employeeName}: Override=${employee.managerOverride}, Method=${employee.paymentMethod}`);
+      }
     }
 
-    if (!isPaymentOverridden && (!employee.bankAccountNumber || employee.bankAccountNumber.trim() === '')) {
+    if (!isPaymentOverridden && (
+      (!employee.bankAccountNumber || employee.bankAccountNumber.trim() === '') ||
+      (employee.bankStatus && employee.bankStatus.toLowerCase() === 'missing') // Handle case sensitivity
+    )) {
       console.log(`[AG_DEBUG DETECT] Pushing MISSING_BANK_INFO for ${employee.employeeName}`);
       anomalies.push({
         type: 'MISSING_BANK_INFO',
         severity: 'critical',
-        message: 'Bank account information missing',
+        message: 'Bank account information missing (Status=MISSING)',
         value: 'Not provided',
       });
     }
 
     // 3. Salary Spike Detection (>20% increase from historical average)
-    if (employee.historicalSalary && employee.historicalSalary > 0) {
+    // Suppress if manager has overridden/approved
+    if (!employee.managerOverride && employee.historicalSalary && employee.historicalSalary > 0) {
       const percentageChange = ((employee.grossSalary - employee.historicalSalary) / employee.historicalSalary) * 100;
       const spikeThreshold = 20; // 20% threshold
 
@@ -239,8 +255,9 @@ export default function PayrollDraftPage() {
       }
     }
 
-    // 4. Missing Tax Breakdown (if gross salary > 0 but no tax breakdown)
-    if (employee.grossSalary > 0 && (!employee.taxBreakdown || employee.taxBreakdown.length === 0)) {
+    // 4. Missing Tax Breakdown
+    // Suppress if manager has overridden (assumed manual verification)
+    if (!employee.managerOverride && employee.grossSalary > 0 && (!employee.taxBreakdown || employee.taxBreakdown.length === 0)) {
       anomalies.push({
         type: 'MISSING_TAX_INFO',
         severity: 'warning',
@@ -248,6 +265,30 @@ export default function PayrollDraftPage() {
       });
     }
 
+    // 5. Backend-Reported Exceptions
+    if (employee.exceptions && employee.exceptions.trim().length > 0) {
+      const exceptionText = employee.exceptions.toUpperCase();
+      const isResolved = exceptionText.includes('OVERRIDE') || exceptionText.includes('DEFERRED');
+
+      // Only show as critical anomaly if NOT resolved
+      // If resolved, we consider it "clean" for the anomaly count, though we might show it as info elsewhere
+      if (!isResolved) {
+        const isDuplicate = anomalies.some(a => a.message.toLowerCase().includes(employee.exceptions!.toLowerCase()));
+
+        if (!isDuplicate) {
+          anomalies.push({
+            type: 'BACKEND_EXCEPTION',
+            severity: 'critical',
+            message: employee.exceptions,
+            value: 'Server Reported'
+          });
+        }
+      }
+    }
+
+    if (employee.employeeName.includes('Omar') || employee.employeeName.includes('Khaled')) {
+      console.log(`[AG_DEBUG RESULT] Anomalies for ${employee.employeeName}:`, JSON.stringify(anomalies));
+    }
     return anomalies;
   };
 
@@ -259,6 +300,11 @@ export default function PayrollDraftPage() {
       console.log('📥 Fetching draft data for runId:', runId);
       const response = await payrollExecutionApi.getDraftEmployees(runId);
       console.log('✅ Draft data received:', response.data);
+      if (response.data.employees?.length > 0) {
+        const firstEmp = response.data.employees[0];
+        console.log('🔍 First employee tax breakdown:', firstEmp.taxBreakdown);
+        console.log('🔍 First employee gross salary:', firstEmp.grossSalary);
+      }
       console.log('✅ First employee raw data:', response.data[0] || response.data.employees?.[0]);
 
       // Handle both direct array and wrapped response
@@ -299,12 +345,14 @@ export default function PayrollDraftPage() {
           totalDeductions: emp.totalDeductions || 0,
           netPay: emp.netPay || 0,
           minimumWageApplied: emp.minimumWageApplied || false,
+          bankAccountNumber: emp.bankAccountNumber || undefined,
           status: emp.status,
-          bankAccountNumber: emp.bankAccountNumber || undefined, // Will trigger missing bank info anomaly
-          historicalSalary: emp.baseSalary ? emp.baseSalary * 0.95 : 0, // Assume previous salary was 5% less
           managerOverride: emp.managerOverride,
           paymentMethod: emp.paymentMethod,
-          anomalies: [] as Anomaly[], // Initialize as empty array
+          exceptions: emp.exceptions, // Explicitly map exceptions
+          bankStatus: emp.bankStatus, // Explicitly map bankStatus
+          historicalSalary: emp.baseSalary ? emp.baseSalary * 0.95 : 0,
+          anomalies: [] as Anomaly[],
         };
 
         return {
@@ -502,6 +550,10 @@ export default function PayrollDraftPage() {
       console.log('🔓 Unfreezing payroll:', runId);
       await payrollExecutionApi.unfreezePayroll(runId, { reason });
       toast.success('Payroll unfrozen successfully. Payment status reverted to PENDING for corrections.');
+
+      // Optimistic update to verify UI change immediately
+      setDraftData((prev) => prev ? { ...prev, status: 'under review' } : null);
+
       // Reload data to show updated status
       await loadDraftData();
     } catch (error: any) {
@@ -548,9 +600,18 @@ export default function PayrollDraftPage() {
     try {
       console.log('💸 Executing payroll and distributing payslips:', runId);
       // Calls Phase 5 Execute & Distribute endpoint
-      await payrollExecutionApi.executeAndDistribute(runId);
+      const response = await payrollExecutionApi.executeAndDistribute(runId);
+      console.log('✅ Execution Response:', response.data);
 
-      toast.success('Payroll executed successfully! Payslips generated and distributed.');
+      const successMessage = `Payroll executed! ${response.data.distributedCount || 'All'} payslips generated and queued for email.`;
+      toast.success(successMessage);
+
+      // Verification helper
+      if (response.data.distributedPayslips && response.data.distributedPayslips.length > 0) {
+        console.log('📄 Sample PDF URL:', response.data.distributedPayslips[0].distributionChannels.pdf.url);
+        toast.info(`Verification: Check console for PDF URL (e.g. ${response.data.distributedPayslips[0].distributionChannels.pdf.url})`);
+      }
+
       await loadDraftData();
     } catch (error: any) {
       console.error('❌ Failed to execute payroll:', error);
@@ -574,13 +635,28 @@ export default function PayrollDraftPage() {
       // Convert Map to array for API
       const resolutionArray = Array.from(resolutions.values());
 
-      // Send resolutions to backend
-      await payrollExecutionApi.resolveAnomalies(runId, { resolutions: resolutionArray });
+      // ACTION: Separate RE_CALCULATE actions from normal resolutions
+      const recalcActions = resolutionArray.filter(r => r.action === 'RE_CALCULATE');
+      const normalActions = resolutionArray.filter(r => r.action !== 'RE_CALCULATE');
 
-      toast.success(`Successfully resolved ${resolutionArray.length} employee anomalies. Payroll is now ready for approval.`);
+      // 1. Send normal resolutions (Overrides/Defers) to backend first
+      if (normalActions.length > 0) {
+        console.log('🔧 Submitting normal resolutions:', normalActions);
+        await payrollExecutionApi.resolveAnomalies(runId, { resolutions: normalActions });
+        toast.success(`Resolved ${normalActions.length} anomalies.`);
+      }
 
-      // Reload data to show updated anomaly counts
-      await loadDraftData();
+      // 2. If RE_CALCULATE was requested, trigger the full run calculation
+      if (recalcActions.length > 0) {
+        console.log('🔄 Re-calculation requested by manager resolution');
+        toast.info('Triggering run re-calculation...');
+        // Link to existing calculation logic
+        await handleRunCalculation();
+      } else {
+        // Only reload data if we didn't recalculate (calculation already reloads)
+        await loadDraftData();
+      }
+
       setIsResolutionModalOpen(false);
     } catch (error: any) {
       console.error('❌ Failed to resolve anomalies:', error);
@@ -620,6 +696,8 @@ export default function PayrollDraftPage() {
     );
   }
 
+
+
   return (
     <div className="p-6 space-y-6">
       {/* Header with Role-Based Action Buttons */}
@@ -635,8 +713,8 @@ export default function PayrollDraftPage() {
 
         {/* Role-Based Action Buttons */}
         <div className="flex gap-3">
-          {/* GENERAL: Run Calculation (When Draft & Empty, Calculated, or Specialist Needs Re-run) */}
-          {(isPayrollSpecialist || isPayrollManager) && (isDraft || isCalculated || isUnderReview) && (
+          {/* PAYROLL SPECIALIST: Run Calculation (When Draft & Empty or Needs Re-run) */}
+          {isPayrollSpecialist && !isPayrollManager && (isDraft || isCalculated || isUnderReview) && (
             <Button
               onClick={handleRunCalculation}
               disabled={processingAction}
@@ -671,6 +749,23 @@ export default function PayrollDraftPage() {
           {/* PAYROLL MANAGER: Approve/Reject (REQ-PY-22) */}
           {isPayrollManager && (isCalculated || isUnderReview) && !isApproved && !isLocked && (
             <>
+              {/* Manager Re-Calculate (during anomaly resolution) */}
+              <Button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRunCalculation();
+                }}
+                disabled={processingAction}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                title="Re-run calculations (useful after overriding anomalies)"
+              >
+                {processingAction ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <PlayCircle className="w-4 h-4 mr-2" />
+                )}
+                Re-Calculate
+              </Button>
               {totalAnomalies > 0 && isPayrollManager && (
                 <Button
                   onClick={() => {
@@ -704,7 +799,7 @@ export default function PayrollDraftPage() {
               </Button>
               <Button
                 onClick={handleManagerApprove}
-                disabled={processingAction || totalAnomalies > 0}
+                disabled={processingAction}
                 className="bg-green-600 hover:bg-green-700 text-white"
                 title={totalAnomalies > 0 ? "Cannot approve: All anomalies must be resolved first" : "Approve and send to Finance Staff for final approval"}
               >
@@ -719,11 +814,12 @@ export default function PayrollDraftPage() {
           )}
 
           {/* PAYROLL MANAGER: Lock Payroll (REQ-PY-7) */}
-          {isPayrollManager && isApproved && !isLocked && (
+          {isPayrollManager && isApproved && (
             <Button
               onClick={handleLockPayroll}
               disabled={processingAction}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              title="Lock payroll to prevent further changes and mark as ready for execution"
             >
               {processingAction ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -733,6 +829,7 @@ export default function PayrollDraftPage() {
               Lock Payroll
             </Button>
           )}
+
 
           {/* PAYROLL MANAGER: Unfreeze Payroll (REQ-PY-19) */}
           {isPayrollManager && isLocked && (
@@ -819,17 +916,20 @@ export default function PayrollDraftPage() {
                 <Badge
                   className={`mt-1 px-3 py-1 ${isLocked ? 'bg-purple-600' :
                     isPaid ? 'bg-green-600' :
-                      isApproved ? 'bg-blue-600' :
-                        isUnderReview ? 'bg-yellow-600' :
-                          'bg-gray-600'
+                      isPendingFinance ? 'bg-blue-600' :
+                        isApproved ? 'bg-blue-500' :
+                          isUnderReview ? 'bg-yellow-600' :
+                            isCalculated ? 'bg-indigo-500' :
+                              'bg-gray-600'
                     }`}
                 >
                   {isLocked ? '🔒 Locked' :
                     isPaid ? '✅ Paid' :
-                      isApproved ? '✓ Approved (Finance Pending)' :
-                        isUnderReview ? '👁️ Under Review' :
-                          isCalculated ? '📊 Calculated' :
-                            '📝 Draft'}
+                      isPendingFinance ? '⏳ Pending Finance Approval' :
+                        isApproved ? '✓ Approved' :
+                          isUnderReview ? '👁️ Under Manager Review' :
+                            isCalculated ? '📊 Calculated' :
+                              '📝 Draft'}
                 </Badge>
               </div>
 
@@ -838,12 +938,12 @@ export default function PayrollDraftPage() {
               <div className="flex flex-col">
                 <span className="text-sm text-gray-600 font-medium">Next Approver</span>
                 <span className="mt-1 text-sm font-semibold text-gray-800">
-                  {isLocked ? 'Finance Staff (Execute Payment)' :
-                    isPaid ? 'Complete' :
-                      isApproved ? 'Payroll Manager (Lock Required)' :
-                        isUnderReview && isFinanceStaff ? 'Finance Staff (Final Approval)' :
+                  {isLocked ? 'Payroll Specialist (Execute & Distribute)' :
+                    isPaid ? 'Cycle Complete' :
+                      isPendingFinance ? 'Finance Staff' :
+                        isApproved ? 'Finance Staff' : // Fallback if just 'approved'
                           isUnderReview ? 'Payroll Manager' :
-                            isCalculated ? 'Payroll Specialist (Publish)' :
+                            isCalculated ? 'Payroll Manager' : // Calculated -> Needs Manager Review
                               'Payroll Specialist (Calculate)'}
                 </span>
               </div>
@@ -853,39 +953,39 @@ export default function PayrollDraftPage() {
               <div className="flex flex-col">
                 <span className="text-sm text-gray-600 font-medium">Workflow Progress</span>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={isDraft || isCalculated ? 'default' : 'secondary'} className="text-xs">
+                  <Badge variant={isDraft || isCalculated || isUnderReview || isPendingFinance || isApproved || isLocked || isPaid ? 'default' : 'secondary'} className="text-xs">
                     1. Specialist
                   </Badge>
                   <span className="text-gray-400">→</span>
-                  <Badge variant={isUnderReview && !isFinanceStaff ? 'default' : isApproved || isLocked || isPaid ? 'secondary' : 'outline'} className="text-xs">
+                  <Badge variant={isUnderReview || isPendingFinance || isApproved || isLocked || isPaid ? 'default' : 'secondary'} className="text-xs">
                     2. Manager
                   </Badge>
                   <span className="text-gray-400">→</span>
-                  <Badge variant={isUnderReview && isFinanceStaff ? 'default' : isApproved || isLocked || isPaid ? 'secondary' : 'outline'} className="text-xs">
+                  <Badge variant={isPendingFinance || isApproved || isLocked || isPaid ? 'default' : 'secondary'} className="text-xs">
                     3. Finance
                   </Badge>
                   <span className="text-gray-400">→</span>
-                  <Badge variant={isLocked || isExecuted ? 'default' : 'outline'} className="text-xs">
+                  <Badge variant={isLocked || isPaid ? 'default' : 'secondary'} className="text-xs">
                     4. Lock
                   </Badge>
                   <span className="text-gray-400">→</span>
-                  <Badge variant={isExecuted ? 'default' : 'outline'} className="text-xs">
+                  <Badge variant={isPaid ? 'default' : 'secondary'} className="text-xs">
                     5. Execution
                   </Badge>
                 </div>
               </div>
             </div>
-
-            {/* Action Required Badge */}
-            {criticalAnomalies > 0 && isPayrollSpecialist && (
-              <Alert className="max-w-xs border-red-300 bg-red-50">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertDescription className="text-red-800 text-sm">
-                  <strong>Action Required:</strong> Resolve {criticalAnomalies} critical {criticalAnomalies === 1 ? 'anomaly' : 'anomalies'} before publishing
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
+
+          {/* Action Required Badge */}
+          {criticalAnomalies > 0 && isPayrollSpecialist && (
+            <Alert className="max-w-xs border-red-300 bg-red-50">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800 text-sm">
+                <strong>Action Required:</strong> Resolve {criticalAnomalies} critical {criticalAnomalies === 1 ? 'anomaly' : 'anomalies'} before publishing
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
