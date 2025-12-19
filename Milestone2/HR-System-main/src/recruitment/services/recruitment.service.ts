@@ -273,18 +273,18 @@ export class RecruitmentService {
 
     // First, check if the provided ID is a Candidate ID
     let candidate = await this.candidateModel.findById(dto.candidateId).exec();
-    
+
     if (!candidate) {
       // Not a candidate ID - try to find by EmployeeProfile ID
       // Look up the EmployeeProfile first to get nationalId
       const employeeProfile = await this.employeeProfileModel.findById(dto.candidateId).exec();
-      
+
       if (employeeProfile) {
         // Find the Candidate with matching nationalId
-        candidate = await this.candidateModel.findOne({ 
-          nationalId: employeeProfile.nationalId 
+        candidate = await this.candidateModel.findOne({
+          nationalId: employeeProfile.nationalId
         }).exec();
-        
+
         if (candidate) {
           resolvedCandidateId = candidate._id.toString();
           console.log(`Resolved candidateId from EmployeeProfile: ${dto.candidateId} -> ${resolvedCandidateId}`);
@@ -350,7 +350,7 @@ export class RecruitmentService {
 
     // REC-030: Get ALL referrals from database
     const allReferrals = await this.referralModel.find().exec();
-    
+
     // Create a Set of all referred candidate IDs for fast lookup
     const referredCandidateIds = new Set(
       allReferrals.map(ref => ref.candidateId.toString())
@@ -1152,13 +1152,26 @@ export class RecruitmentService {
       // No need to change finalStatus - it stays as APPROVED
       await offer.save();
 
-      await this._notifyCandidate(
-        offer.candidateId.toString(),
-        'OFFER_FULLY_SIGNED',
-        'All signatures collected. Proceeding to contract creation.'
-      );
+      // ISSUE-007 FIX: Auto-create contract when all signatures collected (REC-029)
+      // This triggers the full contract creation and onboarding initialization flow
+      try {
+        await this.createContract(offerId);
+        console.log(`[RECRUITMENT] Auto-created contract for offer ${offerId} after all signatures collected`);
 
-      // This will trigger contract creation in REC-029
+        await this._notifyCandidate(
+          offer.candidateId.toString(),
+          'OFFER_FULLY_SIGNED',
+          'All signatures collected. Your contract has been created and onboarding has been initiated!'
+        );
+      } catch (contractError) {
+        console.error(`[RECRUITMENT] Failed to auto-create contract for offer ${offerId}:`, contractError);
+        // Still notify but with a different message
+        await this._notifyCandidate(
+          offer.candidateId.toString(),
+          'OFFER_FULLY_SIGNED',
+          'All signatures collected. HR will process your contract shortly.'
+        );
+      }
     }
 
     return offer;

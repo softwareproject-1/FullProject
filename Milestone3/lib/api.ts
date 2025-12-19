@@ -1061,6 +1061,9 @@ export const onboardingApi = {
     axiosInstance.get(`/onboarding/tracker/employee/${employeeId}`),
   getOnboardingTracker: (onboardingId: string) =>
     axiosInstance.get(`/onboarding/tracker/${onboardingId}`),
+  // ISSUE-006 FIX: Get onboarding by either candidateId or employeeId
+  getOnboardingByUserId: (userId: string) =>
+    axiosInstance.get(`/onboarding/tracker/user/${userId}`),
   getAllOnboardings: () => axiosInstance.get("/onboarding/all"),
 
   // Task Management

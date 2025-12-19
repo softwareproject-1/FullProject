@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, PlayCircle, Download, DollarSign } from 'lucide-react';
+import { Settings, PlayCircle, Download, DollarSign, Eye, FileText, Shield } from 'lucide-react';
 import { payrollTrackingApi } from '@/services/api';
 
 export default function PayrollTracking() {
@@ -90,6 +90,72 @@ export default function PayrollTracking() {
                         </button>
                     </Link>
                 </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Link href="/payroll/payroll-tracking/payslips/mock">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-100 hover:border-blue-300">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                                    <Eye className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg">Demo Payslip</CardTitle>
+                                    <CardDescription>View all employee payslip features</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <p className="text-sm text-slate-500">
+                                Complete mock payslip demonstrating all employee user stories including tax documents, insurance, leave compensation, and more.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                <Link href="/payroll/payroll-tracking/employee">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-green-100 hover:border-green-300">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg">
+                                    <FileText className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg">Employee Portal</CardTitle>
+                                    <CardDescription>Claims, disputes & payslips</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <p className="text-sm text-slate-500">
+                                Access your payslips, submit expense claims, track disputes, and view salary history.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
+
+                <Link href="/payroll/payroll-tracking/employee/documents">
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-indigo-100 hover:border-indigo-300">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg">
+                                    <Shield className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg">Tax & Insurance</CardTitle>
+                                    <CardDescription>Download official documents</CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <p className="text-sm text-slate-500">
+                                Download tax certificates and insurance contribution documents for official purposes.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
             </div>
 
             {/* Payslip List */}

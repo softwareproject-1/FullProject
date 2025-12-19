@@ -278,10 +278,12 @@ export interface LeaveDeductionDto {
 }
 
 export interface EnhancedPayslipDataDto {
+    // Payslip Identification
     payslipId: string;
     month: string;
     year: number;
     employeeName: string;
+    contractType?: string; // Employment contract type (full-time, part-time, temporary, internship)
     payGrade?: string;
 
     baseSalary: number;
@@ -618,6 +620,9 @@ export const onboardingApi = {
         getByOnboardingId: (onboardingId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/${onboardingId}`),
 
         getByEmployeeId: (employeeId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/employee/${employeeId}`),
+
+        // ISSUE-006 FIX: Get onboarding by either candidateId or employeeId
+        getByUserId: (userId: string) => axiosInstance.get<OnboardingTracker>(`/onboarding/tracker/user/${userId}`),
 
         updateTaskStatus: (onboardingId: string, taskIndex: number, data: {
             status: OnboardingTaskStatus;

@@ -261,9 +261,8 @@ export default function SpecialistClaimDetailPage() {
                                 )}
                                 Approve & Escalate to Manager
                             </Button>
-                            <Button
-                                variant="destructive"
-                                className="flex-1"
+                            <button
+                                className="flex-1 inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md px-4 py-2 transition-all disabled:opacity-50 disabled:pointer-events-none h-9"
                                 onClick={handleReject}
                                 disabled={submitting || !comments.trim()}
                             >
@@ -273,7 +272,7 @@ export default function SpecialistClaimDetailPage() {
                                     <XCircle className="w-4 h-4 mr-2" />
                                 )}
                                 Reject & Notify Employee
-                            </Button>
+                            </button>
                         </div>
 
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">

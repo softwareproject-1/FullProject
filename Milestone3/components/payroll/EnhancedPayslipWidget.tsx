@@ -9,9 +9,19 @@ import { AlertTriangle, Info, TrendingUp } from 'lucide-react';
 
 interface EnhancedPayslipWidgetProps {
     data: EnhancedPayslipDataDto;
+    // Override values from the actual payslip (authoritative source)
+    payslipOverrides?: {
+        grossPay: number;
+        totalDeductions: number;
+        netPay: number;
+    };
 }
 
-export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetProps) {
+export default function EnhancedPayslipWidget({ data, payslipOverrides }: EnhancedPayslipWidgetProps) {
+    // Use payslip overrides if provided (these are the authoritative values)
+    const displayGrossPay = payslipOverrides?.grossPay ?? data.grossPay;
+    const displayTotalDeductions = payslipOverrides?.totalDeductions ?? data.totalDeductions;
+    const displayNetPay = payslipOverrides?.netPay ?? data.netPay;
     return (
         <div className="space-y-6">
             {/* Minimum Wage Alert */}
@@ -19,7 +29,7 @@ export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetPro
                 <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                        <strong>Minimum Wage Alert:</strong> Your net pay ({data.netPay.toLocaleString()} EGP) is below the legal minimum wage ({data.minimumWage.toLocaleString()} EGP). This has been flagged for HR review.
+                        <strong>Minimum Wage Alert:</strong> Your net pay ({displayNetPay.toLocaleString()} EGP) is below the legal minimum wage ({data.minimumWage.toLocaleString()} EGP). This has been flagged for HR review.
                     </AlertDescription>
                 </Alert>
             )}
@@ -99,7 +109,7 @@ export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetPro
                     {/* Gross Pay */}
                     <div className="flex justify-between items-center bg-green-50 dark:bg-green-950 p-3 rounded-lg">
                         <p className="font-bold text-lg">Gross Pay</p>
-                        <p className="font-bold text-xl text-green-600">{data.grossPay.toLocaleString()} EGP</p>
+                        <p className="font-bold text-xl text-green-600">{displayGrossPay.toLocaleString()} EGP</p>
                     </div>
                 </CardContent>
             </Card>
@@ -200,7 +210,7 @@ export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetPro
                     {/* Total Deductions */}
                     <div className="flex justify-between items-center bg-red-50 dark:bg-red-950 p-3 rounded-lg">
                         <p className="font-bold text-lg">Total Deductions</p>
-                        <p className="font-bold text-xl text-red-600">-{data.totalDeductions.toLocaleString()} EGP</p>
+                        <p className="font-bold text-xl text-red-600">-{displayTotalDeductions.toLocaleString()} EGP</p>
                     </div>
                 </CardContent>
             </Card>
@@ -213,7 +223,7 @@ export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetPro
                             <p className="text-lg font-medium text-muted-foreground">Net Pay</p>
                             <p className="text-sm text-muted-foreground">Amount you receive</p>
                         </div>
-                        <p className="text-3xl font-bold text-primary">{data.netPay.toLocaleString()} EGP</p>
+                        <p className="text-3xl font-bold text-primary">{displayNetPay.toLocaleString()} EGP</p>
                     </div>
                 </CardContent>
             </Card>
@@ -228,7 +238,7 @@ export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetPro
                     <CardContent className="space-y-3">
                         <div className="flex justify-between items-center">
                             <span className="font-medium">Your Net Pay</span>
-                            <span className="font-bold">{data.netPay.toLocaleString()} EGP</span>
+                            <span className="font-bold">{displayNetPay.toLocaleString()} EGP</span>
                         </div>
 
                         <div className="space-y-2 pl-4 border-l-2 border-blue-300">
@@ -246,7 +256,7 @@ export default function EnhancedPayslipWidget({ data }: EnhancedPayslipWidgetPro
                         <div className="flex justify-between items-center bg-blue-100 dark:bg-blue-900 p-3 rounded-lg">
                             <p className="font-bold text-lg">Total Package Value</p>
                             <p className="font-bold text-2xl text-blue-700 dark:text-blue-300">
-                                {(data.netPay + data.totalEmployerContributions).toLocaleString()} EGP
+                                {(displayNetPay + data.totalEmployerContributions).toLocaleString()} EGP
                             </p>
                         </div>
 
