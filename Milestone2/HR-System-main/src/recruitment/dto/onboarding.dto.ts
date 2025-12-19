@@ -24,7 +24,8 @@ import {
   IsNumber,
   ValidateNested,
   ArrayMinSize,
-  IsDate
+  IsDate,
+  IsMongoId
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -463,11 +464,15 @@ export class CompleteTaskDto {
   /**
    * Notes on completion
    */
+  @IsOptional()
+  @IsString()
   notes?: string;
 
   /**
    * Document ID if a document was uploaded
    */
+  @IsOptional()
+  @IsMongoId()
   documentId?: string;
 }
 

@@ -82,8 +82,9 @@ export default function CandidateOnboardingPage() {
     setError(null);
 
     try {
-      // Get onboarding tracker by employee ID
-      const trackerResponse = await onboardingApi.tracker.getByEmployeeId(user.id);
+      // Get onboarding tracker by user ID (works for both candidates and employees)
+      // This uses the ISSUE-006 fix that handles the ID transition period
+      const trackerResponse = await onboardingApi.tracker.getByUserId(user.id);
       setOnboarding(trackerResponse.data);
 
       // Get notifications for this user
@@ -208,6 +209,14 @@ export default function CandidateOnboardingPage() {
       acc[dept].push({ ...task, index });
       return acc;
     }, {} as Record<string, (OnboardingTask & { index: number })[]>);
+  };
+
+  // Helper: Check if candidate can complete a task based on department
+  // Candidates can only complete tasks in the "Candidate" department
+  // Other tasks (HR, IT, Admin) are view-only for candidates
+  const canCandidateCompleteTask = (department: string): boolean => {
+    const dept = (department || '').toLowerCase();
+    return dept === 'candidate' || dept === 'general';
   };
 
   // Get task status icon
@@ -490,60 +499,77 @@ export default function CandidateOnboardingPage() {
                               {/* Action buttons for pending tasks */}
                               {task.status === 'pending' && (
                                 <div className="flex gap-2">
-                                  {task.notes?.toLowerCase().includes('upload') ||
-                                    task.notes?.toLowerCase().includes('document') ||
-                                    task.name.toLowerCase().includes('upload') ? (
+                                  {/* Only show action buttons if candidate can complete this task */}
+                                  {canCandidateCompleteTask(task.department) ? (
                                     <>
-                                      {uploadingTask === task.index ? (
-                                        <div className="flex flex-col gap-2">
-                                          <input
-                                            type="file"
-                                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                                            onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                                            className="text-xs"
-                                          />
-                                          {uploadFile && (
-                                            <span className="text-xs text-slate-500">
-                                              Selected: {uploadFile.name}
-                                            </span>
-                                          )}
-                                          <div className="flex gap-2">
+                                      {/* Show Upload button for document-related tasks */}
+                                      {task.notes?.toLowerCase().includes('upload') ||
+                                        task.notes?.toLowerCase().includes('document') ||
+                                        task.name.toLowerCase().includes('upload') ||
+                                        task.name.toLowerCase().includes('tax') ||
+                                        task.name.toLowerCase().includes('form') ||
+                                        task.name.toLowerCase().includes('document') ||
+                                        task.name.toLowerCase().includes('contract') ||
+                                        task.name.toLowerCase().includes('certificate') ? (
+                                        <>
+                                          {uploadingTask === task.index ? (
+                                            <div className="flex flex-col gap-2">
+                                              <input
+                                                type="file"
+                                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                                                className="text-xs"
+                                              />
+                                              {uploadFile && (
+                                                <span className="text-xs text-slate-500">
+                                                  Selected: {uploadFile.name}
+                                                </span>
+                                              )}
+                                              <div className="flex gap-2">
+                                                <button
+                                                  onClick={() => handleUploadDocument(task.index)}
+                                                  disabled={!uploadFile}
+                                                  className={`text-xs px-2 py-1 rounded ${uploadFile ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                  Upload
+                                                </button>
+                                                <button
+                                                  onClick={() => {
+                                                    setUploadingTask(null);
+                                                    setUploadFile(null);
+                                                  }}
+                                                  className="text-xs px-2 py-1 bg-slate-200 text-slate-600 rounded hover:bg-slate-300"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
                                             <button
-                                              onClick={() => handleUploadDocument(task.index)}
-                                              disabled={!uploadFile}
-                                              className={`text-xs px-2 py-1 rounded ${uploadFile ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                              onClick={() => setUploadingTask(task.index)}
+                                              className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
                                             >
+                                              <Upload className="w-3 h-3" />
                                               Upload
                                             </button>
-                                            <button
-                                              onClick={() => {
-                                                setUploadingTask(null);
-                                                setUploadFile(null);
-                                              }}
-                                              className="text-xs px-2 py-1 bg-slate-200 text-slate-600 rounded hover:bg-slate-300"
-                                            >
-                                              Cancel
-                                            </button>
-                                          </div>
-                                        </div>
+                                          )}
+                                        </>
                                       ) : (
                                         <button
-                                          onClick={() => setUploadingTask(task.index)}
-                                          className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                          onClick={() => handleCompleteTask(task.index)}
+                                          className="flex items-center gap-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
                                         >
-                                          <Upload className="w-3 h-3" />
-                                          Upload
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          Complete
                                         </button>
                                       )}
                                     </>
                                   ) : (
-                                    <button
-                                      onClick={() => handleCompleteTask(task.index)}
-                                      className="flex items-center gap-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
-                                    >
-                                      <CheckCircle2 className="w-3 h-3" />
-                                      Complete
-                                    </button>
+                                    /* View-only indicator for tasks the candidate cannot complete */
+                                    <span className="text-xs text-slate-400 italic flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      Awaiting {task.department} completion
+                                    </span>
                                   )}
                                 </div>
                               )}

@@ -182,10 +182,15 @@ export class OnboardingService {
     }
 
     // Create default onboarding tasks
+    // Department determines who can mark the task complete:
+    // - Candidate: New Hire completes (with HR Manager/System Admin override)
+    // - HR: HR Employee/HR Manager/System Admin
+    // - IT: HR Manager/System Admin
+    // - Admin: HR Employee/HR Manager/System Admin
     const defaultTasks = [
       {
         name: 'Complete tax forms',
-        department: 'HR',
+        department: 'Candidate',  // Per ONB-007: New Hire uploads documents
         status: OnboardingTaskStatus.PENDING,
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
@@ -430,6 +435,31 @@ export class OnboardingService {
       throw new BadRequestException('Associated candidate not found');
     }
 
+    // Check if an employee profile already exists with this nationalId
+    const existingEmployee = await this.employeeProfileModel.findOne({
+      nationalId: candidate.nationalId,
+    }).exec();
+
+    if (existingEmployee) {
+      console.log(`[ONBOARDING] Employee profile already exists for nationalId ${candidate.nationalId}, returning existing profile`);
+
+      // Still link the employee to onboarding if not already linked
+      await this.linkEmployeeToOnboarding(
+        dto.contractId,
+        (existingEmployee._id as Types.ObjectId).toString(),
+        offer.candidateId.toString()
+      );
+
+      return {
+        success: true,
+        employeeProfileId: (existingEmployee._id as Types.ObjectId).toString(),
+        employeeNumber: existingEmployee.employeeNumber,
+        candidateId: offer.candidateId.toString(),
+        contractId: dto.contractId,
+        message: 'Employee profile already exists, linked to onboarding',
+      };
+    }
+
     // Generate employee number
     const employeeNumber = `EMP-${Date.now()}`;
 
@@ -473,6 +503,22 @@ export class OnboardingService {
       (employeeProfile._id as Types.ObjectId).toString(),
       offer.candidateId.toString()
     );
+
+    // Update the user's role from "Job Candidate" to "Employee"
+    // This ensures they get proper employee access after being hired
+    try {
+      const accessProfileId = (employeeProfile as any).accessProfileId;
+      if (accessProfileId) {
+        await this.employeeSystemRoleModel.updateOne(
+          { _id: accessProfileId },
+          { $set: { roles: ['Employee'] } }
+        );
+        console.log(`[ONBOARDING] Updated role from 'Job Candidate' to 'Employee' for accessProfileId ${accessProfileId}`);
+      }
+    } catch (roleError) {
+      console.warn('[ONBOARDING] Could not update role:', roleError);
+      // Don't fail the whole operation if role update fails
+    }
 
     return {
       success: true,
@@ -568,10 +614,14 @@ export class OnboardingService {
    * @returns OnboardingTrackerDto
    */
   async getOnboardingByCandidateOrEmployee(userId: string): Promise<OnboardingTrackerDto> {
+    console.log(`[ONBOARDING DEBUG] Looking for onboarding for user: ${userId}`);
+
     // First try: user is still a candidate (employeeId field contains candidateId)
     let onboarding = await this.onboardingModel.findOne({
       employeeId: new Types.ObjectId(userId),
     }).exec();
+
+    console.log(`[ONBOARDING DEBUG] Direct employeeId lookup result: ${onboarding ? 'FOUND' : 'NOT FOUND'}`);
 
     // Second try: search by contractId linked to this user's offer
     if (!onboarding) {
@@ -580,15 +630,21 @@ export class OnboardingService {
         candidateId: new Types.ObjectId(userId),
       }).exec();
 
+      console.log(`[ONBOARDING DEBUG] Found ${offers.length} offers for candidateId ${userId}`);
+
       for (const offer of offers) {
         const contracts = await this.contractModel.find({
           offerId: offer._id,
         }).exec();
 
+        console.log(`[ONBOARDING DEBUG] Found ${contracts.length} contracts for offer ${offer._id}`);
+
         for (const contract of contracts) {
           onboarding = await this.onboardingModel.findOne({
             contractId: contract._id,
           }).exec();
+
+          console.log(`[ONBOARDING DEBUG] Contract ${contract._id} onboarding lookup: ${onboarding ? 'FOUND' : 'NOT FOUND'}`);
 
           if (onboarding) break;
         }
@@ -596,10 +652,58 @@ export class OnboardingService {
       }
     }
 
+    // Third try: user might be an employee profile - find their linked candidate by email
     if (!onboarding) {
+      console.log(`[ONBOARDING DEBUG] Trying employee profile lookup...`);
+
+      // Get the employee profile
+      const employeeProfile = await this.employeeProfileModel.findById(userId).exec();
+
+      if (employeeProfile) {
+        console.log(`[ONBOARDING DEBUG] Found employee profile with email: ${employeeProfile.personalEmail}`);
+
+        // Find a candidate with matching email
+        const candidate = await this.candidateModel.findOne({
+          personalEmail: employeeProfile.personalEmail,
+        }).exec();
+
+        if (candidate) {
+          console.log(`[ONBOARDING DEBUG] Found matching candidate: ${candidate._id}`);
+
+          // Now search for offers with this candidate's ID
+          const candidateOffers = await this.offerModel.find({
+            candidateId: candidate._id,
+          }).exec();
+
+          console.log(`[ONBOARDING DEBUG] Found ${candidateOffers.length} offers for original candidate`);
+
+          for (const offer of candidateOffers) {
+            const contracts = await this.contractModel.find({
+              offerId: offer._id,
+            }).exec();
+
+            for (const contract of contracts) {
+              onboarding = await this.onboardingModel.findOne({
+                contractId: contract._id,
+              }).exec();
+
+              if (onboarding) {
+                console.log(`[ONBOARDING DEBUG] Found onboarding via employee->candidate->offer->contract path!`);
+                break;
+              }
+            }
+            if (onboarding) break;
+          }
+        }
+      }
+    }
+
+    if (!onboarding) {
+      console.log(`[ONBOARDING DEBUG] No onboarding record found for user ${userId}`);
       throw new NotFoundException(`No onboarding record found for user ${userId}`);
     }
 
+    console.log(`[ONBOARDING DEBUG] SUCCESS - Found onboarding: ${onboarding._id}`);
     return this.mapToTrackerDto(onboarding);
   }
 
@@ -626,6 +730,25 @@ export class OnboardingService {
         name: fullName || 'Unknown',
         number: profile.employeeNumber || profile._id.toString().slice(-8).toUpperCase()
       });
+    }
+
+    // Find employee IDs that weren't found in employee_profiles (these are likely candidate IDs)
+    const unmatchedIds = employeeIds.filter(id => !employeeMap.has(id));
+
+    // Look up candidates for unmatched IDs
+    if (unmatchedIds.length > 0) {
+      const candidates = await this.candidateModel.find({
+        _id: { $in: unmatchedIds.map(id => new Types.ObjectId(id)) }
+      }).exec();
+
+      for (const candidate of candidates) {
+        const fullName = candidate.fullName ||
+          `${candidate.firstName || ''} ${candidate.middleName || ''} ${candidate.lastName || ''}`.trim();
+        employeeMap.set((candidate._id as Types.ObjectId).toString(), {
+          name: fullName || 'Unknown Candidate',
+          number: `CAND-${(candidate._id as Types.ObjectId).toString().slice(-8).toUpperCase()}`
+        });
+      }
     }
 
     // Map onboardings with employee details
@@ -672,11 +795,20 @@ export class OnboardingService {
 
   /**
    * Complete a task
+   * ISSUE-004 FIX: Added authorization based on task department and user role
+   * 
+   * @param onboardingId - The onboarding ID
+   * @param taskIndex - The task index
+   * @param dto - Completion data
+   * @param userId - Optional user ID who is completing the task
+   * @param userRole - Optional user role for authorization
    */
   async completeTask(
     onboardingId: string,
     taskIndex: number,
     dto: CompleteTaskDto,
+    userId?: string,
+    userRole?: string,
   ): Promise<OnboardingTrackerDto> {
     const onboarding = await this.onboardingModel.findById(onboardingId).exec();
     if (!onboarding) {
@@ -687,8 +819,26 @@ export class OnboardingService {
       throw new BadRequestException(`Invalid task index: ${taskIndex}`);
     }
 
+    const task = onboarding.tasks[taskIndex];
+
+    // ISSUE-004 FIX: Validate authorization based on task department and user role
+    if (userRole) {
+      const canComplete = this.validateTaskCompletionAuth(task.department, userRole);
+      if (!canComplete) {
+        throw new BadRequestException(
+          `User with role '${userRole}' is not authorized to complete '${task.department}' department tasks`
+        );
+      }
+    }
+
     onboarding.tasks[taskIndex].status = OnboardingTaskStatus.COMPLETED;
     onboarding.tasks[taskIndex].completedAt = new Date();
+
+    // ISSUE-004 FIX: Track who completed the task
+    if (userId) {
+      (onboarding.tasks[taskIndex] as any).completedBy = userId;
+    }
+
     if (dto.notes) {
       onboarding.tasks[taskIndex].notes = dto.notes;
     }
@@ -707,6 +857,49 @@ export class OnboardingService {
 
     await onboarding.save();
     return this.getOnboardingTracker(onboardingId);
+  }
+
+  /**
+   * ISSUE-004 FIX: Validate if a user role can complete tasks for a specific department
+   * 
+   * Authorization rules:
+   * - HR tasks: HR Manager, HR Employee, System Admin
+   * - IT tasks: System Admin, IT Admin (if exists)
+   * - Admin tasks: System Admin, HR Manager
+   * - Candidate/General tasks: Job Candidate, New Hire, HR Manager
+   * 
+   * @param department - The task department
+   * @param userRole - The user's role
+   * @returns boolean - Whether the user can complete the task
+   */
+  private validateTaskCompletionAuth(department: string, userRole: string): boolean {
+    // Authorization matrix per user requirements:
+    // - Complete tax forms (Candidate): Candidate, HR Manager, System Admin
+    // - Set up payroll (HR): HR Employee, HR Manager, System Admin
+    // - Create email account (IT): HR Manager, System Admin
+    // - Provision system access (IT): HR Manager, System Admin
+    // - Assign workstation (Admin): HR Employee, HR Manager, System Admin
+    // - Create ID badge (Admin): HR Employee, HR Manager, System Admin
+    const normalizedRole = (userRole || '').toLowerCase().replace(/_/g, ' ');
+    const normalizedDept = (department || '').toLowerCase();
+
+    // HR Manager and System Admin can complete ALL tasks
+    if (normalizedRole.includes('hr manager') || normalizedRole.includes('system admin')) {
+      return true;
+    }
+
+    // HR Employee can complete HR and Admin tasks
+    if (normalizedRole.includes('hr employee')) {
+      return normalizedDept === 'hr' || normalizedDept === 'admin';
+    }
+
+    // Candidate can complete Candidate tasks
+    if (normalizedRole.includes('candidate') || normalizedRole.includes('new hire')) {
+      return normalizedDept === 'candidate' || normalizedDept === 'general';
+    }
+
+    // Default: allow General department
+    return normalizedDept === 'general';
   }
 
   // ============================================================================

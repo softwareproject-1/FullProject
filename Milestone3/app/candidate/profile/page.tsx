@@ -14,6 +14,41 @@ export default function CandidateProfile() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [contractId, setContractId] = useState('');
   const [onboardingId, setOnboardingId] = useState('');
+  const [loadingIds, setLoadingIds] = useState(true);
+
+  // ISSUE-005 FIX: Auto-fetch Contract and Onboarding IDs when component loads
+  useEffect(() => {
+    const fetchUserOnboardingData = async () => {
+      if (!user?.id) {
+        setLoadingIds(false);
+        return;
+      }
+
+      try {
+        // Use the new getByUserId endpoint that works for both candidates and employees
+        const response = await onboardingApi.tracker.getByUserId(user.id);
+        if (response.data) {
+          setContractId(response.data.contractId || '');
+          // Use onboardingId if available, otherwise try common ID fields
+          const fetchedOnboardingId = (response.data as any).onboardingId ||
+            (response.data as any)._id ||
+            '';
+          setOnboardingId(fetchedOnboardingId);
+          console.log('[PROFILE] Auto-fetched onboarding data:', {
+            contractId: response.data.contractId,
+            onboardingId: fetchedOnboardingId,
+          });
+        }
+      } catch (err) {
+        // User doesn't have an onboarding record yet - this is expected for new candidates
+        console.log('[PROFILE] No onboarding record found - IDs will stay empty');
+      } finally {
+        setLoadingIds(false);
+      }
+    };
+
+    fetchUserOnboardingData();
+  }, [user?.id]);
 
   return (
     <RouteGuard requiredRoles={['Job Candidate']}>
@@ -262,18 +297,40 @@ export default function CandidateProfile() {
     setMessage(null);
 
     try {
-      // Simulate file upload to storage and get URL
-      // In production, upload to S3/Azure/etc and get the URL
-      const signatureUrl = `https://storage.example.com/contracts/${contractId}/${file.name}`;
+      // Convert file to base64 for storage
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
 
+      // 1. Update the contract with signature URL (original functionality)
+      const signatureUrl = `https://storage.example.com/contracts/${contractId}/${file.name}`;
       await onboardingApi.contracts.uploadSigned(contractId, {
         signatureUrl,
         signedAt: new Date().toISOString(),
       });
 
+      // 2. ALSO upload to Documents collection so HR can see it in Documents tab (ONB-007)
+      if (onboardingId) {
+        try {
+          await onboardingApi.documents.upload({
+            onboardingId: onboardingId,
+            documentType: 'CONTRACT',
+            filePath: base64Data,
+            documentName: file.name,
+          });
+          console.log('[PROFILE] Document also uploaded to Documents collection for HR visibility');
+        } catch (docErr) {
+          console.warn('[PROFILE] Could not upload to Documents collection:', docErr);
+          // Don't fail the whole operation if this secondary upload fails
+        }
+      }
+
       setMessage({ type: 'success', text: 'Signed contract uploaded successfully! HR will review it shortly.' });
       e.target.value = ''; // Reset input
-      setContractId(''); // Clear contract ID
     } catch (error: any) {
       console.error('Failed to upload contract:', error);
       setMessage({
