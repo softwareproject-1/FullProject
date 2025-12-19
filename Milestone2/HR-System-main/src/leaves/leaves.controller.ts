@@ -76,7 +76,7 @@ export class LeavesController {
 
   @Get('types') //get all leave types -> works (get all leave types )
   @UseGuards(AuthenticationGuard, RolesGuard)
-  @Roles('HR Admin') // Allow all authenticated roles to see leave types
+  @Roles('HR Admin', 'System Admin', 'Employee', 'HR Manager', 'department head', 'department employee')
   async getAllLeaveTypes() {
     return this.leavesService.findAllLeaveTypes();
   }
@@ -171,7 +171,7 @@ export class LeavesController {
 
   @Patch('types/:leaveTypeId/workflow')
   @UseGuards(AuthenticationGuard, RolesGuard)
-  @Roles('System Admin','HR Admin')
+  @Roles('System Admin', 'HR Admin')
   async configureApprovalWorkflow( //problem but works
     @Param('leaveTypeId') leaveTypeId: string,
     @Body()
@@ -242,7 +242,9 @@ export class LeavesController {
   @ApiResponse({ status: 201, description: 'Leave request submitted successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request data' })
   @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'Employee', 'HR Manager', 'department head', 'department employee')
   async submitLeaveRequest(@Body() dto: SubmitLeaveRequestDto) {
+    console.log('[DEBUG] Incoming Leave Request DTO:', JSON.stringify(dto, null, 2));
     return this.leavesService.submitLeaveRequest(
       dto.employeeId,
       dto.leaveTypeId,
@@ -260,6 +262,7 @@ export class LeavesController {
   @ApiResponse({ status: 400, description: 'Invalid request or unauthorized' })
   @ApiResponse({ status: 404, description: 'Leave request not found' })
   @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'HR Manager', 'Manager', 'Delegate', 'department head')
   async approveLeaveRequest(
     @Param('id') id: string,
     @Body() dto: ApproveLeaveRequestDto,
@@ -298,6 +301,7 @@ export class LeavesController {
   @ApiParam({ name: 'leaveTypeId', description: 'Leave type ID' })
   @ApiResponse({ status: 200, description: 'Leave balance retrieved successfully' })
   @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'Employee', 'HR Manager', 'department head', 'department employee')
   async getLeaveBalance(
     @Param('employeeId') employeeId: string,
     @Param('leaveTypeId') leaveTypeId: string,
@@ -335,6 +339,7 @@ export class LeavesController {
   @ApiResponse({ status: 201, description: 'Delegation set successfully' })
   @ApiResponse({ status: 404, description: 'Manager or delegate not found' })
   @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'Employee', 'HR Manager', 'department head', 'department employee', 'Manager')
   async setDelegation(@Body() dto: SetDelegationDto) {
     return this.leavesService.setDelegation(
       dto.managerId,
@@ -359,6 +364,7 @@ export class LeavesController {
   @ApiParam({ name: 'managerId', description: 'Manager ID to check delegation status' })
   @ApiResponse({ status: 200, description: 'Delegation status retrieved successfully' })
   @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'Employee', 'HR Manager', 'department head', 'department employee')
   async getDelegationStatus(@Param('managerId') managerId: string) {
     return this.leavesService.getDelegationStatus(managerId);
   }
@@ -384,7 +390,33 @@ export class LeavesController {
   async rejectDelegation(@Body() dto: RejectDelegationDto) {
     return this.leavesService.rejectDelegation(dto.managerId, dto.delegateId);
   }
-// // ============================ End of Phase 2: Leave Request and Approval (Seif's Work) =============================
+  @Get('requests/my/:employeeId')
+  @ApiOperation({ summary: 'Get all leave requests for an employee' })
+  @ApiParam({ name: 'employeeId', description: 'Employee ID' })
+  @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'Employee', 'Manager', 'HR Manager', 'department head', 'department employee')
+  async getMyRequests(@Param('employeeId') employeeId: string) {
+    return this.leavesService.getMyRequests(employeeId);
+  }
+
+  @Get('requests/pending/:managerId')
+  @ApiOperation({ summary: 'Get pending leave requests for a manager' })
+  @ApiParam({ name: 'managerId', description: 'Manager ID' })
+  @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'Manager', 'HR Manager', 'department head')
+  async getPendingApprovals(@Param('managerId') managerId: string) {
+    return this.leavesService.getPendingApprovalsForManager(managerId);
+  }
+
+  @Get('requests/hr-review')
+  @ApiOperation({ summary: 'Get all pending leave requests for HR review' })
+  @ApiBearerAuth('JWT-auth')
+  @Roles('HR Admin', 'System Admin', 'HR Manager')
+  async getPendingHRReviews() {
+    return this.leavesService.getPendingHRReviews();
+  }
+
+  // // ============================ End of Phase 2: Leave Request and Approval (Seif's Work) =============================
 
 
 }

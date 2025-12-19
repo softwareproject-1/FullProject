@@ -1037,6 +1037,15 @@ export const leavesApi = {
     getLeaveBalance: (employeeId: string, leaveTypeId: string) =>
         axiosInstance.get(`/leaves/balance/${employeeId}/${leaveTypeId}`),
 
+    getMyRequests: (employeeId: string) =>
+        axiosInstance.get(`/leaves/requests/my/${employeeId}`),
+
+    getPendingApprovals: (managerId: string) =>
+        axiosInstance.get(`/leaves/requests/pending/${managerId}`),
+
+    getHRReviewQueue: () =>
+        axiosInstance.get('/leaves/requests/hr-review'),
+
     // Escalation
     checkAutoEscalation: () =>
         axiosInstance.post('/leaves/escalation/check'),

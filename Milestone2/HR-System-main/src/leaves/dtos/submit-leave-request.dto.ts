@@ -1,12 +1,16 @@
-import { IsString, IsObject, IsOptional, ValidateNested } from 'class-validator';
+import { IsString, IsObject, IsOptional, ValidateNested, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class DateRangeDto {
   @ApiProperty({ description: 'Start date', example: '2024-01-01' })
+  @Type(() => Date)
+  @IsDate()
   from: Date;
 
   @ApiProperty({ description: 'End date', example: '2024-01-15' })
+  @Type(() => Date)
+  @IsDate()
   to: Date;
 }
 

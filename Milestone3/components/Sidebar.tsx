@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
     href: "/recruitment",
     icon: <UserPlus className="w-5 h-5" />,
   },
-  { name: "Leaves", href: "/leaves", icon: <Calendar className="w-5 h-5" /> },
+  { name: "Leaves", href: "/leaves", icon: <Calendar className="w-5 h-5" />, visibleForAllAuthenticated: true },
   {
     name: "Payroll Execution",
     href: "/payroll-execution",

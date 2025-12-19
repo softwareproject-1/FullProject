@@ -12,10 +12,23 @@ import { Plus, Settings, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { leavesApi } from '@/services/api';
 import { CreateLeaveTypeDto, PersonalizedEntitlementDto } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LeaveConfigurationPage() {
+    const { user, isHRManager, isHREmployee, isSystemAdmin, isHRAdmin } = useAuth();
+    const isHR = isHRManager() || isHREmployee() || isSystemAdmin() || isHRAdmin();
+
     const [types, setTypes] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Protection against unauthorized access
+    if (!isHR) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh] text-slate-500">
+                <p className="text-lg">Access Denied. Only HR personnel can access configuration.</p>
+            </div>
+        );
+    }
 
     const [isOpen, setIsOpen] = useState(false);
 
