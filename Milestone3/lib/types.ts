@@ -833,7 +833,7 @@ export interface LeaveRequest {
 
 export interface AccrualPolicyDto {
   leaveTypeCode: string;
-  accrualRate: 'MONTHLY' | 'YEARLY' | 'DAILY';
+  accrualRate: 'monthly' | 'yearly' | 'per-term';
   carryOverCap: number;
   resetDateType: 'CALENDAR_YEAR' | 'JOINING_DATE' | 'FISCAL_YEAR';
   pauseDuringUnpaid: boolean;
